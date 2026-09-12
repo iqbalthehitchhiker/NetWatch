@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch — Network Monitoring Trainer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080C14;
+  --panel: #0D1320;
+  --panel2: #111827;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #E2E8F0;
+  --muted: #64748B;
+  --muted2: #94A3B8;
+  --cyan: #06B6D4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --cyan-glow: rgba(6,182,212,0.3);
+  --green: #22C55E;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #F59E0B;
+  --amber-dim: rgba(245,158,11,0.12);
+  --orange: #F97316;
+  --orange-dim: rgba(249,115,22,0.12);
+  --red: #EF4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --gray: #475569;
+  --gray-dim: rgba(71,85,105,0.2);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.font-mono { font-family: var(--font-mono); }
+.hidden { display: none !important; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── LESSON SELECT SCREEN ─── */
+#lesson-select-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  overflow-y: auto; z-index: 1000;
+  padding: 56px 24px 60px;
+}
+.ls-wrap { max-width: 980px; margin: 0 auto; }
+.ls-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; justify-content: center; }
+.ls-logo-icon {
+  width: 40px; height: 40px; background: var(--cyan-dim);
+  border: 1px solid var(--cyan-glow); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-in-out infinite; }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 var(--cyan-glow);} 70% { box-shadow: 0 0 0 9px transparent;} 100% { box-shadow: 0 0 0 0 transparent;} }
+.ls-logo-text { font-family: var(--font-mono); font-size: 22px; font-weight: 700; text-align:center; }
+.ls-tagline { text-align: center; color: var(--muted2); font-size: 13px; margin-bottom: 6px; }
+.ls-positioning { text-align: center; color: var(--muted); font-size: 11.5px; margin-bottom: 40px; max-width: 620px; margin-left:auto; margin-right:auto; line-height: 1.6; }
+.ls-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 28px 0 12px; display:flex; align-items:center; gap:10px; }
+.ls-section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+.lesson-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.lesson-card {
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 18px 20px; cursor: pointer; transition: all 0.18s; position: relative; overflow: hidden;
+  display:flex; flex-direction:column; gap: 10px;
+}
+.lesson-card:hover { border-color: var(--cyan); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+.lesson-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: var(--lc-accent, var(--cyan)); }
+.lc-top { display:flex; align-items:center; justify-content:space-between; }
+.lc-icon { font-size: 20px; }
+.lc-diff { font-size: 9px; font-family: var(--font-mono); padding: 3px 8px; border-radius: 10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+.diff-beginner { background: var(--green-dim); color: var(--green); }
+.diff-intermediate { background: var(--amber-dim); color: var(--amber); }
+.diff-advanced { background: var(--red-dim); color: #F87171; }
+.lc-title { font-size: 15px; font-weight: 700; font-family: var(--font-mono); }
+.lc-desc { font-size: 12px; color: var(--muted2); line-height: 1.5; flex:1; }
+.lc-meta { display:flex; gap:8px; flex-wrap:wrap; }
+.lc-tag { font-size: 10px; color: var(--muted); font-family: var(--font-mono); border:1px solid var(--border2); padding:2px 7px; border-radius: 4px; }
+.lc-start { margin-top: 4px; text-align:center; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); color: var(--cyan); border-radius: 6px; padding: 8px; font-size: 12px; font-weight:600; }
+.sandbox-card { border-style: dashed; }
+.sandbox-card::before { background: var(--muted); }
+
+/* ─── MAIN LAYOUT ─── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.active { display: flex; }
+
+/* ─── TOP BAR ─── */
+.topbar {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 14px;
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+}
+.topbar-logo { display: flex; align-items: center; gap: 8px; }
+.topbar-logo-icon { width: 26px; height: 26px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.topbar-name { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
+.topbar-divider { width:1px; height:22px; background: var(--border2); }
+.topbar-lesson { display:flex; flex-direction:column; line-height:1.25; }
+.topbar-lesson-name { font-size: 12px; font-weight:600; color: var(--text); }
+.topbar-lesson-sub { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+.topbar-spacer { flex: 1; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-time { font-family: var(--font-mono); font-size: 12px; color: var(--muted2); }
+.tb-btn {
+  background: none; border: 1px solid var(--border2); color: var(--muted2);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 11px;
+  transition: all 0.2s; font-family: var(--font-ui); font-weight:600;
+}
+.tb-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.tb-btn.primary { background: var(--cyan); color:#0A0F18; border-color:var(--cyan); }
+.tb-btn.primary:hover { opacity:0.88; color:#0A0F18; }
+.tb-btn.exit:hover { border-color: var(--red); color: var(--red); }
+.tb-btn:disabled { opacity:0.35; cursor:not-allowed; }
+.tb-btn:disabled:hover { border-color: var(--border2); color: var(--muted2); }
+
+/* ─── ALERT BANNER ─── */
+#alert-banner { background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; display: flex; align-items: center; gap: 10px; animation: alert-flash 1.5s ease-in-out infinite; font-size: 12px; }
+#alert-banner.hidden { display: none !important; }
+@keyframes alert-flash { 0%,100% { background: rgba(239,68,68,0.08);} 50% { background: rgba(239,68,68,0.16);} }
+.alert-icon { color: var(--red); font-size: 14px; }
+#alert-text { color: #FCA5A5; font-family: var(--font-mono); flex: 1; }
+.alert-dismiss { background: none; border: 1px solid rgba(239,68,68,0.4); color: var(--red); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+.alert-dismiss:hover { background: var(--red-dim); }
+
+/* ─── LESSON BRIEF BAR ─── */
+#lesson-brief { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 10px 20px; display:flex; align-items:center; gap: 16px; flex-shrink:0; }
+#lesson-brief.hidden { display:none; }
+.lb-objective { font-size: 12px; color: var(--muted2); flex:1; }
+.lb-objective b { color: var(--text); }
+.lb-phase { font-size: 10px; font-family: var(--font-mono); padding:3px 9px; border-radius:12px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; }
+.phase-observing { background: var(--gray-dim); color: var(--muted2); }
+.phase-incident { background: var(--red-dim); color: #F87171; }
+.phase-diagnose { background: var(--cyan-dim); color: var(--cyan); }
+.phase-resolved { background: var(--green-dim); color: var(--green); }
+
+/* ─── NAV TABS ─── */
+.nav-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; flex-shrink: 0; overflow-x:auto; }
+.nav-tab { padding: 10px 16px; font-size: 12px; color: var(--muted2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-weight: 500; user-select: none; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-badge { font-size:9px; font-family:var(--font-mono); background: var(--red); color:#fff; border-radius:8px; padding:1px 6px; font-weight:700; }
+
+/* ─── CONTENT ─── */
+.content { flex: 1; padding: 18px 20px; overflow-y: auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── STAT BAR ─── */
+#stat-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; background: var(--panel); border-bottom: 2px solid var(--border2); flex-shrink: 0; }
+#stat-bar .sc { padding: 10px 14px; border-right: 1px solid var(--border); position: relative; overflow: hidden; }
+#stat-bar .sc:last-child { border-right: none; }
+#stat-bar .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+#stat-bar .sc.c-devices::before { background: var(--green); }
+#stat-bar .sc.c-alerts::before { background: var(--red); }
+#stat-bar .sc.c-throughput::before { background: var(--cyan); }
+#stat-bar .sc.c-cpu::before { background: var(--amber); }
+#stat-bar .sc.c-latency::before { background: var(--cyan); }
+#stat-bar .sc.c-loss::before { background: var(--red); }
+#stat-bar .sc-label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+#stat-bar .sc-value { font-family: var(--font-mono); font-size: 18px; font-weight: 700; line-height: 1.1; margin-bottom: 3px; white-space: nowrap; }
+#stat-bar .sc-sub { font-size: 10px; color: var(--muted); }
+
+/* ─── CARDS / CHARTS ─── */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; position: relative; overflow: hidden; }
+.stat-card-accent { position: absolute; top: 0; left: 0; width: 3px; height: 100%; }
+.stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+.stat-value { font-family: var(--font-mono); font-size: 20px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+.stat-sub { font-size: 11px; color: var(--muted); }
+
+.charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.chart-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.chart-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.chart-panel-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.chart-val { font-family: var(--font-mono); font-size: 15px; font-weight: 700; }
+.chart-canvas-wrap { height: 110px; position: relative; }
+
+.section-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 10px; text-transform:uppercase; letter-spacing:0.05em; }
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+
+/* device telemetry table */
+.dev-table { width:100%; border-collapse:collapse; }
+.dev-table th { text-align:left; padding:6px 10px; font-size:9px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; border-bottom:1px solid var(--border); }
+.dev-table td { padding:7px 10px; font-size:11.5px; border-bottom:1px solid rgba(255,255,255,0.03); }
+.dev-table tr { cursor:pointer; transition: background 0.15s; }
+.dev-table tr:hover { background: rgba(255,255,255,0.02); }
+.dev-table tr.sel { background: var(--cyan-dim); }
+.status-pill { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-family:var(--font-mono); padding:2px 8px; border-radius:10px; font-weight:700; }
+.pill-ok { background: var(--green-dim); color: var(--green); }
+.pill-warn { background: var(--amber-dim); color: var(--amber); }
+.pill-crit { background: var(--red-dim); color: #F87171; }
+.metric-cell-warn { color: var(--amber); }
+.metric-cell-crit { color: #F87171; font-weight:700; }
+
+/* AI rack cards */
+.ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.ai-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.ai-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ai-card-name { font-size: 11px; color: var(--muted2); font-family: var(--font-mono); }
+.ai-card-usage { font-family: var(--font-mono); font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+.ai-bar-track { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.ai-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+/* ─── TOPOLOGY ─── */
+.topo-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.topo-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+#topo-svg { width:100%; height:340px; display:block; }
+.topo-node { cursor: pointer; }
+.topo-node-box { stroke-width: 2; transition: all 0.3s; }
+.topo-node-box.st-ok { stroke: var(--green); fill: rgba(34,197,94,0.10); }
+.topo-node-box.st-warn { stroke: var(--amber); fill: rgba(245,158,11,0.12); }
+.topo-node-box.st-crit { stroke: var(--red); fill: rgba(239,68,68,0.14); }
+.topo-node-box.selected { stroke-width: 3; filter: drop-shadow(0 0 6px var(--cyan-glow)); }
+.topo-node-icon { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
+.topo-node-label { font-family: var(--font-mono); font-size: 10px; fill: var(--muted2); text-anchor: middle; }
+.topo-link { stroke: var(--border2); stroke-width: 2; }
+.topo-link.st-warn { stroke: var(--amber); stroke-width: 2.5; }
+.topo-link.st-crit { stroke: var(--red); stroke-width: 3; stroke-dasharray: 5 3; }
+
+/* topology detail panel */
+#topo-detail { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; padding: 16px 20px; display:none; }
+#topo-detail.visible { display:block; }
+.td-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.td-name { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
+.td-meta { font-size: 11px; color: var(--muted2); margin-top: 2px; font-family: var(--font-mono); }
+.td-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+.td-metric { background: var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+.td-metric-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; }
+.td-metric-val { font-family:var(--font-mono); font-size:16px; font-weight:700; }
+
+/* ─── ALERTS ─── */
+.alert-row { display:flex; align-items:flex-start; gap:12px; background: var(--panel); border:1px solid var(--border); border-left:3px solid var(--muted); border-radius:8px; padding:12px 14px; margin-bottom:8px; }
+.alert-row.sev-critical { border-left-color: var(--red); }
+.alert-row.sev-warning { border-left-color: var(--amber); }
+.alert-row.sev-info { border-left-color: var(--cyan); }
+.alert-row.resolved { opacity: 0.5; }
+.ar-icon { font-size:16px; margin-top:1px; }
+.ar-body { flex:1; }
+.ar-top { display:flex; align-items:center; gap:8px; margin-bottom:3px; flex-wrap:wrap; }
+.ar-msg { font-size:12.5px; font-weight:600; }
+.ar-device { font-family: var(--font-mono); font-size:10px; color: var(--muted2); border:1px solid var(--border2); padding:1px 7px; border-radius:4px; }
+.ar-sev { font-family: var(--font-mono); font-size:9px; padding:2px 7px; border-radius:4px; text-transform:uppercase; font-weight:700; }
+.sev-critical .ar-sev { background: var(--red-dim); color:#F87171; }
+.sev-warning .ar-sev { background: var(--amber-dim); color: var(--amber); }
+.sev-info .ar-sev { background: var(--cyan-dim); color: var(--cyan); }
+.ar-detail { font-size:11.5px; color:var(--muted2); }
+.ar-ts { font-family:var(--font-mono); font-size:10px; color:var(--muted); white-space:nowrap; }
+.empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:12px; }
+
+/* ─── PACKETS ─── */
+.pkt-table { width:100%; border-collapse:collapse; }
+.pkt-table th { text-align:left; padding:6px 8px; font-size:9px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--panel); }
+.pkt-table td { padding:6px 8px; font-size:11px; font-family: var(--font-mono); border-bottom:1px solid rgba(255,255,255,0.03); }
+.pkt-table tr { cursor:pointer; }
+.pkt-table tr:hover { background: rgba(255,255,255,0.02); }
+.pkt-table tr.evidence { background: rgba(239,68,68,0.06); }
+.pkt-table tr.sel { background: var(--cyan-dim); }
+.proto-chip { font-size:9px; padding:1px 7px; border-radius:4px; font-weight:700; }
+.pkt-scroll { max-height: 360px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; }
+#pkt-detail { background: var(--panel); border:1px solid var(--border2); border-radius:10px; padding:14px 16px; margin-top:12px; font-family: var(--font-mono); font-size:11.5px; line-height:1.9; display:none; }
+#pkt-detail.visible { display:block; }
+.pkt-flag { display:inline-flex; align-items:center; gap:5px; font-size:10px; padding:3px 9px; border-radius:12px; background: var(--red-dim); color:#F87171; font-weight:700; margin-bottom:8px; }
+
+/* ─── DIAGNOSIS ─── */
+.diag-panel { background: var(--panel); border:1px solid var(--border2); border-radius:12px; padding:24px 28px; max-width: 760px; }
+.diag-locked { text-align:center; padding:50px 20px; color:var(--muted); }
+.diag-scenario { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+.diag-question { font-size:16px; font-weight:600; margin-bottom:18px; line-height:1.5; }
+.diag-options { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.diag-opt { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--border2); border-radius:8px; cursor:pointer; transition: all 0.15s; font-size:13px; }
+.diag-opt:hover { border-color: var(--cyan); background: var(--cyan-dim); }
+.diag-opt.chosen { border-color: var(--cyan); background: var(--cyan-dim); }
+.diag-opt.correct { border-color: var(--green); background: var(--green-dim); }
+.diag-opt.incorrect { border-color: var(--red); background: var(--red-dim); }
+.diag-opt.disabled { pointer-events:none; opacity:0.7; }
+.diag-opt-letter { font-family: var(--font-mono); font-weight:700; width:22px; height:22px; border-radius:50%; border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+.diag-actions { display:flex; gap:10px; align-items:center; }
+.diag-btn { background: var(--cyan); color:#0A0F18; border:none; border-radius:6px; padding:10px 20px; font-weight:600; font-size:12.5px; cursor:pointer; }
+.diag-btn:hover { opacity:0.88; }
+.diag-btn.secondary { background:none; border:1px solid var(--border2); color:var(--muted2); }
+.diag-btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+.diag-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.hint-box { background: var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:12px; color: var(--muted2); display:flex; gap:8px; }
+.result-box { margin-top:18px; padding:16px 18px; border-radius:8px; border:1px solid var(--border2); }
+.result-box.correct { border-color: var(--green); background: var(--green-dim); }
+.result-box.incorrect { border-color: var(--red); background: var(--red-dim); }
+.result-title { font-weight:700; margin-bottom:8px; font-size:13px; }
+.result-body { font-size:12.5px; line-height:1.7; color: var(--text); }
+.result-chain { margin-top:10px; font-family: var(--font-mono); font-size:11px; color: var(--muted2); background: var(--bg); border-radius:6px; padding:10px 12px; line-height:1.8; }
+
+/* ─── NOTES / LOG ─── */
+.two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; align-items:start; }
+.notes-panel { background: var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.notes-textarea { width:100%; min-height:120px; background: var(--bg); border:1px solid var(--border2); border-radius:8px; color: var(--text); font-family: var(--font-ui); font-size:12.5px; padding:10px 12px; resize:vertical; outline:none; }
+.notes-textarea:focus { border-color: var(--cyan); }
+.notes-device-select { width:100%; background: var(--bg); border:1px solid var(--border2); border-radius:6px; padding:8px 10px; color:var(--text); margin-bottom:8px; }
+.log-console { background: #050810; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; height: 320px; overflow-y: auto; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.9; }
+.log-line { white-space: pre-wrap; word-break: break-word; }
+.log-ts { color: var(--muted); margin-right:8px; }
+.log-info { color: var(--muted2); }
+.log-ok { color: var(--green); }
+.log-warn { color: var(--amber); }
+.log-crit { color: #F87171; }
+
+/* ─── SETTINGS DRAWER ─── */
+.settings-toggle { position: fixed; right: 20px; bottom: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--panel); border: 1px solid var(--border2); color: var(--text); font-size: 17px; cursor: pointer; z-index: 90; display:flex; align-items:center; justify-content:center; }
+.settings-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+.settings-drawer { position: fixed; right: 0; top: 52px; bottom: 0; width: 300px; background: var(--panel2); border-left: 1px solid var(--border2); z-index: 100; transform: translateX(100%); transition: transform 0.3s ease; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.settings-drawer.open { transform: translateX(0); }
+.drawer-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.drawer-label { font-size: 11px; color: var(--muted2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.drawer-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--border2); border-radius: 2px; outline: none; cursor: pointer; }
+.drawer-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--cyan); cursor: pointer; }
+.drawer-row { display: flex; flex-direction: column; gap: 4px; }
+.drawer-select { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 12px; outline: none; cursor: pointer; }
+.drawer-section-label { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+.noise-btn { flex: 1; padding: 5px 0; border-radius: 5px; border: 1px solid var(--border2); background: none; color: var(--muted2); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+.noise-btn:hover { border-color: var(--cyan); color: var(--text); }
+.noise-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+.speed-row { display:flex; gap:6px; }
+.drawer-note { font-size:11px; color:var(--muted2); line-height:1.6; background: var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LESSON SELECT SCREEN ═══════════════════ -->
+<div id="lesson-select-screen">
+  <div class="ls-wrap">
+    <div class="ls-logo">
+      <div class="ls-logo-icon"><div class="pulse-dot"></div></div>
+      <div class="ls-logo-text">NetWatch</div>
+    </div>
+    <div class="ls-tagline">Learn to monitor, investigate, and diagnose networks — not to build them.</div>
+    <div class="ls-positioning">Packet Tracer teaches you to build and configure a network. NetWatch teaches you to <b style="color:var(--muted2)">watch one, catch problems as they happen, and diagnose the root cause from evidence</b> — telemetry, topology state, and captured packets.</div>
+
+    <div class="ls-section-label">Select a Lesson</div>
+    <div class="lesson-grid" id="lesson-grid"></div>
+
+    <div class="ls-section-label">Free Exploration</div>
+    <div class="lesson-grid">
+      <div class="lesson-card sandbox-card" onclick="startSandbox()">
+        <div class="lc-top"><span class="lc-icon">🧪</span><span class="lc-diff" style="background:var(--gray-dim);color:var(--muted2)">No Grading</span></div>
+        <div class="lc-title">Sandbox Mode</div>
+        <div class="lc-desc">No script, no diagnosis question — just a live network you can perturb by hand with manual telemetry sliders. Good for getting a feel for the dashboard, topology, and alert system before starting a real lesson.</div>
+        <div class="lc-meta"><span class="lc-tag">Manual controls</span><span class="lc-tag">All device types</span></div>
+        <div class="lc-start">Open Sandbox →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP ═══════════════════ -->
+<div id="app">
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon"><div class="pulse-dot" style="width:6px;height:6px;"></div></div>
+      <span class="topbar-name">NetWatch</span>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-lesson">
+      <span class="topbar-lesson-name" id="tb-lesson-name">—</span>
+      <span class="topbar-lesson-sub" id="tb-lesson-sub">—</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-right">
+      <span class="topbar-time" id="sim-clock">t+00:00</span>
+      <button class="tb-btn primary" id="btn-start-sim" onclick="toggleSimRunning()">▶ Start Simulation</button>
+      <button class="tb-btn" onclick="resetCurrent()">↺ Restart</button>
+      <button class="tb-btn exit" onclick="exitToLessonSelect()">Exit</button>
+    </div>
+  </div>
+
+  <div id="alert-banner" class="hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="alert-text">—</span>
+    <button class="alert-dismiss" onclick="dismissBanner()">Dismiss</button>
+  </div>
+
+  <div id="lesson-brief">
+    <span class="lb-phase phase-observing" id="lb-phase">Observing</span>
+    <div class="lb-objective" id="lb-objective"><b>Objective:</b> —</div>
+    <button class="tb-btn" onclick="switchTab('diagnosis')" style="white-space:nowrap;">Go to Diagnosis →</button>
+  </div>
+
+  <div id="stat-bar">
+    <div class="sc c-devices"><div class="sc-label">Devices Online</div><div class="sc-value" style="color:var(--green)" id="card-devices">—</div><div class="sc-sub">of topology</div></div>
+    <div class="sc c-alerts"><div class="sc-label">Active Alerts</div><div class="sc-value" style="color:var(--red)" id="card-alerts">0</div><div class="sc-sub" id="alert-sev-label">none</div></div>
+    <div class="sc c-throughput"><div class="sc-label">Throughput</div><div class="sc-value" style="color:var(--cyan)" id="card-throughput">—</div><div class="sc-sub">aggregate traffic</div></div>
+    <div class="sc c-cpu"><div class="sc-label">Avg CPU</div><div class="sc-value" style="color:var(--amber)" id="card-cpu">—</div><div class="sc-sub">across devices</div></div>
+    <div class="sc c-latency"><div class="sc-label">Avg Latency</div><div class="sc-value" style="color:var(--cyan)" id="card-latency">—</div><div class="sc-sub">round trip</div></div>
+    <div class="sc c-loss"><div class="sc-label">Packet Loss</div><div class="sc-value" style="color:var(--green)" id="card-loss">—</div><div class="sc-sub">network-wide</div></div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</div>
+    <div class="nav-tab" data-tab="topology" onclick="switchTab('topology')">🗺 Topology</div>
+    <div class="nav-tab" data-tab="alerts" onclick="switchTab('alerts')">🔔 Alerts <span class="nav-badge hidden" id="alerts-badge">0</span></div>
+    <div class="nav-tab" data-tab="packets" onclick="switchTab('packets')">📦 Packets</div>
+    <div class="nav-tab" data-tab="diagnosis" onclick="switchTab('diagnosis')">🩺 Diagnosis</div>
+    <div class="nav-tab" data-tab="notes" onclick="switchTab('notes')">📝 Notes &amp; Log</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="tab-pane active" id="pane-dashboard">
+      <div class="section-title">Live Telemetry</div>
+      <div class="charts-row">
+        <div class="chart-panel">
+          <div class="chart-panel-header"><span class="chart-panel-title">Traffic</span><span class="chart-val font-mono" id="cv-traffic" style="color:var(--cyan)">—</span></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-traffic"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-panel-header"><span class="chart-panel-title">CPU Load</span><span class="chart-val font-mono" id="cv-cpu" style="color:var(--amber)">—</span></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-cpu"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-panel-header"><span class="chart-panel-title" id="cv3-title">Latency</span><span class="chart-val font-mono" id="cv-third" style="color:var(--green)">—</span></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-third"></canvas></div>
+        </div>
+      </div>
+
+      <div id="ai-rack-section" class="hidden">
+        <div class="section-title">AI / GPU Compute Rack</div>
+        <div class="ai-grid">
+          <div class="ai-card"><div class="ai-card-header"><span class="ai-card-name">GPU Utilization</span></div><div class="ai-card-usage" id="ai-gpu-val" style="color:var(--cyan)">—</div><div class="ai-bar-track"><div class="ai-bar-fill" id="ai-gpu-bar" style="width:0%;background:var(--cyan)"></div></div></div>
+          <div class="ai-card"><div class="ai-card-header"><span class="ai-card-name">VRAM / Memory</span></div><div class="ai-card-usage" id="ai-mem-val" style="color:var(--green)">—</div><div class="ai-bar-track"><div class="ai-bar-fill" id="ai-mem-bar" style="width:0%;background:var(--green)"></div></div></div>
+          <div class="ai-card"><div class="ai-card-header"><span class="ai-card-name">Rack Temperature</span></div><div class="ai-card-usage" id="ai-temp-val" style="color:var(--amber)">—</div><div class="ai-bar-track"><div class="ai-bar-fill" id="ai-temp-bar" style="width:0%;background:var(--amber)"></div></div></div>
+        </div>
+      </div>
+
+      <div class="section-header"><div class="section-title" style="margin-bottom:0;">Per-Device Telemetry</div></div>
+      <table class="dev-table">
+        <thead><tr><th>Device</th><th>Type</th><th>Status</th><th>CPU</th><th>Mem</th><th>Traffic</th><th>Latency</th><th>Loss</th></tr></thead>
+        <tbody id="dev-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- ── TOPOLOGY ── -->
+    <div class="tab-pane" id="pane-topology">
+      <div class="topo-wrap">
+        <div class="topo-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Healthy</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Degraded</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Critical</div>
+          <div class="legend-item" style="margin-left:auto;color:var(--muted)">Click a device to inspect it</div>
+        </div>
+        <svg id="topo-svg" viewBox="0 0 900 360"></svg>
+      </div>
+      <div id="topo-detail">
+        <div class="td-header">
+          <div><div class="td-name" id="td-name">—</div><div class="td-meta" id="td-meta">—</div></div>
+          <span class="status-pill" id="td-status">—</span>
+        </div>
+        <div class="td-metrics" id="td-metrics"></div>
+      </div>
+    </div>
+
+    <!-- ── ALERTS ── -->
+    <div class="tab-pane" id="pane-alerts">
+      <div class="section-header">
+        <div class="section-title" style="margin-bottom:0;">Alert Feed</div>
+        <span style="font-size:11px;color:var(--muted)">Fires the moment a device crosses a monitoring threshold</span>
+      </div>
+      <div id="alerts-list"></div>
+    </div>
+
+    <!-- ── PACKETS ── -->
+    <div class="tab-pane" id="pane-packets">
+      <div class="section-header">
+        <div class="section-title" style="margin-bottom:0;">Packet Evidence</div>
+        <span style="font-size:11px;color:var(--muted)">Pre-captured traffic sample for this lesson — evidence tool, not a live capture</span>
+      </div>
+      <div class="pkt-scroll">
+        <table class="pkt-table">
+          <thead><tr><th>#</th><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead>
+          <tbody id="pkt-table-body"></tbody>
+        </table>
+      </div>
+      <div id="pkt-detail"></div>
+    </div>
+
+    <!-- ── DIAGNOSIS ── -->
+    <div class="tab-pane" id="pane-diagnosis">
+      <div id="diag-container"></div>
+    </div>
+
+    <!-- ── NOTES & LOG ── -->
+    <div class="tab-pane" id="pane-notes">
+      <div class="two-col">
+        <div class="notes-panel">
+          <div class="section-title">System Event Log</div>
+          <div class="log-console" id="log-box"></div>
+        </div>
+        <div class="notes-panel">
+          <div class="section-title">Notes</div>
+          <div class="drawer-label" style="margin-bottom:6px;">Per-device note</div>
+          <select class="notes-device-select" id="notes-device-select" onchange="loadDeviceNote()"></select>
+          <textarea class="notes-textarea" id="notes-device-text" placeholder="Observations about this device..." oninput="saveDeviceNote()"></textarea>
+          <div class="drawer-label" style="margin:12px 0 6px;">General lesson notes</div>
+          <textarea class="notes-textarea" id="notes-global-text" placeholder="General notes on this lesson..." oninput="saveGlobalNote()"></textarea>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<button class="settings-toggle" onclick="toggleDrawer()" title="Simulation Controls">⚙</button>
+
+<div class="settings-drawer" id="settings-drawer">
+  <div>
+    <div class="drawer-title">Simulation Controls</div>
+    <div class="drawer-note" id="drawer-mode-note">All data is simulated. No real network connections are made.</div>
+  </div>
+
+  <div class="drawer-row">
+    <div class="drawer-label" style="margin-bottom:6px;">Playback Speed</div>
+    <div class="speed-row">
+      <button class="noise-btn active" id="speed-1" onclick="setSpeed(1,this)">1×</button>
+      <button class="noise-btn" id="speed-2" onclick="setSpeed(2,this)">2×</button>
+      <button class="noise-btn" id="speed-4" onclick="setSpeed(4,this)">4×</button>
+    </div>
+  </div>
+
+  <div id="sandbox-controls" class="hidden" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="height:1px;background:var(--border);"></div>
+    <div class="drawer-row">
+      <div class="drawer-label" style="margin-bottom:6px;">Scenario Preset</div>
+      <select class="drawer-select" id="sim-scenario" onchange="applySandboxScenario(this.value)">
+        <option value="normal">🟢 Normal Operations</option>
+        <option value="ddos">🔴 Traffic Flood</option>
+        <option value="cpu_runaway">🟠 CPU Runaway</option>
+        <option value="mem_pressure">🟡 Memory Pressure</option>
+        <option value="thermal">🔴 Thermal Event</option>
+        <option value="gpu_burst">🟡 GPU Burst Load</option>
+      </select>
+    </div>
+    <div class="drawer-section-label">Manual Overrides</div>
+    <div class="drawer-row">
+      <div class="drawer-label">Traffic (Mbps) <span id="d-traffic-val" class="font-mono" style="color:var(--cyan)">30</span></div>
+      <input class="drawer-slider" type="range" id="sim-traffic" min="10" max="100" value="30" step="1" oninput="sandboxSlider('traffic',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label">CPU Load (%) <span id="d-cpu-val" class="font-mono" style="color:var(--amber)">25</span></div>
+      <input class="drawer-slider" type="range" id="sim-cpu" min="5" max="100" value="25" step="1" oninput="sandboxSlider('cpu',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label">Memory (%) <span id="d-mem-val" class="font-mono" style="color:var(--green)">40</span></div>
+      <input class="drawer-slider" type="range" id="sim-mem" min="10" max="100" value="40" step="1" oninput="sandboxSlider('mem',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label">Packet Loss (%) <span id="d-loss-val" class="font-mono" style="color:var(--red)">0.0</span></div>
+      <input class="drawer-slider" type="range" id="sim-loss" min="0" max="10" value="0" step="0.1" oninput="sandboxSlider('loss',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label">Latency (ms) <span id="d-lat-val" class="font-mono" style="color:var(--muted2)">12</span></div>
+      <input class="drawer-slider" type="range" id="sim-lat" min="1" max="300" value="12" step="1" oninput="sandboxSlider('latency',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label">Temperature (°C) <span id="d-temp-val" class="font-mono" style="color:var(--muted2)">45</span></div>
+      <input class="drawer-slider" type="range" id="sim-temp" min="30" max="100" value="45" step="1" oninput="sandboxSlider('temp',this.value)">
+    </div>
+    <div class="drawer-row">
+      <div class="drawer-label" style="margin-bottom:6px;">Inject Test Alert</div>
+      <div class="speed-row">
+        <button class="noise-btn" onclick="injectAlert('critical')" style="color:#F87171;border-color:rgba(239,68,68,0.4)">Critical</button>
+        <button class="noise-btn" onclick="injectAlert('warning')" style="color:#FCD34D;border-color:rgba(245,158,11,0.4)">Warning</button>
+        <button class="noise-btn" onclick="injectAlert('info')" style="color:#67E8F9;border-color:rgba(6,182,212,0.3)">Info</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="lesson-controls">
+    <div style="height:1px;background:var(--border);"></div>
+    <div class="drawer-section-label">This lesson uses a scripted incident</div>
+    <div class="drawer-note">Manual sliders are disabled during lessons so the incident stays consistent with the diagnosis question and its explanation. Use Sandbox Mode to experiment freely.</div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   NETWATCH SIMULATION ENGINE
+   Single-file educational network monitoring trainer.
+   All data below is synthetic / scripted — no real network access.
+   ═══════════════════════════════════════════════════════════════ */
+
+const THRESH = {
+  cpu:     { warn: 80,  crit: 95 },
+  mem:     { warn: 85,  crit: 95 },
+  loss:    { warn: 2,   crit: 6  },
+  latency: { warn: 120, crit: 250 },
+  jitter:  { warn: 20,  crit: 40 },
+  temp:    { warn: 75,  crit: 88 },
+  gpu:     { warn: 90,  crit: 98 },
+  diskio:  { warn: 80,  crit: 95 },
+};
+const METRIC_UNITS = { cpu:'%', mem:'%', traffic:'Mbps', latency:'ms', loss:'%', jitter:'ms', temp:'°C', gpu:'%', diskio:'%' };
+const DEVICE_ICONS = { router:'🌐', switch:'🔀', server:'🖥', gateway:'🛡', client:'💻', db:'🗄', 'ai-gpu':'🎮' };
+const DEVICE_TYPE_LABEL = { router:'Router', switch:'Switch', server:'Server', gateway:'Gateway', client:'Client', db:'Database', 'ai-gpu':'AI/GPU Rack' };
+
+/* ── LESSON DEFINITIONS ─────────────────────────────────────── */
+const LESSONS = [
+  {
+    id: 'router-overload',
+    title: 'The Overloaded Router',
+    icon: '🌐',
+    accent: '#F97316',
+    difficulty: 'beginner',
+    tags: ['Router', 'CPU', 'Latency'],
+    desc: 'A branch office network slows to a crawl during business hours. Watch the telemetry cascade and figure out where the bottleneck actually is.',
+    objective: 'Identify which device is overloaded and explain how that overload is affecting the rest of the network.',
+    topology: {
+      nodes: [
+        { id:'cl-a', name:'Client-A', type:'client', x:8,  y:20 },
+        { id:'cl-b', name:'Client-B', type:'client', x:8,  y:70 },
+        { id:'sw1',  name:'SW1',      type:'switch', x:28, y:45 },
+        { id:'r1',   name:'R1',       type:'router', x:52, y:45 },
+        { id:'web1', name:'WEB1',     type:'server', x:76, y:20 },
+        { id:'wan',  name:'WAN',      type:'gateway', x:76, y:70 },
+      ],
+      links: [['cl-a','sw1'],['cl-b','sw1'],['sw1','r1'],['r1','web1'],['r1','wan']],
+    },
+    baseline: {
+      'cl-a': { cpu:12, mem:30, traffic:8,  latency:8,  loss:0.1, jitter:1 },
+      'cl-b': { cpu:10, mem:28, traffic:7,  latency:8,  loss:0.1, jitter:1 },
+      'sw1':  { cpu:15, mem:25, traffic:40, latency:2,  loss:0.05, jitter:0.5 },
+      'r1':   { cpu:22, mem:35, traffic:55, latency:6,  loss:0.2, jitter:1 },
+      'web1': { cpu:18, mem:40, traffic:35, latency:5,  loss:0.1, jitter:1 },
+      'wan':  { cpu:20, mem:30, traffic:60, latency:14, loss:0.3, jitter:2 },
+    },
+    incidentStart: 8,
+    effects: [
+      { device:'r1',  metric:'cpu',     start:8,  ramp:8,  target:97 },
+      { device:'r1',  metric:'mem',     start:10, ramp:10, target:88 },
+      { device:'r1',  metric:'latency', start:14, ramp:10, target:210 },
+      { device:'r1',  metric:'loss',    start:20, ramp:10, target:6.5 },
+      { device:'cl-a','metric':'latency', start:18, ramp:10, target:180 },
+      { device:'cl-b','metric':'latency', start:18, ramp:10, target:175 },
+      { device:'web1','metric':'latency', start:20, ramp:10, target:140 },
+    ],
+    thirdMetric: 'latency',
+    packets: [
+      {t:'00.120', src:'10.0.1.11', dst:'10.0.2.5',  proto:'TCP', len:66,  info:'SYN → :443'},
+      {t:'00.121', src:'10.0.2.5',  dst:'10.0.1.11', proto:'TCP', len:66,  info:'SYN-ACK'},
+      {t:'00.145', src:'10.0.1.12', dst:'10.0.2.5',  proto:'HTTP', len:512, info:'GET /dashboard'},
+      {t:'08.902', src:'10.0.1.1',  dst:'10.0.1.11', proto:'ICMP', len:98,  info:'Echo request', evidence:true},
+      {t:'09.310', src:'10.0.1.1',  dst:'10.0.1.11', proto:'ICMP', len:98,  info:'Echo reply — RTT 184ms (was 8ms)', evidence:true},
+      {t:'14.220', src:'10.0.1.11', dst:'10.0.2.5',  proto:'TCP', len:1420, info:'[TCP Retransmission] Seq=4021', evidence:true},
+      {t:'14.881', src:'10.0.1.12', dst:'10.0.2.5',  proto:'TCP', len:1420, info:'[TCP Retransmission] Seq=8842', evidence:true},
+      {t:'21.004', src:'10.0.1.1',  dst:'10.0.1.11', proto:'ICMP', len:98,  info:'Request timeout', evidence:true},
+      {t:'21.900', src:'10.0.1.11', dst:'10.0.2.5',  proto:'TCP', len:1420, info:'[TCP Retransmission] Seq=9310', evidence:true},
+      {t:'27.400', src:'10.0.2.5',  dst:'10.0.1.12', proto:'HTTP', len:800, info:'200 OK (delayed 640ms)', evidence:true},
+    ],
+    diagnosis: {
+      question: 'Both clients and WEB1 are showing elevated latency, but none of them are individually resource-constrained. Which device is the actual root cause, and why?',
+      options: [
+        'WEB1 — its application response time is slow',
+        'R1 — its CPU is saturated, so it can no longer forward packets quickly, adding delay everywhere behind it',
+        'SW1 — a switching loop is duplicating frames',
+        'WAN — the upstream internet provider is throttling the link',
+      ],
+      correct: 1,
+      hints: [
+        'Look at the Topology tab: which single node sits between every other device and turns amber/red first?',
+        'Check R1\'s CPU and Memory on the Dashboard device table — what happens to them right around t+00:08?',
+        'A device that is busy processing (high CPU) queues packets longer before forwarding them — that queueing shows up as latency on every path through it.',
+      ],
+      explanation: 'R1 is the single choke point between both clients, WEB1, and the WAN link. Once its CPU crosses ~95%, it can no longer service its forwarding queue in real time, so every packet that passes through it — regardless of source or destination — picks up extra delay. That is why latency rose almost simultaneously on Client-A, Client-B, and WEB1, even though none of those devices had a resource problem of their own. The retransmissions you saw in the Packet Evidence tab are TCP reacting to that added delay, not a sign that WEB1 itself is unhealthy.',
+    },
+  },
+  {
+    id: 'traffic-flood',
+    title: 'Traffic Flood at the Gateway',
+    icon: '🛡',
+    accent: '#EF4444',
+    difficulty: 'intermediate',
+    tags: ['Gateway', 'Traffic', 'Packet Loss'],
+    desc: 'Inbound traffic at the edge gateway spikes far beyond baseline and legitimate requests start getting dropped. Separate the flood from the real users.',
+    objective: 'Determine whether the incident is a legitimate traffic spike or a flood, and identify which device is absorbing the impact.',
+    topology: {
+      nodes: [
+        { id:'wan',  name:'Internet', type:'gateway', x:8,  y:45 },
+        { id:'gw1',  name:'GW1',      type:'gateway', x:32, y:45 },
+        { id:'lb1',  name:'LB1',      type:'switch',  x:56, y:45 },
+        { id:'web1', name:'WEB1',     type:'server',  x:80, y:22 },
+        { id:'web2', name:'WEB2',     type:'server',  x:80, y:68 },
+      ],
+      links: [['wan','gw1'],['gw1','lb1'],['lb1','web1'],['lb1','web2']],
+    },
+    baseline: {
+      'wan':  { cpu:15, mem:20, traffic:120, latency:10, loss:0.1, jitter:1 },
+      'gw1':  { cpu:25, mem:30, traffic:110, latency:4,  loss:0.1, jitter:1 },
+      'lb1':  { cpu:20, mem:28, traffic:100, latency:2,  loss:0.05, jitter:0.5 },
+      'web1': { cpu:30, mem:45, traffic:50,  latency:6,  loss:0.1, jitter:1 },
+      'web2': { cpu:28, mem:42, traffic:48,  latency:6,  loss:0.1, jitter:1 },
+    },
+    incidentStart: 6,
+    effects: [
+      { device:'wan', metric:'traffic', start:6,  ramp:6,  target:980 },
+      { device:'gw1', metric:'traffic', start:8,  ramp:6,  target:920 },
+      { device:'gw1', metric:'cpu',     start:10, ramp:8,  target:96  },
+      { device:'gw1', metric:'loss',    start:16, ramp:8,  target:8.5 },
+      { device:'lb1', metric:'traffic', start:14, ramp:8,  target:260 },
+      { device:'lb1', metric:'loss',    start:20, ramp:8,  target:4.2 },
+      { device:'web1','metric':'traffic', start:16, ramp:6, target:90 },
+      { device:'web2','metric':'traffic', start:16, ramp:6, target:88 },
+    ],
+    thirdMetric: 'loss',
+    packets: [
+      {t:'00.010', src:'203.0.113.4', dst:'GW1', proto:'HTTP', len:600, info:'GET /login'},
+      {t:'00.040', src:'198.51.100.9', dst:'GW1', proto:'HTTP', len:540, info:'GET /products'},
+      {t:'06.210', src:'45.33.12.5',  dst:'GW1', proto:'TCP', len:64, info:'SYN :80', evidence:true},
+      {t:'06.211', src:'45.33.12.6',  dst:'GW1', proto:'TCP', len:64, info:'SYN :80', evidence:true},
+      {t:'06.211', src:'45.33.12.7',  dst:'GW1', proto:'TCP', len:64, info:'SYN :80', evidence:true},
+      {t:'06.212', src:'45.33.12.8',  dst:'GW1', proto:'TCP', len:64, info:'SYN :80 (no ACK sent — half-open)', evidence:true},
+      {t:'06.212', src:'45.33.12.9',  dst:'GW1', proto:'TCP', len:64, info:'SYN :80 (no ACK sent — half-open)', evidence:true},
+      {t:'12.500', src:'203.0.113.4', dst:'GW1', proto:'TCP', len:1200, info:'[TCP Dup ACK] queue full', evidence:true},
+      {t:'18.802', src:'198.51.100.9', dst:'GW1', proto:'HTTP', len:0, info:'Connection reset — request dropped', evidence:true},
+      {t:'19.010', src:'45.33.12.201','dst':'GW1', proto:'TCP', len:64, info:'SYN :80 (bot range 45.33.12.0/24)', evidence:true},
+    ],
+    diagnosis: {
+      question: 'Traffic at GW1 rose 8× above baseline right before it started dropping packets. What is the best explanation for what is happening?',
+      options: [
+        'A legitimate marketing campaign is driving a real traffic surge',
+        'WEB1 and WEB2 have a software bug causing them to retry requests endlessly',
+        'GW1 is being flooded with SYN requests from a narrow range of source addresses, consistent with a DDoS/SYN-flood, and its capacity is being exhausted',
+        'LB1 is misconfigured and duplicating every request to both web servers',
+      ],
+      correct: 2,
+      hints: [
+        'Open the Packet Evidence tab — look closely at where the flagged (highlighted) packets are coming from.',
+        'A huge number of near-identical SYN packets from a tight address range, many without completed handshakes, is a classic signature.',
+        'Compare traffic at WAN/GW1 vs. traffic reaching WEB1/WEB2 — the servers barely notice the spike. Where is the flood actually being absorbed?',
+      ],
+      explanation: 'The packet evidence shows a burst of near-simultaneous SYN packets from the 45.33.12.0/24 range, many of which never complete the handshake — a textbook SYN-flood pattern, not organic user traffic. GW1 sits at the edge and takes the full brunt of it: its traffic and CPU spike first, and once its connection table and forwarding capacity are exhausted, it starts dropping packets (rising loss%). LB1 and the web servers only see a fraction of that traffic because GW1 is the bottleneck absorbing the flood — which is exactly why the fix belongs at the gateway/firewall layer, not at the application servers.',
+    },
+  },
+  {
+    id: 'db-memory-leak',
+    title: 'The Slow Leak on DB1',
+    icon: '🗄',
+    accent: '#F59E0B',
+    difficulty: 'intermediate',
+    tags: ['Database', 'Memory', 'Isolation'],
+    desc: 'Everything looks fine at the network level — until one server\'s memory climbs steadily for no obvious reason and queries start crawling.',
+    objective: 'Isolate the problem to a single host rather than assuming a network-wide issue, and identify the resource that is degrading.',
+    topology: {
+      nodes: [
+        { id:'cl-a', name:'Client-A', type:'client', x:8,  y:45 },
+        { id:'sw1',  name:'SW1',      type:'switch', x:30, y:45 },
+        { id:'web1', name:'WEB1',     type:'server', x:55, y:22 },
+        { id:'db1',  name:'DB1',      type:'db',     x:82, y:22 },
+        { id:'db2',  name:'DB2 (replica)', type:'db', x:82, y:70 },
+      ],
+      links: [['cl-a','sw1'],['sw1','web1'],['web1','db1'],['db1','db2']],
+    },
+    baseline: {
+      'cl-a': { cpu:10, mem:28, traffic:10, latency:6, loss:0.05, jitter:1 },
+      'sw1':  { cpu:12, mem:22, traffic:45, latency:2, loss:0.02, jitter:0.4 },
+      'web1': { cpu:20, mem:38, traffic:38, latency:5, loss:0.05, jitter:1 },
+      'db1':  { cpu:25, mem:48, traffic:30, latency:4, loss:0.05, jitter:1 },
+      'db2':  { cpu:18, mem:35, traffic:20, latency:4, loss:0.05, jitter:1 },
+    },
+    incidentStart: 6,
+    effects: [
+      { device:'db1', metric:'mem',     start:6,  ramp:26, target:97  },
+      { device:'db1', metric:'cpu',     start:14, ramp:14, target:78  },
+      { device:'db1', metric:'latency', start:16, ramp:14, target:260 },
+      { device:'web1','metric':'latency', start:20, ramp:12, target:150 },
+    ],
+    thirdMetric: 'mem',
+    packets: [
+      {t:'00.050', src:'WEB1', dst:'DB1', proto:'TCP', len:220, info:'Query SELECT (12ms)'},
+      {t:'00.400', src:'WEB1', dst:'DB1', proto:'TCP', len:220, info:'Query SELECT (10ms)'},
+      {t:'16.220', src:'WEB1', dst:'DB1', proto:'TCP', len:220, info:'Query SELECT (188ms)', evidence:true},
+      {t:'18.010', src:'WEB1', dst:'DB1', proto:'TCP', len:220, info:'Query SELECT (240ms)', evidence:true},
+      {t:'20.300', src:'DB1',  dst:'DB2', proto:'TCP', len:900, info:'Replication lag warning: 4.2s', evidence:true},
+      {t:'22.700', src:'WEB1', dst:'DB1', proto:'TCP', len:220, info:'Query timeout after 5000ms', evidence:true},
+      {t:'23.900', src:'DB1',  dst:'localhost', proto:'SYS', len:0, info:'swap usage rising: 1.4 GB', evidence:true},
+      {t:'25.100', src:'CL-A', dst:'WEB1', proto:'HTTP', len:0, info:'504 Gateway Timeout', evidence:true},
+    ],
+    diagnosis: {
+      question: 'SW1, Client-A, and DB2 all stay healthy throughout the incident. Only DB1 degrades, starting with memory. What is the most likely root cause?',
+      options: [
+        'The network link between WEB1 and DB1 is congested',
+        'A process on DB1 is steadily consuming memory (a memory leak), which eventually starves CPU and drives query latency up as it starts swapping',
+        'DB2 is failing over incorrectly and overloading DB1',
+        'SW1 is dropping packets destined for DB1',
+      ],
+      correct: 1,
+      hints: [
+        'Check the Dashboard device table — which single device\'s Memory value is climbing continuously, long before anything else changes?',
+        'CPU and latency on DB1 only start rising well after memory is already high — what does that ordering suggest about cause and effect?',
+        'The packet evidence mentions "swap usage rising" — what happens to a system\'s performance once it starts swapping memory to disk?',
+      ],
+      explanation: 'The timeline is the key evidence: DB1\'s memory climbs steadily from the very start of the incident, well before CPU or latency move at all. That ordering — memory first, everything else later — points to a memory leak on DB1 itself rather than a network problem, since SW1 and Client-A never show any degradation. Once DB1\'s memory is exhausted it starts swapping to disk, which is why CPU and query latency only spike afterward: the system is now spending time moving memory pages instead of answering queries. WEB1\'s latency rises last of all, purely as a downstream consequence of waiting on slow DB1 queries — WEB1 itself is not the problem.',
+    },
+  },
+  {
+    id: 'ai-thermal',
+    title: 'Thermal Throttling in the AI Rack',
+    icon: '🎮',
+    accent: '#EF4444',
+    difficulty: 'advanced',
+    tags: ['AI/GPU', 'Temperature', 'Throughput'],
+    desc: 'A GPU training cluster keeps its load high but its useful throughput quietly drops. Something in the compute rack is fighting the workload itself.',
+    objective: 'Recognize thermal throttling from telemetry alone and distinguish it from a workload or network problem.',
+    topology: {
+      nodes: [
+        { id:'sw1', name:'SW1',     type:'switch', x:15, y:45 },
+        { id:'ai1', name:'AI-RACK-1', type:'ai-gpu', x:55, y:45 },
+        { id:'nfs', name:'Storage', type:'server', x:88, y:45 },
+      ],
+      links: [['sw1','ai1'],['ai1','nfs']],
+    },
+    baseline: {
+      'sw1': { cpu:12, mem:20, traffic:200, latency:2, loss:0.02, jitter:0.5 },
+      'ai1': { cpu:70, mem:55, traffic:180, latency:3, loss:0.05, jitter:1, gpu:82, temp:62, diskio:40 },
+      'nfs': { cpu:22, mem:30, traffic:150, latency:3, loss:0.05, jitter:1, diskio:35 },
+    },
+    incidentStart: 6,
+    effects: [
+      { device:'ai1', metric:'temp',    start:6,  ramp:20, target:94  },
+      { device:'ai1', metric:'gpu',     start:16, ramp:10, target:99  },
+      { device:'ai1', metric:'traffic', start:20, ramp:10, target:60  },
+      { device:'ai1', metric:'diskio',  start:22, ramp:8,  target:15  },
+    ],
+    thirdMetric: 'temp',
+    hasAiRack: true,
+    packets: [
+      {t:'00.100', src:'AI1', dst:'Storage', proto:'NFS', len:65000, info:'READ checkpoint shard 04'},
+      {t:'06.900', src:'AI1', dst:'SW1', proto:'SNMP', len:120, info:'temp sensor 62°C'},
+      {t:'16.200', src:'AI1', dst:'SW1', proto:'SNMP', len:120, info:'temp sensor 88°C — throttle threshold', evidence:true},
+      {t:'18.400', src:'AI1', dst:'SW1', proto:'SNMP', len:120, info:'GPU clock reduced: 1.8GHz → 0.9GHz', evidence:true},
+      {t:'21.000', src:'AI1', dst:'Storage', proto:'NFS', len:12000, info:'READ checkpoint shard — throughput 3x slower', evidence:true},
+      {t:'24.500', src:'AI1', dst:'SW1', proto:'SNMP', len:120, info:'temp sensor 94°C — sustained', evidence:true},
+    ],
+    diagnosis: {
+      question: 'GPU utilization stays pegged near 100%, yet actual data throughput to storage keeps falling. Temperature climbs the whole time. What is happening?',
+      options: [
+        'The network link to storage is congested',
+        'The GPU is thermally throttling — it is clocking itself down to protect the hardware, so it does less useful work per second despite staying "busy"',
+        'The workload itself has stalled and the GPU is idling',
+        'Storage is the bottleneck and is rate-limiting the AI rack',
+      ],
+      correct: 1,
+      hints: [
+        'Notice that GPU utilization (%) and useful throughput are not the same thing — one measures how busy it looks, the other how much work gets done.',
+        'What does the packet evidence say happened to the GPU clock speed, and right after which temperature reading?',
+        'A high "busy" percentage combined with falling output and rising temperature is the classic throttling signature, not a network or idle-workload issue.',
+      ],
+      explanation: 'The rack\'s temperature climbs steadily from the start, and once it crosses roughly 88°C the GPU firmware protects itself by cutting clock speed — visible directly in the packet evidence ("GPU clock reduced: 1.8GHz → 0.9GHz"). GPU utilization stays near 100% because the chip is still constantly busy, but each cycle now does less work, so actual throughput to storage falls even though nothing about the network or the storage server changed. This is why "utilization" alone is a misleading health signal — pairing it with temperature is what reveals the real story: thermal throttling, not a network or storage bottleneck.',
+    },
+  },
+];
+
+/* ── GLOBAL STATE ───────────────────────────────────────────── */
+const state = {
+  mode: null,            // 'lesson' | 'sandbox'
+  lesson: null,
+  running: false,
+  simTime: 0,
+  speed: 1,
+  timer: null,
+  devices: {},            // id -> live metrics
+  deviceMeta: {},          // id -> {name,type}
+  alerts: [],
+  alertSeq: 0,
+  bannerDismissed: false,
+  logs: [],
+  selectedNodeId: null,
+  hintsShown: 0,
+  answered: false,
+  answeredCorrect: null,
+  notesGlobal: {},
+  notesDevice: {},
+  sandboxOverrides: {},
+  chartHistory: { traffic:[], cpu:[], third:[] },
+  charts: {},
+};
+
+/* ── UTIL ───────────────────────────────────────────────────── */
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function fmt(v,dp=0){ return Number(v).toFixed(dp); }
+function statusOf(metric,val){
+  const th = THRESH[metric]; if(!th) return 'ok';
+  if(val>=th.crit) return 'crit';
+  if(val>=th.warn) return 'warn';
+  return 'ok';
+}
+function worstStatus(a,b){ const rank={ok:0,warn:1,crit:2}; return rank[a]>=rank[b]?a:b; }
+function deviceStatus(id){
+  const m = state.devices[id]; if(!m) return 'ok';
+  let s='ok';
+  for(const k in m){ if(THRESH[k]) s = worstStatus(s, statusOf(k, m[k])); }
+  return s;
+}
+function fmtClock(t){
+  t = Math.floor(t);
+  const m = Math.floor(t/60).toString().padStart(2,'0');
+  const s = (t%60).toString().padStart(2,'0');
+  return `t+${m}:${s}`;
+}
+function addLog(msg, type){
+  type = type || 'info';
+  state.logs.push({ ts: fmtClock(state.simTime), msg, type });
+  if(state.logs.length>300) state.logs.shift();
+  renderLog();
+}
+
+/* ── LESSON SELECT ─────────────────────────────────────────── */
+function renderLessonGrid(){
+  const grid = document.getElementById('lesson-grid');
+  grid.innerHTML = LESSONS.map(l => `
+    <div class="lesson-card" style="--lc-accent:${l.accent}" onclick="startLesson('${l.id}')">
+      <div class="lc-top"><span class="lc-icon">${l.icon}</span><span class="lc-diff diff-${l.difficulty}">${l.difficulty}</span></div>
+      <div class="lc-title">${l.title}</div>
+      <div class="lc-desc">${l.desc}</div>
+      <div class="lc-meta">${l.tags.map(t=>`<span class="lc-tag">${t}</span>`).join('')}</div>
+      <div class="lc-start">Start Lesson →</div>
+    </div>`).join('');
+}
+
+function startLesson(id){
+  const lesson = LESSONS.find(l=>l.id===id);
+  state.mode = 'lesson';
+  state.lesson = lesson;
+  enterApp();
+  document.getElementById('sandbox-controls').classList.add('hidden');
+  document.getElementById('lesson-controls').classList.remove('hidden');
+  document.getElementById('lesson-brief').classList.remove('hidden');
+  document.getElementById('tb-lesson-name').textContent = lesson.title;
+  document.getElementById('tb-lesson-sub').textContent = lesson.difficulty[0].toUpperCase()+lesson.difficulty.slice(1)+' lesson';
+  document.getElementById('lb-objective').innerHTML = `<b>Objective:</b> ${lesson.objective}`;
+  setupDevices(lesson.topology.nodes, lesson.baseline);
+  document.getElementById('cv3-title').textContent = lesson.thirdMetric[0].toUpperCase()+lesson.thirdMetric.slice(1);
+  document.getElementById('ai-rack-section').classList.toggle('hidden', !lesson.hasAiRack);
+  buildTopologySvg(lesson.topology);
+  renderPackets();
+  renderDiagnosisLocked();
+  populateNotesDeviceSelect();
+  addLog('Lesson loaded: '+lesson.title, 'info');
+  addLog('Objective: '+lesson.objective, 'info');
+  addLog('Press Start Simulation to begin observing the network.', 'info');
+  updatePhaseBadge('observing');
+  fullRender();
+}
+
+function startSandbox(){
+  state.mode = 'sandbox';
+  state.lesson = null;
+  enterApp();
+  document.getElementById('sandbox-controls').classList.remove('hidden');
+  document.getElementById('lesson-controls').classList.add('hidden');
+  document.getElementById('lesson-brief').classList.add('hidden');
+  document.getElementById('tb-lesson-name').textContent = 'Sandbox Mode';
+  document.getElementById('tb-lesson-sub').textContent = 'Manual controls — no diagnosis';
+  const nodes = [
+    { id:'cl-a', name:'Client-A', type:'client', x:8,  y:20 },
+    { id:'cl-b', name:'Client-B', type:'client', x:8,  y:70 },
+    { id:'sw1',  name:'SW1',      type:'switch', x:28, y:45 },
+    { id:'r1',   name:'R1',       type:'router', x:52, y:45 },
+    { id:'gw1',  name:'GW1',      type:'gateway', x:76, y:70 },
+    { id:'web1', name:'WEB1',     type:'server', x:76, y:20 },
+  ];
+  const baseline = {
+    'cl-a':{cpu:12,mem:30,traffic:8,latency:8,loss:0.1,jitter:1},
+    'cl-b':{cpu:10,mem:28,traffic:7,latency:8,loss:0.1,jitter:1},
+    'sw1':{cpu:15,mem:25,traffic:40,latency:2,loss:0.05,jitter:0.5},
+    'r1':{cpu:25,mem:35,traffic:30,latency:12,loss:0,jitter:1,temp:45},
+    'gw1':{cpu:20,mem:30,traffic:60,latency:14,loss:0.3,jitter:2},
+    'web1':{cpu:18,mem:40,traffic:35,latency:5,loss:0.1,jitter:1},
+  };
+  setupDevices(nodes, baseline);
+  document.getElementById('cv3-title').textContent = 'Latency';
+  document.getElementById('ai-rack-section').classList.add('hidden');
+  buildTopologySvg({nodes, links:[['cl-a','sw1'],['cl-b','sw1'],['sw1','r1'],['r1','gw1'],['r1','web1']]});
+  document.getElementById('pkt-table-body').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">Packet evidence is only available inside a lesson.</td></tr>';
+  document.getElementById('pkt-detail').classList.remove('visible');
+  document.getElementById('diag-container').innerHTML = '<div class="diag-panel diag-locked">Sandbox Mode has no diagnosis question — it\'s for free experimentation. Start a lesson from the Exit menu to get a scored scenario.</div>';
+  populateNotesDeviceSelect();
+  addLog('Sandbox mode started. Use the ⚙ drawer to drive telemetry manually.', 'info');
+  updatePhaseBadge(null);
+  fullRender();
+}
+
+function enterApp(){
+  document.getElementById('lesson-select-screen').classList.add('hidden');
+  document.getElementById('app').classList.add('active');
+  state.running = false; state.simTime = 0; state.alerts = []; state.logs = [];
+  state.chartHistory = { traffic:[], cpu:[], third:[] };
+  state.selectedNodeId = null; state.hintsShown = 0; state.answered = false; state.answeredCorrect = null;
+  state.bannerDismissed = false;
+  document.getElementById('alert-banner').classList.add('hidden');
+  document.getElementById('btn-start-sim').textContent = '▶ Start Simulation';
+  document.getElementById('topo-detail').classList.remove('visible');
+  document.getElementById('pkt-detail').classList.remove('visible');
+  if(state.timer){ clearInterval(state.timer); state.timer=null; }
+  initCharts();
+}
+
+function exitToLessonSelect(){
+  if(state.timer){ clearInterval(state.timer); state.timer=null; }
+  state.running = false;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('lesson-select-screen').classList.remove('hidden');
+}
+
+function resetCurrent(){
+  if(state.mode==='lesson') startLesson(state.lesson.id);
+  else startSandbox();
+}
+
+/* ── DEVICE SETUP ──────────────────────────────────────────── */
+function setupDevices(nodes, baseline){
+  state.devices = {}; state.deviceMeta = {};
+  nodes.forEach(n=>{
+    state.deviceMeta[n.id] = { name:n.name, type:n.type, x:n.x, y:n.y };
+    state.devices[n.id] = Object.assign({}, baseline[n.id]);
+  });
+  state._baseline = baseline;
+}
+
+/* ── SIMULATION TICK ───────────────────────────────────────── */
+function toggleSimRunning(){
+  state.running = !state.running;
+  document.getElementById('btn-start-sim').textContent = state.running ? '⏸ Pause' : '▶ Start Simulation';
+  if(state.running){
+    const wasZero = state.simTime===0;
+    if(!state.timer) state.timer = setInterval(tick, 1000);
+    if(wasZero) addLog('Simulation started.', 'ok');
+    else addLog('Simulation resumed.', 'info');
+  } else {
+    if(state.timer){ clearInterval(state.timer); state.timer = null; }
+    addLog('Simulation paused.', 'info');
+  }
+}
+
+function setSpeed(mult, btn){
+  state.speed = mult;
+  document.querySelectorAll('#speed-1,#speed-2,#speed-4').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function tick(){
+  state.simTime += state.speed;
+  computeAllDevices();
+  if(state.mode==='lesson') checkLessonPhase();
+  checkAlerts();
+  fullRender();
+}
+
+function computeAllDevices(){
+  const t = state.simTime;
+  for(const id in state.devices){
+    const base = state._baseline[id];
+    const live = {};
+    for(const metric in base){
+      let val = base[metric];
+      if(state.mode==='lesson'){
+        state.lesson.effects.filter(e=>e.device===id && e.metric===metric).forEach(e=>{
+          if(t>=e.start){
+            const progress = clamp((t-e.start)/e.ramp, 0, 1);
+            val = lerp(base[metric], e.target, progress);
+          }
+        });
+      } else {
+        const ov = state.sandboxOverrides[metric];
+        if(ov!==undefined) val = ov;
+      }
+      const noiseMag = Math.max(0.4, base[metric]*0.04);
+      val += (Math.random()-0.5)*2*noiseMag;
+      val = clamp(val, 0, metric==='traffic'?2000:100);
+      live[metric] = val;
+    }
+    state.devices[id] = live;
+  }
+}
+
+function checkLessonPhase(){
+  const lesson = state.lesson;
+  const badge = document.getElementById('lb-phase');
+  if(state.answered){ updatePhaseBadge('resolved'); return; }
+  if(state.simTime < lesson.incidentStart){ updatePhaseBadge('observing'); }
+  else { updatePhaseBadge('incident'); }
+}
+function updatePhaseBadge(phase){
+  const el = document.getElementById('lb-phase');
+  const map = { observing:['Observing','phase-observing'], incident:['Incident In Progress','phase-incident'], resolved:['Diagnosed','phase-resolved'] };
+  if(!phase){ el.textContent=''; el.className='lb-phase'; return; }
+  el.textContent = map[phase][0];
+  el.className = 'lb-phase '+map[phase][1];
+}
+
+/* ── ALERTS ────────────────────────────────────────────────── */
+function checkAlerts(){
+  for(const id in state.devices){
+    const m = state.devices[id];
+    for(const metric in m){
+      const th = THRESH[metric]; if(!th) continue;
+      const val = m[metric];
+      const sev = val>=th.crit ? 'critical' : (val>=th.warn ? 'warning' : null);
+      const key = id+':'+metric;
+      const existing = state.alerts.find(a=>a.key===key && !a.resolved);
+      if(sev){
+        if(!existing){
+          raiseAlert(id, metric, sev, val);
+        } else if(existing.severity!==sev){
+          existing.severity = sev; existing.ts = fmtClock(state.simTime);
+          existing.value = val;
+        } else {
+          existing.value = val;
+        }
+      } else if(existing){
+        existing.resolved = true;
+        addLog(`${state.deviceMeta[id].name} ${metric.toUpperCase()} back to normal (${fmt(val,1)}${METRIC_UNITS[metric]||''}) — alert resolved.`,'ok');
+      }
+    }
+  }
+}
+function raiseAlert(id, metric, sev, val){
+  state.alertSeq++;
+  const name = state.deviceMeta[id].name;
+  const msg = alertMessage(name, metric, sev);
+  state.alerts.unshift({
+    id: state.alertSeq, key:id+':'+metric, device:id, deviceName:name, metric, severity:sev,
+    value: val, message: msg, detail: `${metric.toUpperCase()} = ${fmt(val, metric==='loss'||metric==='jitter'?1:0)}${METRIC_UNITS[metric]||''}`,
+    ts: fmtClock(state.simTime), resolved:false,
+  });
+  addLog(`ALERT [${sev.toUpperCase()}] ${msg}`, sev==='critical'?'crit':'warn');
+  state.bannerDismissed = false;
+}
+function alertMessage(name, metric, sev){
+  const label = { cpu:'CPU usage', mem:'memory usage', traffic:'traffic', latency:'latency', loss:'packet loss', jitter:'jitter', temp:'temperature', gpu:'GPU utilization', diskio:'disk I/O' }[metric] || metric;
+  return `${name}: ${sev==='critical'?'critical':'elevated'} ${label}`;
+}
+function injectAlert(sev){
+  const ids = Object.keys(state.devices); if(!ids.length) return;
+  const id = ids[Math.floor(Math.random()*ids.length)];
+  state.alertSeq++;
+  state.alerts.unshift({ id: state.alertSeq, key:'manual:'+state.alertSeq, device:id, deviceName: state.deviceMeta[id].name, metric:'manual', severity:sev,
+    value:0, message: `${state.deviceMeta[id].name}: manually injected ${sev} test alert`, detail:'Injected via Simulation Controls', ts: fmtClock(state.simTime), resolved:false });
+  addLog(`Manually injected ${sev} alert on ${state.deviceMeta[id].name}`, sev==='critical'?'crit':(sev==='warning'?'warn':'info'));
+  renderAlerts(); renderAlertBanner();
+}
+function dismissBanner(){ state.bannerDismissed = true; renderAlertBanner(); }
+function renderAlertBanner(){
+  const active = state.alerts.filter(a=>!a.resolved);
+  const worst = active.find(a=>a.severity==='critical') || active[0];
+  const banner = document.getElementById('alert-banner');
+  if(!worst || state.bannerDismissed){ banner.classList.add('hidden'); return; }
+  banner.classList.remove('hidden');
+  document.getElementById('alert-text').textContent = `[${worst.ts}] ${worst.message} — ${worst.detail}`;
+}
+
+/* ── TABS ──────────────────────────────────────────────────── */
+function switchTab(name){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active', p.id==='pane-'+name));
+  if(name==='dashboard'){
+    setTimeout(()=>{ Object.values(state.charts).forEach(c=>c && c.resize()); }, 0);
+  }
+}
+
+/* ── FULL RENDER ───────────────────────────────────────────── */
+function fullRender(){
+  document.getElementById('sim-clock').textContent = fmtClock(state.simTime);
+  renderStatBar();
+  renderDashboardCharts();
+  renderDeviceTable();
+  renderAiRack();
+  renderTopologyColors();
+  if(state.selectedNodeId) renderTopoDetail(state.selectedNodeId);
+  renderAlerts();
+  renderAlertBanner();
+}
+
+function aggregate(metric){
+  const vals = Object.values(state.devices).map(d=>d[metric]).filter(v=>v!==undefined);
+  if(!vals.length) return 0;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+function sumMetric(metric){
+  return Object.values(state.devices).map(d=>d[metric]).filter(v=>v!==undefined).reduce((a,b)=>a+b,0);
+}
+
+function renderStatBar(){
+  const ids = Object.keys(state.devices);
+  document.getElementById('card-devices').textContent = `${ids.length}/${ids.length}`;
+  const active = state.alerts.filter(a=>!a.resolved);
+  document.getElementById('card-alerts').textContent = active.length;
+  const crit = active.filter(a=>a.severity==='critical').length;
+  const warn = active.filter(a=>a.severity==='warning').length;
+  document.getElementById('alert-sev-label').textContent = active.length ? `${crit} Crit / ${warn} Warn` : 'none';
+  document.getElementById('card-throughput').textContent = fmt(sumMetric('traffic'),0)+' Mbps';
+  document.getElementById('card-cpu').textContent = fmt(aggregate('cpu'),0)+'%';
+  document.getElementById('card-latency').textContent = fmt(aggregate('latency'),0)+' ms';
+  const loss = aggregate('loss');
+  const lossEl = document.getElementById('card-loss');
+  lossEl.textContent = fmt(loss,2)+'%';
+  lossEl.style.color = loss>=THRESH.loss.crit?'var(--red)':(loss>=THRESH.loss.warn?'var(--amber)':'var(--green)');
+  document.getElementById('alerts-badge').textContent = active.length;
+  document.getElementById('alerts-badge').classList.toggle('hidden', active.length===0);
+}
+
+function renderDeviceTable(){
+  const body = document.getElementById('dev-table-body');
+  const rows = Object.keys(state.devices).map(id=>{
+    const m = state.devices[id]; const meta = state.deviceMeta[id];
+    const st = deviceStatus(id);
+    const pill = st==='crit'?'pill-crit':(st==='warn'?'pill-warn':'pill-ok');
+    const pillLabel = st==='crit'?'Critical':(st==='warn'?'Degraded':'Healthy');
+    const cls = id===state.selectedNodeId ? 'sel' : '';
+    const cellCls = (metric)=> statusOf(metric,m[metric])==='crit'?'metric-cell-crit':(statusOf(metric,m[metric])==='warn'?'metric-cell-warn':'');
+    return `<tr class="${cls}" onclick="selectNode('${id}')">
+      <td class="font-mono">${meta.name}</td>
+      <td>${DEVICE_ICONS[meta.type]||''} ${DEVICE_TYPE_LABEL[meta.type]||meta.type}</td>
+      <td><span class="status-pill ${pill}">${pillLabel}</span></td>
+      <td class="font-mono ${cellCls('cpu')}">${m.cpu!==undefined?fmt(m.cpu,0)+'%':'—'}</td>
+      <td class="font-mono ${cellCls('mem')}">${m.mem!==undefined?fmt(m.mem,0)+'%':'—'}</td>
+      <td class="font-mono">${m.traffic!==undefined?fmt(m.traffic,0)+' Mbps':'—'}</td>
+      <td class="font-mono ${cellCls('latency')}">${m.latency!==undefined?fmt(m.latency,0)+' ms':'—'}</td>
+      <td class="font-mono ${cellCls('loss')}">${m.loss!==undefined?fmt(m.loss,2)+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = rows || '<tr><td colspan="8" class="empty-state">No devices</td></tr>';
+}
+
+function renderAiRack(){
+  const lesson = state.lesson;
+  if(!lesson || !lesson.hasAiRack) return;
+  const aiId = Object.keys(state.devices).find(id=>state.deviceMeta[id].type==='ai-gpu');
+  if(!aiId) return;
+  const m = state.devices[aiId];
+  document.getElementById('ai-gpu-val').textContent = fmt(m.gpu,0)+'%';
+  document.getElementById('ai-gpu-bar').style.width = clamp(m.gpu,0,100)+'%';
+  document.getElementById('ai-mem-val').textContent = fmt(m.mem,0)+'%';
+  document.getElementById('ai-mem-bar').style.width = clamp(m.mem,0,100)+'%';
+  document.getElementById('ai-temp-val').textContent = fmt(m.temp,0)+'°C';
+  document.getElementById('ai-temp-bar').style.width = clamp(m.temp,0,100)+'%';
+  const tempBar = document.getElementById('ai-temp-bar');
+  tempBar.style.background = statusOf('temp',m.temp)==='crit'?'var(--red)':(statusOf('temp',m.temp)==='warn'?'var(--amber)':'var(--green)');
+}
+
+/* ── CHARTS ────────────────────────────────────────────────── */
+function initCharts(){
+  ['ch-traffic','ch-cpu','ch-third'].forEach(id=>{
+    if(state.charts[id]){ state.charts[id].destroy(); }
+  });
+  const mkChart = (canvasId, color) => {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    return new Chart(ctx, {
+      type:'line',
+      data:{ labels:[], datasets:[{ data:[], borderColor:color, backgroundColor:color+'22', fill:true, tension:0.3, pointRadius:0, borderWidth:2 }]},
+      options:{ animation:false, responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ display:false }, y:{ display:false, beginAtZero:true } },
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} } }
+    });
+  };
+  state.charts['ch-traffic'] = mkChart('ch-traffic', '#06B6D4');
+  state.charts['ch-cpu'] = mkChart('ch-cpu', '#F59E0B');
+  state.charts['ch-third'] = mkChart('ch-third', '#22C55E');
+}
+
+function renderDashboardCharts(){
+  const traffic = sumMetric('traffic');
+  const cpu = aggregate('cpu');
+  const thirdKey = state.mode==='lesson' ? state.lesson.thirdMetric : 'latency';
+  const third = aggregate(thirdKey);
+
+  document.getElementById('cv-traffic').textContent = fmt(traffic,0)+' Mbps';
+  document.getElementById('cv-cpu').textContent = fmt(cpu,0)+'%';
+  document.getElementById('cv-third').textContent = fmt(third, thirdKey==='loss'?2:0) + (METRIC_UNITS[thirdKey]||'');
+
+  pushHistory('traffic', traffic); pushHistory('cpu', cpu); pushHistory('third', third);
+
+  updateChart('ch-traffic','traffic'); updateChart('ch-cpu','cpu'); updateChart('ch-third','third');
+}
+function pushHistory(key,val){
+  const h = state.chartHistory[key];
+  h.push(val);
+  if(h.length>40) h.shift();
+}
+function updateChart(canvasId, key){
+  const chart = state.charts[canvasId]; if(!chart) return;
+  const h = state.chartHistory[key];
+  chart.data.labels = h.map((_,i)=>i);
+  chart.data.datasets[0].data = h;
+  chart.update('none');
+}
+
+/* ── TOPOLOGY ──────────────────────────────────────────────── */
+function buildTopologySvg(topology){
+  const svg = document.getElementById('topo-svg');
+  const W=900,H=360;
+  const pos = id => { const m = state.deviceMeta[id]; return { x: m.x/100*W, y: m.y/100*H }; };
+  let html = '';
+  topology.links.forEach(([a,b])=>{
+    const pa = pos(a), pb = pos(b);
+    html += `<line class="topo-link" id="link-${a}-${b}" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}"></line>`;
+  });
+  topology.nodes.forEach(n=>{
+    const p = pos(n.id);
+    html += `<g class="topo-node" onclick="selectNode('${n.id}')">
+      <rect class="topo-node-box st-ok" id="box-${n.id}" x="${p.x-38}" y="${p.y-24}" width="76" height="48" rx="10"></rect>
+      <text class="topo-node-icon" x="${p.x}" y="${p.y-2}">${DEVICE_ICONS[n.type]||'●'}</text>
+      <text class="topo-node-label" x="${p.x}" y="${p.y+18}">${n.name}</text>
+    </g>`;
+  });
+  svg.innerHTML = html;
+  state._topology = topology;
+}
+function renderTopologyColors(){
+  if(!state._topology) return;
+  state._topology.nodes.forEach(n=>{
+    const box = document.getElementById('box-'+n.id); if(!box) return;
+    const st = deviceStatus(n.id);
+    box.classList.remove('st-ok','st-warn','st-crit');
+    box.classList.add('st-'+st);
+    box.classList.toggle('selected', state.selectedNodeId===n.id);
+  });
+  state._topology.links.forEach(([a,b])=>{
+    const link = document.getElementById(`link-${a}-${b}`); if(!link) return;
+    const st = worstStatus(deviceStatus(a), deviceStatus(b));
+    link.classList.remove('st-warn','st-crit');
+    if(st!=='ok') link.classList.add('st-'+st);
+  });
+}
+function selectNode(id){
+  state.selectedNodeId = id;
+  renderTopoDetail(id);
+  renderTopologyColors();
+  renderDeviceTable();
+  const sel = document.getElementById('notes-device-select');
+  if(sel){ sel.value = id; loadDeviceNote(); }
+}
+function renderTopoDetail(id){
+  const meta = state.deviceMeta[id]; const m = state.devices[id];
+  if(!meta || !m) return;
+  document.getElementById('topo-detail').classList.add('visible');
+  document.getElementById('td-name').textContent = meta.name;
+  document.getElementById('td-meta').textContent = `${DEVICE_TYPE_LABEL[meta.type]||meta.type} · ${id}`;
+  const st = deviceStatus(id);
+  const pill = document.getElementById('td-status');
+  pill.className = 'status-pill '+(st==='crit'?'pill-crit':(st==='warn'?'pill-warn':'pill-ok'));
+  pill.textContent = st==='crit'?'Critical':(st==='warn'?'Degraded':'Healthy');
+  document.getElementById('td-metrics').innerHTML = Object.keys(m).map(k=>{
+    const s = statusOf(k,m[k]);
+    const color = s==='crit'?'#F87171':(s==='warn'?'var(--amber)':'var(--text)');
+    return `<div class="td-metric"><div class="td-metric-label">${k}</div><div class="td-metric-val" style="color:${color}">${fmt(m[k], k==='loss'||k==='jitter'?1:0)}${METRIC_UNITS[k]||''}</div></div>`;
+  }).join('');
+}
+
+/* ── ALERTS TAB ────────────────────────────────────────────── */
+function renderAlerts(){
+  const list = document.getElementById('alerts-list');
+  if(!state.alerts.length){ list.innerHTML = '<div class="empty-state">No alerts yet. Start the simulation and watch for threshold breaches.</div>'; return; }
+  list.innerHTML = state.alerts.map(a=>{
+    const icon = a.severity==='critical'?'🔴':(a.severity==='warning'?'🟠':'🔵');
+    return `<div class="alert-row sev-${a.severity} ${a.resolved?'resolved':''}">
+      <span class="ar-icon">${icon}</span>
+      <div class="ar-body">
+        <div class="ar-top"><span class="ar-msg">${a.message}</span><span class="ar-sev">${a.severity}</span><span class="ar-device">${a.deviceName}</span>${a.resolved?'<span class="ar-device" style="color:var(--green);border-color:rgba(34,197,94,0.3)">resolved</span>':''}</div>
+        <div class="ar-detail">${a.detail}</div>
+      </div>
+      <div class="ar-ts">${a.ts}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── PACKETS ───────────────────────────────────────────────── */
+const PROTO_COLORS = { TCP:'#06B6D4', HTTP:'#22C55E', ICMP:'#F59E0B', SNMP:'#818CF8', NFS:'#F97316', SYS:'#475569' };
+function renderPackets(){
+  const lesson = state.lesson; if(!lesson) return;
+  const body = document.getElementById('pkt-table-body');
+  body.innerHTML = lesson.packets.map((p,i)=>{
+    const color = PROTO_COLORS[p.proto] || '#475569';
+    return `<tr class="${p.evidence?'evidence':''}" onclick="showPacket(${i})">
+      <td>${i+1}</td><td>${p.t}</td><td>${p.src}</td><td>${p.dst}</td>
+      <td><span class="proto-chip" style="background:${color}22;color:${color}">${p.proto}</span></td>
+      <td>${p.len}</td><td>${p.info}</td>
+    </tr>`;
+  }).join('');
+}
+function showPacket(i){
+  const lesson = state.lesson; if(!lesson) return;
+  const p = lesson.packets[i];
+  document.querySelectorAll('#pkt-table-body tr').forEach((tr,idx)=>tr.classList.toggle('sel', idx===i));
+  const el = document.getElementById('pkt-detail');
+  el.classList.add('visible');
+  el.innerHTML = (p.evidence ? '<div class="pkt-flag">⚠ Flagged evidence packet</div>' : '') +
+    `Frame ${i+1}: ${p.len} bytes on the wire<br>Time: ${p.t}s (relative)<br>Source: ${p.src}<br>Destination: ${p.dst}<br>Protocol: ${p.proto}<br>Info: ${p.info}`;
+}
+
+/* ── DIAGNOSIS ─────────────────────────────────────────────── */
+function renderDiagnosisLocked(){
+  state.hintsShown = 0; state.answered = false; state.answeredCorrect = null;
+  renderDiagnosis();
+}
+function renderDiagnosis(){
+  const lesson = state.lesson; if(!lesson) return;
+  const d = lesson.diagnosis;
+  const container = document.getElementById('diag-container');
+  const optsHtml = d.options.map((opt,i)=>{
+    let cls = 'diag-opt';
+    if(state.answered){
+      cls += ' disabled';
+      if(i===d.correct) cls += ' correct';
+      else if(i===state._chosenIndex) cls += ' incorrect';
+    }
+    return `<div class="${cls}" onclick="chooseDiag(${i})">
+      <span class="diag-opt-letter">${String.fromCharCode(65+i)}</span><span>${opt}</span>
+    </div>`;
+  }).join('');
+  const hintsHtml = Array.from({length: state.hintsShown}).map((_,i)=>
+    `<div class="hint-box">💡 <span>${d.hints[i]}</span></div>`).join('');
+  const resultHtml = state.answered ? `
+    <div class="result-box ${state.answeredCorrect?'correct':'incorrect'}">
+      <div class="result-title">${state.answeredCorrect ? '✓ Correct diagnosis' : '✗ Not quite — here\'s what\'s actually going on'}</div>
+      <div class="result-body">${d.explanation}</div>
+    </div>` : '';
+  container.innerHTML = `
+    <div class="diag-panel">
+      <div class="diag-scenario">${lesson.title}</div>
+      <div class="diag-question">${d.question}</div>
+      <div class="diag-options">${optsHtml}</div>
+      ${hintsHtml}
+      <div class="diag-actions">
+        <button class="diag-btn secondary" onclick="showHint()" ${state.hintsShown>=d.hints.length || state.answered ? 'disabled':''}>💡 ${state.hintsShown>=d.hints.length?'No more hints':'Show a Hint ('+state.hintsShown+'/'+d.hints.length+')'}</button>
+      </div>
+      ${resultHtml}
+    </div>`;
+}
+function chooseDiag(i){
+  if(state.answered) return;
+  state._chosenIndex = i;
+  const lesson = state.lesson;
+  state.answered = true;
+  state.answeredCorrect = (i === lesson.diagnosis.correct);
+  addLog(`Diagnosis submitted: option ${String.fromCharCode(65+i)} — ${state.answeredCorrect?'correct':'incorrect'}.`, state.answeredCorrect?'ok':'warn');
+  updatePhaseBadge('resolved');
+  renderDiagnosis();
+}
+function showHint(){
+  const lesson = state.lesson; if(!lesson) return;
+  if(state.hintsShown < lesson.diagnosis.hints.length){ state.hintsShown++; addLog('Hint revealed ('+state.hintsShown+'/'+lesson.diagnosis.hints.length+').','info'); }
+  renderDiagnosis();
+}
+
+/* ── NOTES ─────────────────────────────────────────────────── */
+function populateNotesDeviceSelect(){
+  const sel = document.getElementById('notes-device-select');
+  sel.innerHTML = Object.keys(state.deviceMeta).map(id=>`<option value="${id}">${state.deviceMeta[id].name}</option>`).join('');
+  loadDeviceNote();
+}
+function scopeKey(){ return state.mode==='lesson' ? state.lesson.id : 'sandbox'; }
+function loadDeviceNote(){
+  const id = document.getElementById('notes-device-select').value;
+  const key = scopeKey()+':'+id;
+  document.getElementById('notes-device-text').value = state.notesDevice[key] || '';
+  document.getElementById('notes-global-text').value = state.notesGlobal[scopeKey()] || '';
+}
+function saveDeviceNote(){
+  const id = document.getElementById('notes-device-select').value;
+  const key = scopeKey()+':'+id;
+  state.notesDevice[key] = document.getElementById('notes-device-text').value;
+}
+function saveGlobalNote(){
+  state.notesGlobal[scopeKey()] = document.getElementById('notes-global-text').value;
+}
+
+/* ── LOG ───────────────────────────────────────────────────── */
+function renderLog(){
+  const box = document.getElementById('log-box');
+  box.innerHTML = state.logs.map(l=>`<div class="log-line"><span class="log-ts">[${l.ts}]</span><span class="log-${l.type}">${l.msg}</span></div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ── SANDBOX CONTROLS ──────────────────────────────────────── */
+function sandboxSlider(metric, val){
+  val = parseFloat(val);
+  state.sandboxOverrides[metric] = val;
+  const idMap = { traffic:'d-traffic-val', cpu:'d-cpu-val', mem:'d-mem-val', loss:'d-loss-val', latency:'d-lat-val', temp:'d-temp-val' };
+  if(idMap[metric]) document.getElementById(idMap[metric]).textContent = metric==='loss'?val.toFixed(1):val;
+  if(!state.running){ computeAllDevices(); fullRender(); }
+}
+function applySandboxScenario(name){
+  const presets = {
+    normal:     { cpu:25, mem:40, traffic:30, loss:0,   latency:12, temp:45 },
+    ddos:       { cpu:55, mem:50, traffic:95, loss:6.5, latency:80, temp:55 },
+    cpu_runaway:{ cpu:97, mem:70, traffic:35, loss:1.2, latency:150,temp:60 },
+    mem_pressure:{cpu:60, mem:96, traffic:30, loss:0.5, latency:60, temp:50 },
+    thermal:    { cpu:70, mem:55, traffic:40, loss:0.3, latency:20, temp:92 },
+    gpu_burst:  { cpu:80, mem:75, traffic:60, loss:0.2, latency:15, temp:78 },
+  };
+  const p = presets[name]; if(!p) return;
+  state.sandboxOverrides = Object.assign({}, p);
+  document.getElementById('sim-traffic').value = p.traffic; document.getElementById('d-traffic-val').textContent = p.traffic;
+  document.getElementById('sim-cpu').value = p.cpu; document.getElementById('d-cpu-val').textContent = p.cpu;
+  document.getElementById('sim-mem').value = p.mem; document.getElementById('d-mem-val').textContent = p.mem;
+  document.getElementById('sim-loss').value = p.loss; document.getElementById('d-loss-val').textContent = p.loss.toFixed(1);
+  document.getElementById('sim-lat').value = p.latency; document.getElementById('d-lat-val').textContent = p.latency;
+  document.getElementById('sim-temp').value = p.temp; document.getElementById('d-temp-val').textContent = p.temp;
+  addLog('Sandbox scenario preset applied: '+name, 'info');
+  if(!state.running){ computeAllDevices(); fullRender(); }
+}
+
+/* ── DRAWER ────────────────────────────────────────────────── */
+function toggleDrawer(){ document.getElementById('settings-drawer').classList.toggle('open'); }
+
+/* ── CLOCK (wall clock unrelated to sim, purely decorative removed) ── */
+
+/* ── INIT ──────────────────────────────────────────────────── */
+renderLessonGrid();
+</script>
+</body>
+</html>

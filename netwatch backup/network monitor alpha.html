@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch — Infrastructure Monitoring</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080C14;
+  --panel: #0D1320;
+  --panel2: #111827;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #E2E8F0;
+  --muted: #64748B;
+  --muted2: #94A3B8;
+  --cyan: #06B6D4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --cyan-glow: rgba(6,182,212,0.3);
+  --green: #22C55E;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #F59E0B;
+  --amber-dim: rgba(245,158,11,0.12);
+  --orange: #F97316;
+  --orange-dim: rgba(249,115,22,0.12);
+  --red: #EF4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --gray: #475569;
+  --gray-dim: rgba(71,85,105,0.2);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── LOGIN SCREEN ─── */
+#login-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  flex-direction: column;
+  gap: 0;
+}
+.login-card {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 40px 48px;
+  width: 380px;
+  position: relative;
+  overflow: hidden;
+}
+.login-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+}
+.login-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 32px;
+}
+.login-logo-icon {
+  width: 36px; height: 36px;
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan-glow);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cyan);
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--cyan-glow); }
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.login-logo-text { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+.login-logo-sub { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.login-label { font-size: 11px; color: var(--muted2); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+.login-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 10px 12px;
+  color: var(--text); font-family: var(--font-mono); font-size: 13px;
+  outline: none; margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+.login-input:focus { border-color: var(--cyan); }
+.login-select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 10px 12px;
+  color: var(--text); font-family: var(--font-ui); font-size: 13px;
+  outline: none; margin-bottom: 24px; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.login-select:focus { border-color: var(--cyan); }
+.login-btn {
+  width: 100%; background: var(--cyan); color: #0A0F18;
+  border: none; border-radius: 6px; padding: 11px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s;
+  letter-spacing: 0.02em;
+}
+.login-btn:hover { opacity: 0.88; }
+.login-error {
+  color: var(--red); font-size: 12px; margin-top: -12px; margin-bottom: 12px;
+  display: none;
+}
+
+/* ─── MAIN LAYOUT ─── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.active { display: flex; }
+
+/* ─── TOP BAR ─── */
+.topbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex; align-items: center; gap: 0;
+  position: sticky; top: 0; z-index: 50;
+  flex-shrink: 0;
+}
+.topbar-logo { display: flex; align-items: center; gap: 8px; margin-right: 24px; }
+.topbar-logo-icon {
+  width: 28px; height: 28px; background: var(--cyan-dim);
+  border: 1px solid var(--cyan-glow); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.topbar-name { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--text); }
+.topbar-status {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  background: var(--green-dim); border: 1px solid rgba(34,197,94,0.2);
+  font-family: var(--font-mono); font-size: 11px; color: var(--green);
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.topbar-spacer { flex: 1; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-time { font-family: var(--font-mono); font-size: 12px; color: var(--muted2); }
+.topbar-user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px; border-radius: 20px;
+  border: 1px solid var(--border2); cursor: pointer;
+  font-size: 12px; color: var(--muted2);
+  transition: border-color 0.2s;
+}
+.topbar-user:hover { border-color: var(--border2); color: var(--text); }
+.user-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+}
+.role-badge {
+  font-size: 10px; padding: 2px 7px; border-radius: 10px;
+  font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.05em;
+}
+.logout-btn {
+  background: none; border: 1px solid var(--border2); color: var(--muted);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 11px;
+  transition: all 0.2s; font-family: var(--font-ui);
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ─── ALERT BANNER ─── */
+#alert-banner {
+  display: none;
+  background: rgba(239,68,68,0.1);
+  border-bottom: 1px solid rgba(239,68,68,0.3);
+  padding: 8px 20px;
+  display: flex; align-items: center; gap: 10px;
+  animation: alert-flash 1.5s ease-in-out infinite;
+  font-size: 12px;
+}
+#alert-banner.hidden { display: none !important; }
+@keyframes alert-flash {
+  0%,100% { background: rgba(239,68,68,0.08); }
+  50% { background: rgba(239,68,68,0.16); }
+}
+.alert-icon { color: var(--red); font-size: 14px; }
+#alert-text { color: #FCA5A5; font-family: var(--font-mono); flex: 1; }
+.alert-dismiss {
+  background: none; border: 1px solid rgba(239,68,68,0.4);
+  color: var(--red); border-radius: 4px; padding: 3px 8px;
+  cursor: pointer; font-size: 11px; transition: all 0.2s;
+}
+.alert-dismiss:hover { background: var(--red-dim); }
+
+/* ─── NAV TABS ─── */
+.nav-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex; gap: 0;
+  flex-shrink: 0;
+}
+.nav-tab {
+  padding: 10px 16px; font-size: 12px; color: var(--muted2);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.2s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-ui); font-weight: 500;
+  user-select: none;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+
+/* ─── CONTENT AREA ─── */
+.content { flex: 1; padding: 20px; overflow-y: auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── SUMMARY CARDS ─── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-card-accent {
+  position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  border-radius: 2px 0 0 2px;
+}
+.stat-label {
+  font-size: 10px; color: var(--muted); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 8px; font-family: var(--font-ui);
+}
+.stat-value {
+  font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+  line-height: 1; margin-bottom: 6px;
+}
+.stat-sub {
+  font-size: 11px; color: var(--muted); display: flex;
+  align-items: center; gap: 4px;
+}
+.stat-trend { font-family: var(--font-mono); font-size: 10px; padding: 2px 5px; border-radius: 3px; }
+.trend-up { color: var(--green); background: var(--green-dim); }
+.trend-down { color: var(--red); background: var(--red-dim); }
+
+/* ─── AI LOAD CARDS ─── */
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+.ai-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.ai-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ai-card-name { font-size: 11px; color: var(--muted2); font-family: var(--font-mono); }
+.ai-card-usage {
+  font-family: var(--font-mono); font-size: 19px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.ai-bar-track {
+  height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden;
+}
+.ai-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.6s ease;
+}
+.ai-allocation { font-size: 10px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+
+/* ─── CHARTS GRID ─── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px; margin-bottom: 20px;
+}
+.chart-panel {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.chart-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.chart-panel-title {
+  font-size: 11px; font-weight: 600; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.chart-val {
+  font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+}
+.chart-canvas-wrap { height: 110px; position: relative; }
+
+/* ─── TOPOLOGY VIEW ─── */
+#topo-canvas {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; width: 100%; display: block;
+  margin-bottom: 20px;
+}
+
+/* ─── DEVICE TABLE ─── */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: 12px; font-weight: 600; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.filter-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2);
+  background: none; color: var(--muted2); font-size: 11px; cursor: pointer;
+  transition: all 0.2s; font-family: var(--font-ui);
+}
+.filter-btn:hover { border-color: var(--cyan); color: var(--text); }
+.filter-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+.filter-search {
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 6px;
+  padding: 5px 10px; color: var(--text); font-size: 12px;
+  outline: none; width: 160px; font-family: var(--font-ui);
+  transition: border-color 0.2s;
+}
+.filter-search:focus { border-color: var(--cyan); }
+.device-table { width: 100%; border-collapse: collapse; }
+.device-table th {
+  text-align: left; padding: 8px 12px; font-size: 10px;
+  color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border); font-weight: 500;
+}
+.device-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; font-size: 12px;
+}
+.device-table tr:last-child td { border-bottom: none; }
+.device-table tr:hover td { background: rgba(255,255,255,0.02); }
+.device-row-container {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; margin-bottom: 20px;
+}
+.font-mono { font-family: var(--font-mono); }
+
+/* ─── STATUS BADGES ─── */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 20px; font-size: 10px;
+  font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.s-healthy { background: rgba(34,197,94,0.12); color: #4ADE80; }
+.s-warning { background: rgba(245,158,11,0.12); color: #FCD34D; }
+.s-degraded { background: rgba(249,115,22,0.12); color: #FB923C; }
+.s-critical { background: rgba(239,68,68,0.12); color: #F87171; }
+.s-offline { background: rgba(71,85,105,0.2); color: #64748B; }
+.s-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* ─── MINI BAR ─── */
+.mini-bar { display: inline-flex; height: 4px; width: 60px; background: var(--border2); border-radius: 2px; overflow: hidden; vertical-align: middle; }
+.mini-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+/* ─── ALERTS PANEL ─── */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+  display: flex; align-items: flex-start; gap: 12px;
+  border-left-width: 3px;
+}
+.alert-item.crit { border-left-color: var(--red); }
+.alert-item.warn { border-left-color: var(--amber); }
+.alert-item.info { border-left-color: var(--cyan); }
+.alert-ts { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 70px; padding-top: 1px; }
+.alert-body { flex: 1; }
+.alert-title { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+.alert-sub { font-size: 11px; color: var(--muted2); }
+.alert-lvl { font-size: 9px; font-family: var(--font-mono); font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.lvl-crit { background: var(--red-dim); color: #F87171; }
+.lvl-warn { background: var(--amber-dim); color: #FCD34D; }
+.lvl-info { background: var(--cyan-dim); color: #67E8F9; }
+
+/* ─── LOG CONSOLE ─── */
+.log-console {
+  background: #050810; border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px;
+  font-family: var(--font-mono); font-size: 11px;
+  height: 280px; overflow-y: auto;
+  line-height: 1.7;
+}
+.log-console::-webkit-scrollbar { width: 4px; }
+.log-console::-webkit-scrollbar-track { background: transparent; }
+.log-console::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.log-line { padding: 1px 0; }
+.log-ts { color: var(--muted); margin-right: 8px; }
+.log-src { color: var(--cyan); margin-right: 8px; }
+.log-ok { color: #4ADE80; }
+.log-warn { color: #FCD34D; }
+.log-err { color: #F87171; }
+.log-info { color: var(--muted2); }
+.log-metrics { color: #818CF8; }
+
+/* ─── NETWORK METRICS PANEL ─── */
+.metrics-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.metrics-panel {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.metrics-panel-title {
+  font-size: 11px; font-weight: 600; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
+}
+.metric-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-name { font-size: 12px; color: var(--muted2); }
+.metric-val { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+
+/* ─── HISTORY CHART ─── */
+.history-panel {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-bottom: 20px;
+}
+.history-canvas-wrap { height: 180px; position: relative; }
+
+/* ─── SETTINGS DRAWER ─── */
+.settings-toggle {
+  position: fixed; bottom: 24px; right: 24px; z-index: 200;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); font-size: 16px;
+  transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.settings-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+.settings-drawer {
+  position: fixed; right: 0; top: 52px; bottom: 0; width: 280px;
+  background: var(--panel2); border-left: 1px solid var(--border2);
+  z-index: 100; transform: translateX(100%);
+  transition: transform 0.3s ease;
+  padding: 20px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.settings-drawer.open { transform: translateX(0); }
+.drawer-title {
+  font-size: 11px; font-weight: 600; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+}
+.drawer-label { font-size: 11px; color: var(--muted2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.drawer-slider {
+  -webkit-appearance: none; width: 100%; height: 3px;
+  background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+}
+.drawer-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--cyan); cursor: pointer;
+}
+.drawer-row { display: flex; flex-direction: column; gap: 4px; }
+
+/* ─── TOPOLOGY LEGEND ─── */
+.topo-legend {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── HIDDEN UTIL ─── */
+.hidden { display: none !important; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ─── PROTOCOL BARS ─── */
+.proto-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 8px 0; gap: 1px; }
+.proto-seg { height: 100%; border-radius: 1px; transition: flex 0.6s; }
+.proto-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.proto-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted2); font-family: var(--font-mono); }
+.proto-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ─── OVERVIEW EXPANDED ─── */
+.ov-section { margin-bottom: 20px; }
+.ov-section-hdr {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.ov-section-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted); font-family: var(--font-ui);
+}
+.ov-section-line { flex: 1; height: 1px; background: var(--border); }
+
+/* 4-col resource band */
+.ov-band-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.ov-band-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.ov-band-6 { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; }
+.ov-band-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Resource gauge card */
+.res-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.res-card-title { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.res-gauge-wrap { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 8px; }
+.res-gauge-big { font-family: var(--font-mono); font-size: 26px; font-weight: 700; line-height: 1; }
+.res-gauge-unit { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.res-bar-track { height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+.res-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.res-sub-row { display: flex; justify-content: space-between; }
+.res-sub { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+.res-sub-val { font-size: 10px; font-family: var(--font-mono); }
+
+/* Stacked metric pairs */
+.mini-metric-list { display: flex; flex-direction: column; gap: 0; }
+.mini-metric { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.mini-metric:last-child { border-bottom: none; }
+.mini-metric-name { font-size: 11px; color: var(--muted2); }
+.mini-metric-val { font-size: 11px; font-family: var(--font-mono); font-weight: 500; }
+.mini-metric-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.mini-metric-bar { width: 48px; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.mini-metric-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+/* Network interface table card */
+.iface-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.iface-table { width: 100%; border-collapse: collapse; }
+.iface-table th {
+  text-align: left; padding: 4px 8px; font-size: 9px;
+  color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.iface-table td { padding: 6px 8px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.iface-table tr:last-child td { border-bottom: none; }
+
+/* Service health grid */
+.svc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.svc-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.svc-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.svc-info { flex: 1; min-width: 0; }
+.svc-name { font-size: 11px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.svc-detail { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+.svc-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Top process table */
+.proc-table { width: 100%; border-collapse: collapse; }
+.proc-table th {
+  text-align: left; padding: 5px 8px; font-size: 9px;
+  color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.proc-table td { padding: 6px 8px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.proc-table tr:last-child td { border-bottom: none; }
+
+/* Anomaly row */
+.anomaly-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-family: var(--font-mono); padding: 2px 6px; border-radius: 3px;
+  font-weight: 700;
+}
+.anomaly-yes { background: rgba(239,68,68,0.12); color: #F87171; }
+.anomaly-no  { background: rgba(34,197,94,0.10);  color: #4ADE80; }
+
+/* Compact chart panels for 4-col */
+.chart-panel-sm {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.chart-canvas-sm { height: 80px; position: relative; }
+
+/* TCP connection state bar */
+.tcp-state-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; margin: 6px 0; }
+.tcp-seg { height: 100%; border-radius: 1px; transition: flex 0.5s; }
+.tcp-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.tcp-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted2); font-family: var(--font-mono); }
+.tcp-dot { width: 7px; height: 7px; border-radius: 1px; }
+
+/* Load balance bar */
+.lb-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.lb-node-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.lb-node-row:last-child { border-bottom: none; }
+.lb-node-name { font-family: var(--font-mono); font-size: 11px; color: var(--muted2); min-width: 110px; }
+.lb-node-bar-wrap { flex: 1; height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.lb-node-bar { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.lb-node-val { font-family: var(--font-mono); font-size: 11px; min-width: 40px; text-align: right; }
+.lb-node-conn { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 60px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon"><div class="pulse-dot"></div></div>
+      <div>
+        <div class="login-logo-text">NetWatch</div>
+        <div class="login-logo-sub">Infrastructure Monitoring</div>
+      </div>
+    </div>
+    <label class="login-label">Username</label>
+    <input class="login-input" type="text" id="l-user" placeholder="operator@corp.net" autocomplete="off">
+    <label class="login-label">Password</label>
+    <input class="login-input" type="password" id="l-pass" placeholder="••••••••">
+    <label class="login-label">Role</label>
+    <select class="login-select" id="l-role">
+      <option value="noc">NOC Operator</option>
+      <option value="admin">Network Admin</option>
+      <option value="readonly">Read-Only Viewer</option>
+      <option value="security">Security Analyst</option>
+    </select>
+    <div class="login-error" id="l-err">Invalid credentials. Try any username + password.</div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div style="margin-top:16px;font-size:11px;color:var(--muted);text-align:center;">
+      Proceed with caution: any username / password &mdash; role selection is live
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon"><div class="pulse-dot" style="width:6px;height:6px;"></div></div>
+      <span class="topbar-name">NetWatch</span>
+    </div>
+    <div class="topbar-status">
+      <div class="status-dot"></div>
+      <span id="system-status-text">All Systems Operational</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-right">
+      <div class="topbar-time font-mono" id="clock">00:00:00</div>
+      <div class="topbar-user" id="user-display">
+        <div class="user-avatar" id="user-avatar"></div>
+        <span id="user-name-display">-</span>
+        <span class="role-badge" id="role-badge-display">-</span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="alert-banner" class="hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="alert-text">—</span>
+    <button class="alert-dismiss" onclick="dismissAlert()">Dismiss</button>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-tab active" onclick="switchTab('overview')" id="tab-overview">
+      <div class="nav-dot" style="background:var(--cyan)"></div> Overview
+    </div>
+    <div class="nav-tab" onclick="switchTab('topology')" id="tab-topology">
+      <div class="nav-dot" style="background:var(--amber)"></div> Topology
+    </div>
+    <div class="nav-tab" onclick="switchTab('devices')" id="tab-devices">
+      <div class="nav-dot" style="background:var(--green)"></div> Devices
+    </div>
+    <div class="nav-tab" onclick="switchTab('alerts')" id="tab-alerts">
+      <div class="nav-dot" id="alert-nav-dot" style="background:var(--muted)"></div>
+      Alerts <span id="alert-count-badge" style="background:var(--red-dim);color:#F87171;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--font-mono);font-weight:700;" class="hidden">0</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('metrics')" id="tab-metrics">
+      <div class="nav-dot" style="background:var(--cyan)"></div> Network Metrics
+    </div>
+    <div class="nav-tab" onclick="switchTab('history')" id="tab-history">
+      <div class="nav-dot" style="background:var(--muted)"></div> History &amp; Logs
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="tab-pane active" id="pane-overview">
+
+      <div class="cards-grid" style="grid-template-columns:repeat(8,1fr);margin-bottom:16px;">
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--green)"></div>
+          <div class="stat-label">Devices Online</div>
+          <div class="stat-value" style="color:var(--green)" id="card-devices">48/50</div>
+          <div class="stat-sub"><span class="stat-trend trend-up">↑ 2</span> vs yesterday</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--red)"></div>
+          <div class="stat-label">Active Alerts</div>
+          <div class="stat-value" style="color:var(--red)" id="card-alerts">3</div>
+          <div class="stat-sub"><span class="stat-trend trend-down" id="alert-sev-label">2 Crit / 1 Warn</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--cyan)"></div>
+          <div class="stat-label">Throughput</div>
+          <div class="stat-value" style="color:var(--cyan)" id="card-throughput">2.3 Gbps</div>
+          <div class="stat-sub"><span class="stat-trend trend-up">↑ 0.4</span> from baseline</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--amber)"></div>
+          <div class="stat-label">Avg CPU</div>
+          <div class="stat-value" style="color:var(--amber)" id="card-cpu">41%</div>
+          <div class="stat-sub"><span class="stat-trend" id="cpu-trend">Stable</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--cyan)"></div>
+          <div class="stat-label">Avg Memory</div>
+          <div class="stat-value" style="color:var(--cyan)" id="card-mem">58%</div>
+          <div class="stat-sub"><span class="stat-trend trend-up" id="mem-trend-card">↑ 3%</span> from 1h ago</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--green)"></div>
+          <div class="stat-label">Disk I/O</div>
+          <div class="stat-value" style="color:var(--green)" id="card-diskio">142 MB/s</div>
+          <div class="stat-sub"><span class="stat-trend" id="disk-trend" style="color:var(--muted2)">Normal</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--muted)"></div>
+          <div class="stat-label">Pkt Loss</div>
+          <div class="stat-value" style="color:var(--green);font-size:18px;" id="card-pktloss">0.02%</div>
+          <div class="stat-sub" style="color:var(--green)">Within SLA</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background:var(--cyan)"></div>
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" style="color:var(--cyan)">99.98%</div>
+          <div class="stat-sub" style="color:var(--green)">SLA OK</div>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr">
+        <span class="ov-section-label">System Resources</span>
+        <div class="ov-section-line"></div>
+      </div>
+      <div class="ov-band-4" style="margin-bottom:12px;">
+
+        <div class="res-card">
+          <div class="res-card-title" title="AMD Ryzen™ Threadripper™ PRO 9995WX">CPU — 96 Cores / 192 Threads</div>
+          <div class="res-gauge-wrap">
+            <div class="res-gauge-big" id="ov-cpu-pct" style="color:var(--amber)">41%</div>
+            <div class="res-gauge-unit">load avg</div>
+          </div>
+          <div class="res-bar-track"><div class="res-bar-fill" id="ov-cpu-bar" style="width:41%;background:var(--amber)"></div></div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">User</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="cpu-user-bar" style="width:28%;background:var(--cyan)"></div></div>
+                <span class="mini-metric-val" id="cpu-user-val" style="color:var(--cyan)">28%</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">System</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="cpu-sys-bar" style="width:9%;background:var(--amber)"></div></div>
+                <span class="mini-metric-val" id="cpu-sys-val" style="color:var(--amber)">9%</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">I/O Wait</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="cpu-iow-bar" style="width:4%;background:var(--orange)"></div></div>
+                <span class="mini-metric-val" id="cpu-iow-val" style="color:var(--orange)">4%</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Idle</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="cpu-idle-bar" style="width:59%;background:var(--green)"></div></div>
+                <span class="mini-metric-val" id="cpu-idle-val" style="color:var(--green)">59%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title">Memory — 1056 GB ECC</div>
+          <div class="res-gauge-wrap">
+            <div class="res-gauge-big" id="ov-mem-pct" style="color:var(--cyan)">58%</div>
+            <div class="res-gauge-unit" id="ov-mem-used">612 GB used</div>
+          </div>
+          <div class="res-bar-track"><div class="res-bar-fill" id="ov-mem-bar" style="width:58%;background:var(--cyan)"></div></div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">Used</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="mem-used-bar" style="width:58%;background:var(--cyan)"></div></div>
+                <span class="mini-metric-val" id="mem-used-val" style="color:var(--cyan)">612 GB</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Cached</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="mem-cache-bar" style="width:22%;background:var(--muted)"></div></div>
+                <span class="mini-metric-val" id="mem-cache-val" style="color:var(--muted2)">232 GB</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Buffers</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" style="width:5%;background:var(--gray)"></div></div>
+                <span class="mini-metric-val" style="color:var(--muted2)">53 GB</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Swap Used</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="swap-bar" style="width:3%;background:var(--orange)"></div></div>
+                <span class="mini-metric-val" id="swap-val" style="color:var(--muted2)">1.2 GB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title">Storage — NVMe + HDD</div>
+          <div class="res-gauge-wrap">
+            <div class="res-gauge-big" id="ov-disk-rd" style="color:var(--green)">94 MB/s</div>
+            <div class="res-gauge-unit">read</div>
+          </div>
+          <div class="res-bar-track"><div class="res-bar-fill" id="ov-disk-bar" style="width:47%;background:var(--green)"></div></div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">Read</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="disk-rd-bar" style="width:47%;background:var(--green)"></div></div>
+                <span class="mini-metric-val" id="disk-rd-val" style="color:var(--green)">94 MB/s</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Write</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="disk-wr-bar" style="width:24%;background:var(--cyan)"></div></div>
+                <span class="mini-metric-val" id="disk-wr-val" style="color:var(--cyan)">48 MB/s</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">IOPS</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="disk-iops-bar" style="width:30%;background:var(--amber)"></div></div>
+                <span class="mini-metric-val" id="disk-iops-val" style="color:var(--muted2)">12.4k</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Capacity</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" style="width:63%;background:var(--muted)"></div></div>
+                <span class="mini-metric-val" style="color:var(--muted2)">63% used</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title">Power & Thermal — Quad 3000W (12kW Max)</div>
+          <div class="res-gauge-wrap">
+            <div class="res-gauge-big" id="ov-pwr-val" style="color:var(--amber)">840 W</div>
+            <div class="res-gauge-unit">total draw</div>
+          </div>
+          <div class="res-bar-track"><div class="res-bar-fill" id="ov-pwr-bar" style="width:52%;background:var(--amber)"></div></div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">CPU Temp</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="temp-cpu-bar" style="width:68%;background:var(--amber)"></div></div>
+                <span class="mini-metric-val" id="temp-cpu-val" style="color:var(--amber)">68°C</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Sys Temp</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="temp-sys-bar" style="width:35%;background:var(--green)"></div></div>
+                <span class="mini-metric-val" id="temp-sys-val" style="color:var(--green)">35°C</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Fans (Avg)</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="fan-bar" style="width:60%;background:var(--cyan)"></div></div>
+                <span class="mini-metric-val" id="fan-val" style="color:var(--cyan)">4200 RPM</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">PSU Load</span>
+              <div class="mini-metric-bar-wrap">
+                <div class="mini-metric-bar"><div class="mini-metric-bar-fill" id="psu-bar" style="width:52%;background:var(--amber)"></div></div>
+                <span class="mini-metric-val" id="psu-val" style="color:var(--muted2)">52%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="chart-panel-sm">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Network Traffic</span>
+              <span class="font-mono" style="font-size:12px;font-weight:700;color:var(--cyan)" id="cv-traffic">—</span>
+            </div>
+            <div class="chart-canvas-sm"><canvas id="ch-traffic" role="img" aria-label="Live network traffic in Mbps"></canvas></div>
+          </div>
+          <div class="chart-panel-sm">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">CPU Load</span>
+              <span class="font-mono" style="font-size:12px;font-weight:700;color:var(--amber)" id="cv-cpu">—</span>
+            </div>
+            <div class="chart-canvas-sm"><canvas id="ch-cpu" role="img" aria-label="Live CPU load percentage"></canvas></div>
+          </div>
+          <div class="chart-panel-sm">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Memory</span>
+              <span class="font-mono" style="font-size:12px;font-weight:700;color:var(--green)" id="cv-mem">—</span>
+            </div>
+            <div class="chart-canvas-sm"><canvas id="ch-mem" role="img" aria-label="Live memory usage percentage"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr"><span class="ov-section-label">Network</span><div class="ov-section-line"></div></div>
+      <div class="ov-band-3" style="margin-bottom:12px;">
+
+        <div class="iface-card">
+          <div class="res-card-title" style="margin-bottom:10px;">Interface Utilization</div>
+          <table class="iface-table">
+            <thead>
+              <tr><th>Interface</th><th>RX</th><th>TX</th><th>Util</th><th>Err</th><th>Drop</th></tr>
+            </thead>
+            <tbody id="iface-tbody">
+              <tr>
+                <td class="font-mono" style="color:var(--text)">eth0</td>
+                <td class="font-mono" id="if-eth0-rx" style="color:var(--cyan)">842 MB/s</td>
+                <td class="font-mono" id="if-eth0-tx" style="color:var(--green)">310 MB/s</td>
+                <td><div class="mini-bar"><div class="mini-bar-fill" id="if-eth0-bar" style="width:68%;background:var(--cyan)"></div></div></td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td class="font-mono" style="color:var(--text)">eth1</td>
+                <td class="font-mono" id="if-eth1-rx" style="color:var(--cyan)">124 MB/s</td>
+                <td class="font-mono" id="if-eth1-tx" style="color:var(--green)">89 MB/s</td>
+                <td><div class="mini-bar"><div class="mini-bar-fill" id="if-eth1-bar" style="width:21%;background:var(--green)"></div></div></td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td class="font-mono" style="color:var(--text)">bond0</td>
+                <td class="font-mono" id="if-bond-rx" style="color:var(--cyan)">966 MB/s</td>
+                <td class="font-mono" id="if-bond-tx" style="color:var(--green)">399 MB/s</td>
+                <td><div class="mini-bar"><div class="mini-bar-fill" id="if-bond-bar" style="width:75%;background:var(--amber)"></div></div></td>
+                <td class="font-mono" style="color:var(--amber)" id="if-bond-err">3</td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td class="font-mono" style="color:var(--text)">lo</td>
+                <td class="font-mono" style="color:var(--muted2)">2.1 MB/s</td>
+                <td class="font-mono" style="color:var(--muted2)">2.1 MB/s</td>
+                <td><div class="mini-bar"><div class="mini-bar-fill" style="width:1%;background:var(--gray)"></div></div></td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+                <td class="font-mono" style="color:var(--green)">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title" style="margin-bottom:10px;">Packet Rates &amp; Errors</div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">Packets In</span>
+              <span class="mini-metric-val" id="ov-pkt-in" style="color:var(--cyan)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Packets Out</span>
+              <span class="mini-metric-val" id="ov-pkt-out" style="color:var(--green)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">RX Errors</span>
+              <span class="mini-metric-val" id="ov-rx-err" style="color:var(--green)">0</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">TX Drops</span>
+              <span class="mini-metric-val" id="ov-tx-drop" style="color:var(--green)">0</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Packet Loss</span>
+              <span class="mini-metric-val" id="ov-pktloss" style="color:var(--green)">0.02%</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Avg RTT</span>
+              <span class="mini-metric-val" id="ov-rtt" style="color:var(--muted2)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Jitter</span>
+              <span class="mini-metric-val" id="ov-jitter" style="color:var(--muted2)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Traffic Spike</span>
+              <span class="mini-metric-val" id="ov-spike" style="color:var(--green)">None</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title" style="margin-bottom:8px;">Protocol Distribution</div>
+          <div class="proto-bar" id="proto-bar">
+            <div class="proto-seg" id="ps-tcp" style="flex:58;background:#06B6D4;"></div>
+            <div class="proto-seg" id="ps-udp" style="flex:22;background:#818CF8;"></div>
+            <div class="proto-seg" id="ps-http" style="flex:12;background:#22C55E;"></div>
+            <div class="proto-seg" id="ps-other" style="flex:8;background:#475569;"></div>
+          </div>
+          <div class="proto-legend" style="margin-bottom:10px;">
+            <div class="proto-legend-item"><div class="proto-dot" style="background:#06B6D4"></div><span id="pl-tcp">TCP 58%</span></div>
+            <div class="proto-legend-item"><div class="proto-dot" style="background:#818CF8"></div><span id="pl-udp">UDP 22%</span></div>
+            <div class="proto-legend-item"><div class="proto-dot" style="background:#22C55E"></div><span id="pl-http">HTTP/S 12%</span></div>
+            <div class="proto-legend-item"><div class="proto-dot" style="background:#475569"></div><span id="pl-other">Other 8%</span></div>
+          </div>
+          <div class="res-card-title" style="margin-bottom:6px;margin-top:8px;">TCP Connection States</div>
+          <div class="tcp-state-bar" id="tcp-state-bar">
+            <div class="tcp-seg" id="tcs-estab" style="flex:340;background:#22C55E;"></div>
+            <div class="tcp-seg" id="tcs-tw" style="flex:89;background:#818CF8;"></div>
+            <div class="tcp-seg" id="tcs-close" style="flex:41;background:#475569;"></div>
+            <div class="tcp-seg" id="tcs-syn" style="flex:12;background:#F59E0B;"></div>
+          </div>
+          <div class="tcp-legend" style="margin-bottom:8px;">
+            <div class="tcp-legend-item"><div class="tcp-dot" style="background:#22C55E"></div><span id="tl-estab">ESTABLISHED 340</span></div>
+            <div class="tcp-legend-item"><div class="tcp-dot" style="background:#818CF8"></div><span id="tl-tw">TIME_WAIT 89</span></div>
+            <div class="tcp-legend-item"><div class="tcp-dot" style="background:#475569"></div><span id="tl-close">CLOSE_WAIT 41</span></div>
+            <div class="tcp-legend-item"><div class="tcp-dot" style="background:#F59E0B"></div><span id="tl-syn">SYN_SENT 12</span></div>
+          </div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">DNS Queries/s</span>
+              <span class="mini-metric-val" id="ov-dns-qps" style="color:var(--muted2)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">DNS NXDOMAIN</span>
+              <span class="mini-metric-val" id="ov-dns-nx" style="color:var(--green)">0.3%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr"><span class="ov-section-label">Latency &amp; Load Balancing</span><div class="ov-section-line"></div></div>
+      <div class="ov-band-2" style="margin-bottom:12px;">
+        <div class="lb-card">
+          <div class="res-card-title" style="margin-bottom:10px;">Node Load Distribution</div>
+          <div class="lb-node-row">
+            <span class="lb-node-name">web-srv-01</span>
+            <div class="lb-node-bar-wrap"><div class="lb-node-bar" id="lb-n1" style="width:72%;background:var(--amber)"></div></div>
+            <span class="lb-node-val" id="lb-v1" style="color:var(--amber)">72%</span>
+            <span class="lb-node-conn" id="lb-c1" style="color:var(--muted)">1,240 conn</span>
+          </div>
+          <div class="lb-node-row">
+            <span class="lb-node-name">web-srv-02</span>
+            <div class="lb-node-bar-wrap"><div class="lb-node-bar" id="lb-n2" style="width:44%;background:var(--green)"></div></div>
+            <span class="lb-node-val" id="lb-v2" style="color:var(--green)">44%</span>
+            <span class="lb-node-conn" id="lb-c2" style="color:var(--muted)">890 conn</span>
+          </div>
+          <div class="lb-node-row">
+            <span class="lb-node-name">web-srv-03</span>
+            <div class="lb-node-bar-wrap"><div class="lb-node-bar" id="lb-n3" style="width:61%;background:var(--cyan)"></div></div>
+            <span class="lb-node-val" id="lb-v3" style="color:var(--cyan)">61%</span>
+            <span class="lb-node-conn" id="lb-c3" style="color:var(--muted)">1,050 conn</span>
+          </div>
+          <div class="lb-node-row">
+            <span class="lb-node-name">app-srv-01</span>
+            <div class="lb-node-bar-wrap"><div class="lb-node-bar" id="lb-n4" style="width:38%;background:var(--green)"></div></div>
+            <span class="lb-node-val" id="lb-v4" style="color:var(--green)">38%</span>
+            <span class="lb-node-conn" id="lb-c4" style="color:var(--muted)">620 conn</span>
+          </div>
+          <div class="lb-node-row">
+            <span class="lb-node-name">app-srv-02</span>
+            <div class="lb-node-bar-wrap"><div class="lb-node-bar" id="lb-n5" style="width:55%;background:var(--cyan)"></div></div>
+            <span class="lb-node-val" id="lb-v5" style="color:var(--cyan)">55%</span>
+            <span class="lb-node-conn" id="lb-c5" style="color:var(--muted)">910 conn</span>
+          </div>
+        </div>
+
+        <div class="res-card">
+          <div class="res-card-title" style="margin-bottom:10px;">Latency Indicators</div>
+          <div class="mini-metric-list">
+            <div class="mini-metric">
+              <span class="mini-metric-name">Avg RTT (internal)</span>
+              <span class="mini-metric-val" id="lat-rtt-int" style="color:var(--green)">1.2 ms</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Avg RTT (external)</span>
+              <span class="mini-metric-val" id="lat-rtt-ext" style="color:var(--muted2)">18 ms</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">P95 Latency</span>
+              <span class="mini-metric-val" id="lat-p95" style="color:var(--muted2)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">P99 Latency</span>
+              <span class="mini-metric-val" id="lat-p99" style="color:var(--muted2)">—</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">DB Query Avg</span>
+              <span class="mini-metric-val" id="lat-db" style="color:var(--green)">4.1 ms</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Nginx p99</span>
+              <span class="mini-metric-val" id="lat-nginx" style="color:var(--muted2)">28 ms</span>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-metric-name">Redis GET avg</span>
+              <span class="mini-metric-val" id="lat-redis" style="color:var(--green)">0.3 ms</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr"><span class="ov-section-label">Service Health</span><div class="ov-section-line"></div></div>
+      <div class="svc-grid" style="margin-bottom:12px;">
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(34,197,94,0.1)">🐘</div>
+          <div class="svc-info">
+            <div class="svc-name">PostgreSQL</div>
+            <div class="svc-detail" id="svc-pg-detail">conn: 48 · qps: 1,240</div>
+          </div>
+          <div class="svc-status-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(6,182,212,0.1)">🐬</div>
+          <div class="svc-info">
+            <div class="svc-name">MySQL</div>
+            <div class="svc-detail" id="svc-mysql-detail">conn: 22 · qps: 820</div>
+          </div>
+          <div class="svc-status-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(34,197,94,0.1)">🟢</div>
+          <div class="svc-info">
+            <div class="svc-name">Nginx</div>
+            <div class="svc-detail" id="svc-nginx-detail">req/s: 3,420 · 2xx: 98.4%</div>
+          </div>
+          <div class="svc-status-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(245,158,11,0.1)">🪶</div>
+          <div class="svc-info">
+            <div class="svc-name">Apache</div>
+            <div class="svc-detail" id="svc-apache-detail">req/s: 418 · workers: 24</div>
+          </div>
+          <div class="svc-status-dot" id="svc-apache-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(239,68,68,0.1)">⚡</div>
+          <div class="svc-info">
+            <div class="svc-name">Redis</div>
+            <div class="svc-detail" id="svc-redis-detail">ops/s: 14k · mem: 2.1 GB</div>
+          </div>
+          <div class="svc-status-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(129,140,248,0.1)">🐳</div>
+          <div class="svc-info">
+            <div class="svc-name">Docker</div>
+            <div class="svc-detail" id="svc-docker-detail">24 running · 2 stopped</div>
+          </div>
+          <div class="svc-status-dot" style="background:var(--green)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(6,182,212,0.1)">☸️</div>
+          <div class="svc-info">
+            <div class="svc-name">Kubernetes</div>
+            <div class="svc-detail" id="svc-k8s-detail">pods: 142/150 · 3 CrashLoop</div>
+          </div>
+          <div class="svc-status-dot" id="svc-k8s-dot" style="background:var(--amber)"></div>
+        </div>
+        <div class="svc-card">
+          <div class="svc-icon" style="background:rgba(34,197,94,0.1)">⚙️</div>
+          <div class="svc-info">
+            <div class="svc-name">Systemd</div>
+            <div class="svc-detail" id="svc-systemd-detail">active: 184 · failed: 1</div>
+          </div>
+          <div class="svc-status-dot" id="svc-systemd-dot" style="background:var(--amber)"></div>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr"><span class="ov-section-label">Top Processes &amp; Anomaly Detection</span><div class="ov-section-line"></div></div>
+      <div class="ov-band-2" style="margin-bottom:12px;">
+        <div class="iface-card">
+          <div class="res-card-title" style="margin-bottom:8px;">Top Processes by CPU</div>
+          <table class="proc-table">
+            <thead>
+              <tr><th>PID</th><th>Process</th><th>CPU</th><th>MEM</th><th>Threads</th></tr>
+            </thead>
+            <tbody id="proc-tbody">
+              <tr><td class="font-mono" style="color:var(--muted)">8821</td><td style="color:var(--text)">postgres</td><td class="font-mono" style="color:var(--amber)">12.4%</td><td class="font-mono" style="color:var(--muted2)">4.1 GB</td><td class="font-mono" style="color:var(--muted)">48</td></tr>
+              <tr><td class="font-mono" style="color:var(--muted)">3341</td><td style="color:var(--text)">nginx</td><td class="font-mono" style="color:var(--green)">5.2%</td><td class="font-mono" style="color:var(--muted2)">892 MB</td><td class="font-mono" style="color:var(--muted)">24</td></tr>
+              <tr><td class="font-mono" style="color:var(--muted)">19022</td><td style="color:var(--text)">redis-server</td><td class="font-mono" style="color:var(--green)">3.8%</td><td class="font-mono" style="color:var(--muted2)">2.1 GB</td><td class="font-mono" style="color:var(--muted)">4</td></tr>
+              <tr><td class="font-mono" style="color:var(--muted)">5510</td><td style="color:var(--text)">node_exporter</td><td class="font-mono" style="color:var(--green)">1.1%</td><td class="font-mono" style="color:var(--muted2)">62 MB</td><td class="font-mono" style="color:var(--muted)">8</td></tr>
+              <tr><td class="font-mono" style="color:var(--muted)">2210</td><td style="color:var(--text)">dockerd</td><td class="font-mono" style="color:var(--green)">0.9%</td><td class="font-mono" style="color:var(--muted2)">380 MB</td><td class="font-mono" style="color:var(--muted)">16</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="iface-card">
+          <div class="res-card-title" style="margin-bottom:8px;">Anomaly Detection</div>
+          <table class="proc-table">
+            <thead>
+              <tr><th>Metric</th><th>Current</th><th>Baseline</th><th>Anomaly</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color:var(--muted2)">Network TX</td>
+                <td class="font-mono" id="anom-tx-cur" style="color:var(--cyan)">—</td>
+                <td class="font-mono" style="color:var(--muted)">30 Mbps</td>
+                <td id="anom-tx-badge"><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+              <tr>
+                <td style="color:var(--muted2)">CPU Util</td>
+                <td class="font-mono" id="anom-cpu-cur" style="color:var(--amber)">—</td>
+                <td class="font-mono" style="color:var(--muted)">35%</td>
+                <td id="anom-cpu-badge"><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+              <tr>
+                <td style="color:var(--muted2)">Pkt Loss</td>
+                <td class="font-mono" id="anom-loss-cur" style="color:var(--green)">0.02%</td>
+                <td class="font-mono" style="color:var(--muted)">&lt;0.1%</td>
+                <td><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+              <tr>
+                <td style="color:var(--muted2)">Mem Usage</td>
+                <td class="font-mono" id="anom-mem-cur" style="color:var(--cyan)">—</td>
+                <td class="font-mono" style="color:var(--muted)">55%</td>
+                <td id="anom-mem-badge"><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+              <tr>
+                <td style="color:var(--muted2)">Disk IOPS</td>
+                <td class="font-mono" id="anom-iops-cur" style="color:var(--muted2)">12.4k</td>
+                <td class="font-mono" style="color:var(--muted)">10k</td>
+                <td id="anom-iops-badge"><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+              <tr>
+                <td style="color:var(--muted2)">TCP Conns</td>
+                <td class="font-mono" id="anom-tcp-cur" style="color:var(--muted2)">482</td>
+                <td class="font-mono" style="color:var(--muted)">400</td>
+                <td><span class="anomaly-badge anomaly-no">✓ Normal</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="ov-section-hdr"><span class="ov-section-label">AI / Compute</span><div class="ov-section-line"></div></div>
+      <div class="ai-grid" style="margin-bottom:12px;">
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-name">CPU — AMD Ryzen Threadripper PRO 9995WX</div>
+            <div class="status-badge s-healthy"><div class="s-dot"></div>Online</div>
+          </div>
+          <div class="ai-card-usage" style="color:var(--cyan)" id="ai-cpu-val">20%</div>
+          <div class="ai-bar-track"><div class="ai-bar-fill" id="ai-cpu-bar" style="width:20%;background:var(--cyan)"></div></div>
+          <div class="ai-allocation" id="ai-cpu-alloc">4 / 10 cores active</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-name">GPU — 12x NVIDIA H200</div>
+            <div class="status-badge s-healthy"><div class="s-dot"></div>Online</div>
+          </div>
+          <div class="ai-card-usage" style="color:var(--green)" id="ai-gpu-val">10%</div>
+          <div class="ai-bar-track"><div class="ai-bar-fill" id="ai-gpu-bar" style="width:10%;background:var(--green)"></div></div>
+          <div class="ai-allocation" id="ai-gpu-alloc">2 / 12 active · 169GB / 1692GB VRAM</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-name">GPU — NVIDIA ADA6000</div>
+            <div class="status-badge s-warning"><div class="s-dot"></div>Warm</div>
+          </div>
+          <div class="ai-card-usage" style="color:var(--amber)" id="ai-apu-val">30%</div>
+          <div class="ai-bar-track"><div class="ai-bar-fill" id="ai-apu-bar" style="width:30%;background:var(--amber)"></div></div>
+          <div class="ai-allocation" id="ai-apu-alloc">10 / 20 CUs active · 48GB VRAM</div>
+        </div>
+      </div>
+
+    </div><div class="tab-pane" id="pane-topology">
+      <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-title">Network Topology — Live View</div>
+        <div style="font-size:11px;color:var(--muted)">Click nodes to drill down</div>
+      </div>
+      <div class="topo-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Healthy</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Warning</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Degraded</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Critical</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--gray)"></div>Offline</div>
+      </div>
+      <canvas id="topo-canvas" height="420"></canvas>
+      <div id="topo-tooltip" style="display:none;position:fixed;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:12px;pointer-events:none;z-index:999;min-width:180px;"></div>
+    </div>
+
+    <div class="tab-pane" id="pane-devices">
+      <div class="filter-row">
+        <input class="filter-search" id="dev-search" placeholder="Search devices…" oninput="filterDevices()">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('router',this)">Routers</button>
+        <button class="filter-btn" onclick="setFilter('switch',this)">Switches</button>
+        <button class="filter-btn" onclick="setFilter('server',this)">Servers</button>
+        <button class="filter-btn" onclick="setFilter('firewall',this)">Firewalls</button>
+        <button class="filter-btn" onclick="setFilter('healthy',this)">🟢 Healthy</button>
+        <button class="filter-btn" onclick="setFilter('warning',this)">🟡 Warning</button>
+        <button class="filter-btn" onclick="setFilter('critical',this)">🔴 Critical</button>
+        <button class="filter-btn" onclick="setFilter('offline',this)">⚫ Offline</button>
+      </div>
+      <div class="device-row-container">
+        <table class="device-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Hostname</th>
+              <th>Type</th>
+              <th>IP Address</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Latency</th>
+              <th>Uptime</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody id="device-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="pane-alerts">
+      <div class="section-header" style="margin-bottom:16px;">
+        <div class="section-title">Active Alerts &amp; Events</div>
+        <div style="display:flex;gap:8px;">
+          <button class="filter-btn active" onclick="filterAlerts('all',this)">All</button>
+          <button class="filter-btn" onclick="filterAlerts('critical',this)">Critical</button>
+          <button class="filter-btn" onclick="filterAlerts('warning',this)">Warning</button>
+          <button class="filter-btn" onclick="filterAlerts('info',this)">Info</button>
+        </div>
+      </div>
+      <div class="alert-list" id="alert-list"></div>
+    </div>
+
+    <div class="tab-pane" id="pane-metrics">
+      <div class="metrics-2col">
+        <div class="metrics-panel">
+          <div class="metrics-panel-title">Packet Statistics</div>
+          <div class="metric-row"><span class="metric-name">Packets In (pps)</span><span class="metric-val font-mono" id="m-pkt-in">—</span></div>
+          <div class="metric-row"><span class="metric-name">Packets Out (pps)</span><span class="metric-val font-mono" id="m-pkt-out">—</span></div>
+          <div class="metric-row"><span class="metric-name">Packet Loss</span><span class="metric-val font-mono" id="m-pkt-loss" style="color:var(--green)">0.02%</span></div>
+          <div class="metric-row"><span class="metric-name">Broadcast Packets</span><span class="metric-val font-mono" id="m-bcast">—</span></div>
+          <div class="metric-row"><span class="metric-name">Multicast Packets</span><span class="metric-val font-mono" id="m-mcast">—</span></div>
+          <div class="metric-row"><span class="metric-name">Error Rate</span><span class="metric-val font-mono" id="m-err-rate" style="color:var(--green)">0.001%</span></div>
+        </div>
+        <div class="metrics-panel">
+          <div class="metrics-panel-title">Latency &amp; QoS</div>
+          <div class="metric-row"><span class="metric-name">Avg Round-Trip</span><span class="metric-val font-mono" id="m-rtt">—</span></div>
+          <div class="metric-row"><span class="metric-name">P95 Latency</span><span class="metric-val font-mono" id="m-p95">—</span></div>
+          <div class="metric-row"><span class="metric-name">P99 Latency</span><span class="metric-val font-mono" id="m-p99">—</span></div>
+          <div class="metric-row"><span class="metric-name">Jitter</span><span class="metric-val font-mono" id="m-jitter">—</span></div>
+          <div class="metric-row"><span class="metric-name">Bandwidth Util.</span><span class="metric-val font-mono" id="m-bwutil">—</span></div>
+          <div class="metric-row"><span class="metric-name">SNMP Poll Interval</span><span class="metric-val font-mono" style="color:var(--muted2)">5s</span></div>
+        </div>
+      </div>
+      <div class="metrics-2col">
+        <div class="metrics-panel">
+          <div class="metrics-panel-title">Interface Stats — eth0</div>
+          <div class="metric-row"><span class="metric-name">RX Bytes/s</span><span class="metric-val font-mono" id="m-rx">—</span></div>
+          <div class="metric-row"><span class="metric-name">TX Bytes/s</span><span class="metric-val font-mono" id="m-tx">—</span></div>
+          <div class="metric-row"><span class="metric-name">RX Errors</span><span class="metric-val font-mono" style="color:var(--green)">0</span></div>
+          <div class="metric-row"><span class="metric-name">TX Drops</span><span class="metric-val font-mono" style="color:var(--green)">0</span></div>
+          <div class="metric-row"><span class="metric-name">MTU</span><span class="metric-val font-mono" style="color:var(--muted2)">1500</span></div>
+          <div class="metric-row"><span class="metric-name">Duplex</span><span class="metric-val font-mono" style="color:var(--muted2)">Full / 10GbE</span></div>
+        </div>
+        <div class="metrics-panel">
+          <div class="metrics-panel-title">Prometheus / Grafana Feed</div>
+          <div class="metric-row"><span class="metric-name">Scrape Status</span><span class="metric-val font-mono" style="color:var(--green)">Active</span></div>
+          <div class="metric-row"><span class="metric-name">Scrape Interval</span><span class="metric-val font-mono" style="color:var(--muted2)">15s</span></div>
+          <div class="metric-row"><span class="metric-name">Active Targets</span><span class="metric-val font-mono" id="m-targets">50 / 50</span></div>
+          <div class="metric-row"><span class="metric-name">Series Ingested/s</span><span class="metric-val font-mono" id="m-series">—</span></div>
+          <div class="metric-row"><span class="metric-name">Retention Window</span><span class="metric-val font-mono" style="color:var(--muted2)">15d</span></div>
+          <div class="metric-row"><span class="metric-name">Last Scrape</span><span class="metric-val font-mono" id="m-lastscrape" style="color:var(--green)">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="pane-history">
+      <div class="history-panel">
+        <div class="chart-panel-header">
+          <div class="chart-panel-title">24h Traffic + CPU History (simulated)</div>
+          <div style="font-size:11px;color:var(--muted)">Prometheus-style retention</div>
+        </div>
+        <div class="history-canvas-wrap">
+          <canvas id="ch-history" role="img" aria-label="24 hour history chart of traffic and CPU metrics"></canvas>
+        </div>
+      </div>
+      <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-title">System Event Log</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="filter-btn" onclick="clearLog()">Clear</button>
+          <button class="filter-btn active" id="log-autoscroll-btn" onclick="toggleLogScroll()">Auto-scroll ON</button>
+        </div>
+      </div>
+      <div class="log-console" id="log-box">
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-info">NetWatch v3.1 initializing...</span></div>
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-ok">SNMP polling engine started — 50 targets registered</span></div>
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-ok">Prometheus scraper active — interval 15s</span></div>
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-ok">WebSocket telemetry feed connected</span></div>
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-info">Topology discovery complete — 50 devices mapped</span></div>
+        <div class="log-line"><span class="log-ts">[BOOT]</span><span class="log-ok">System ready. Telemetry active.</span></div>
+      </div>
+    </div>
+
+  </div></div><button class="settings-toggle" onclick="toggleDrawer()" title="Simulation Parameters">⚙</button>
+
+<div class="settings-drawer" id="settings-drawer">
+  <div>
+    <div class="drawer-title">Simulation Parameters</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">These control the simulated telemetry feed, not real devices.</div>
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Network Traffic (Mbps) <span id="d-traffic-val" style="font-family:var(--font-mono);color:var(--cyan)">30</span></div>
+    <input class="drawer-slider" type="range" id="sim-traffic" min="10" max="100" value="30" step="1" oninput="document.getElementById('d-traffic-val').textContent=this.value">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">CPU Load (%) <span id="d-cpu-val" style="font-family:var(--font-mono);color:var(--amber)">25</span></div>
+    <input class="drawer-slider" type="range" id="sim-cpu" min="5" max="100" value="25" step="1" oninput="document.getElementById('d-cpu-val').textContent=this.value">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Memory Usage (%) <span id="d-mem-val" style="font-family:var(--font-mono);color:var(--green)">40</span></div>
+    <input class="drawer-slider" type="range" id="sim-mem" min="10" max="100" value="40" step="1" oninput="document.getElementById('d-mem-val').textContent=this.value">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Packet Loss (%) <span id="d-loss-val" style="font-family:var(--font-mono);color:var(--red)">0</span></div>
+    <input class="drawer-slider" type="range" id="sim-loss" min="0" max="10" value="0" step="0.1" oninput="document.getElementById('d-loss-val').textContent=parseFloat(this.value).toFixed(1)">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Latency (ms) <span id="d-lat-val" style="font-family:var(--font-mono);color:var(--muted2)">12</span></div>
+    <input class="drawer-slider" type="range" id="sim-lat" min="1" max="200" value="12" step="1" oninput="document.getElementById('d-lat-val').textContent=this.value">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Offline Devices <span id="d-offline-val" style="font-family:var(--font-mono);color:var(--muted2)">2</span></div>
+    <input class="drawer-slider" type="range" id="sim-offline" min="0" max="10" value="2" step="1" oninput="document.getElementById('d-offline-val').textContent=this.value;rebuildDevices()">
+  </div>
+  <div style="margin-top:auto;font-size:10px;color:var(--muted);padding-top:16px;border-top:1px solid var(--border);">
+    All data is simulated. No real network connections are made.
+  </div>
+</div>
+
+<div id="topo-tooltip"></div>
+
+<script>
+// ─── DATA STRUCTURES ───────────────────────────────────────────────────────
+const DEVICE_TYPES = ['router','switch','server','firewall'];
+const STATUS_OPTS = ['healthy','healthy','healthy','warning','degraded','critical','offline'];
+const HOSTNAMES = [
+  'core-rtr-01','core-rtr-02','edge-rtr-01','edge-rtr-02',
+  'dist-sw-01','dist-sw-02','dist-sw-03','dist-sw-04',
+  'acc-sw-01','acc-sw-02','acc-sw-03','acc-sw-04','acc-sw-05','acc-sw-06',
+  'fw-01','fw-02',
+  'web-srv-01','web-srv-02','web-srv-03',
+  'app-srv-01','app-srv-02','app-srv-03','app-srv-04',
+  'db-srv-01','db-srv-02','db-srv-03',
+  'stor-srv-01','stor-srv-02',
+  'mon-srv-01','backup-srv-01',
+  'mail-srv-01','ldap-srv-01',
+  'nfs-srv-01','sip-srv-01',
+  'dhcp-srv-01','dns-srv-01','dns-srv-02',
+  'vpn-gw-01','vpn-gw-02',
+  'iot-gw-01','iot-gw-02',
+  'cam-srv-01','printer-srv-01',
+  'wifi-ctrl-01','ap-floor1','ap-floor2','ap-floor3',
+  'oob-mgmt-01','kvm-srv-01'
+];
+const DEVICE_TYPE_MAP = {
+  'core-rtr':'router','edge-rtr':'router','dist-sw':'switch','acc-sw':'switch',
+  'fw':'firewall','web-srv':'server','app-srv':'server','db-srv':'server',
+  'stor-srv':'server','mon-srv':'server','backup-srv':'server','mail-srv':'server',
+  'ldap-srv':'server','nfs-srv':'server','sip-srv':'server','dhcp-srv':'server',
+  'dns-srv':'server','vpn-gw':'router','iot-gw':'router','cam-srv':'server',
+  'printer-srv':'server','wifi-ctrl':'server','ap':'server','oob-mgmt':'server',
+  'kvm-srv':'server'
+};
+
+function getType(h) {
+  for (const k of Object.keys(DEVICE_TYPE_MAP)) if (h.startsWith(k)) return DEVICE_TYPE_MAP[k];
+  return 'server';
+}
+
+let devices = [];
+let currentFilter = 'all';
+let logAutoScroll = true;
+let alertDismissed = false;
+let alertLog = [];
+
+function buildIP(i) {
+  return `10.${Math.floor(i/30)+1}.${Math.floor((i%30)/10)+1}.${(i%10)+2}`;
+}
+
+function rebuildDevices() {
+  const offlineCount = parseInt(document.getElementById('sim-offline').value);
+  devices = HOSTNAMES.map((h, i) => {
+    let status;
+    if (i < offlineCount) {
+      status = 'offline';
+    } else if (i < offlineCount+1) {
+      status = 'critical';
+    } else if (i < offlineCount+3) {
+      status = 'warning';
+    } else {
+      status = 'healthy';
+    }
+    return {
+      hostname: h,
+      type: getType(h),
+      ip: buildIP(i),
+      status,
+      cpu: status === 'offline' ? 0 : Math.round(15 + Math.random()*60),
+      mem: status === 'offline' ? 0 : Math.round(20 + Math.random()*70),
+      latency: status === 'offline' ? null : Math.round(1 + Math.random()*40),
+      uptime: status === 'offline' ? '—' : `${Math.floor(Math.random()*200+1)}d ${Math.floor(Math.random()*24)}h`,
+      seen: status === 'offline' ? `${Math.floor(Math.random()*10+1)}m ago` : 'Just now'
+    };
+  });
+  renderDevices();
+}
+
+function getStatusClass(s) {
+  const m = { healthy:'s-healthy', warning:'s-warning', degraded:'s-degraded', critical:'s-critical', offline:'s-offline' };
+  return m[s] || 's-offline';
+}
+function getStatusEmoji(s) {
+  const m = { healthy:'🟢', warning:'🟡', degraded:'🟠', critical:'🔴', offline:'⚫' };
+  return m[s] || '⚫';
+}
+function getStatusLabel(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function cpuColor(v) {
+  if (v >= 85) return 'var(--red)';
+  if (v >= 70) return 'var(--orange)';
+  if (v >= 50) return 'var(--amber)';
+  return 'var(--green)';
+}
+function memColor(v) {
+  if (v >= 90) return 'var(--red)';
+  if (v >= 75) return 'var(--amber)';
+  return 'var(--cyan)';
+}
+
+function renderDevices() {
+  const search = document.getElementById('dev-search').value.toLowerCase();
+  const tbody = document.getElementById('device-tbody');
+  let rows = devices.filter(d => {
+    const typeMatch = currentFilter === 'all' || d.type === currentFilter || d.status === currentFilter;
+    const searchMatch = !search || d.hostname.includes(search) || d.ip.includes(search) || d.type.includes(search);
+    return typeMatch && searchMatch;
+  });
+  tbody.innerHTML = rows.map(d => `
+    <tr>
+      <td><span class="status-badge ${getStatusClass(d.status)}"><div class="s-dot"></div>${getStatusLabel(d.status)}</span></td>
+      <td class="font-mono" style="color:var(--text)">${d.hostname}</td>
+      <td style="color:var(--muted2);text-transform:capitalize">${d.type}</td>
+      <td class="font-mono" style="color:var(--muted)">${d.ip}</td>
+      <td>
+        ${d.status !== 'offline' ? `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="font-mono" style="color:${cpuColor(d.cpu)};min-width:34px">${d.cpu}%</span>
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${d.cpu}%;background:${cpuColor(d.cpu)}"></div></div>
+        </div>` : '<span style="color:var(--gray)">—</span>'}
+      </td>
+      <td>
+        ${d.status !== 'offline' ? `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="font-mono" style="color:${memColor(d.mem)};min-width:34px">${d.mem}%</span>
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${d.mem}%;background:${memColor(d.mem)}"></div></div>
+        </div>` : '<span style="color:var(--gray)">—</span>'}
+      </td>
+      <td class="font-mono" style="color:${d.latency > 30 ? 'var(--amber)' : 'var(--muted2)'}">${d.latency !== null ? d.latency+'ms' : '—'}</td>
+      <td style="color:var(--muted)">${d.uptime}</td>
+      <td style="color:var(--muted);font-size:11px">${d.seen}</td>
+    </tr>
+  `).join('');
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('#pane-devices .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDevices();
+}
+function filterDevices() { renderDevices(); }
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────
+const PTS = 40;
+const blank = () => Array(PTS).fill(null);
+const labels = Array(PTS).fill('');
+
+function mkChart(id, label, color, max, borderDash) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data: blank(),
+        borderColor: color,
+        backgroundColor: color+'18',
+        borderWidth: 1.5,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        borderDash: borderDash || []
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      scales: {
+        y: { min: 0, max, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color:'#475569', font:{size:10,family:'JetBrains Mono'} } },
+        x: { display: false }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+let chTraffic, chCpu, chMem, chHistory;
+let historyTraffic = [], historyCpu = [];
+
+function initCharts() {
+  chTraffic = mkChart('ch-traffic', 'Traffic Mbps', '#06B6D4', 120);
+  chCpu = mkChart('ch-cpu', 'CPU %', '#F59E0B', 100);
+  chMem = mkChart('ch-mem', 'Memory %', '#22C55E', 100);
+
+  // Generate 24h history
+  for (let i = 0; i < 96; i++) {
+    const h = i / 4;
+    historyTraffic.push(Math.round(20 + 40*Math.sin(h/4) + Math.random()*15));
+    historyCpu.push(Math.round(15 + 30*Math.sin((h+2)/5) + Math.random()*10));
+  }
+  const hLabels = Array.from({length:96}, (_,i)=> {
+    const h = Math.floor(i/4); const m = (i%4)*15;
+    return h%6===0 && m===0 ? `${h}:00` : '';
+  });
+  const hCtx = document.getElementById('ch-history').getContext('2d');
+  chHistory = new Chart(hCtx, {
+    type: 'line',
+    data: {
+      labels: hLabels,
+      datasets: [
+        { label:'Traffic (Mbps)', data: historyTraffic, borderColor:'#06B6D4', backgroundColor:'#06B6D418', borderWidth:1.5, fill:true, tension:0.4, pointRadius:0 },
+        { label:'CPU (%)', data: historyCpu, borderColor:'#F59E0B', backgroundColor:'#F59E0B18', borderWidth:1.5, fill:true, tension:0.4, pointRadius:0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      scales: {
+        y: { min:0, max:100, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#475569',font:{size:10,family:'JetBrains Mono'}} },
+        x: { grid:{display:false}, ticks:{color:'#475569',font:{size:9},maxRotation:0} }
+      },
+      plugins: { legend: { labels: { color:'#64748B', font:{size:10,family:'JetBrains Mono'}, boxWidth:10, padding:16 } } }
+    }
+  });
+}
+
+function pushChart(ch, val, maxVal) {
+  const d = ch.data.datasets[0].data;
+  d.shift(); d.push(val);
+  ch.update('none');
+}
+
+// ─── TOPOLOGY ─────────────────────────────────────────────────────────────
+const TOPO_NODES = [
+  { id:'core1', label:'core-rtr-01', type:'router', x:0.5, y:0.08, status:'healthy' },
+  { id:'fw1',   label:'fw-01',        type:'firewall',x:0.25,y:0.22, status:'healthy' },
+  { id:'fw2',   label:'fw-02',        type:'firewall',x:0.75,y:0.22, status:'warning' },
+  { id:'dsw1',  label:'dist-sw-01',   type:'switch',  x:0.2, y:0.40, status:'healthy' },
+  { id:'dsw2',  label:'dist-sw-02',   type:'switch',  x:0.4, y:0.40, status:'healthy' },
+  { id:'dsw3',  label:'dist-sw-03',   type:'switch',  x:0.6, y:0.40, status:'degraded' },
+  { id:'dsw4',  label:'dist-sw-04',   type:'switch',  x:0.8, y:0.40, status:'healthy' },
+  { id:'sw1',   label:'acc-sw-01',    type:'switch',  x:0.1, y:0.60, status:'healthy' },
+  { id:'sw2',   label:'acc-sw-02',    type:'switch',  x:0.27,y:0.60, status:'healthy' },
+  { id:'sw3',   label:'acc-sw-03',    type:'switch',  x:0.44,y:0.60, status:'healthy' },
+  { id:'sw4',   label:'acc-sw-04',    type:'switch',  x:0.61,y:0.60, status:'critical' },
+  { id:'sw5',   label:'acc-sw-05',    type:'switch',  x:0.78,y:0.60, status:'healthy' },
+  { id:'ws1',   label:'web-srv-01',   type:'server',  x:0.06,y:0.82, status:'healthy' },
+  { id:'ws2',   label:'web-srv-02',   type:'server',  x:0.18,y:0.82, status:'healthy' },
+  { id:'as1',   label:'app-srv-01',   type:'server',  x:0.30,y:0.82, status:'healthy' },
+  { id:'as2',   label:'app-srv-02',   type:'server',  x:0.42,y:0.82, status:'warning' },
+  { id:'db1',   label:'db-srv-01',    type:'server',  x:0.54,y:0.82, status:'healthy' },
+  { id:'db2',   label:'db-srv-02',    type:'server',  x:0.66,y:0.82, status:'offline' },
+  { id:'st1',   label:'stor-srv-01',  type:'server',  x:0.78,y:0.82, status:'healthy' },
+  { id:'vpn1',  label:'vpn-gw-01',    type:'router',  x:0.90,y:0.82, status:'healthy' },
+];
+const TOPO_EDGES = [
+  ['core1','fw1'],['core1','fw2'],
+  ['fw1','dsw1'],['fw1','dsw2'],['fw2','dsw3'],['fw2','dsw4'],
+  ['dsw1','sw1'],['dsw1','sw2'],['dsw2','sw2'],['dsw2','sw3'],
+  ['dsw3','sw3'],['dsw3','sw4'],['dsw4','sw4'],['dsw4','sw5'],
+  ['sw1','ws1'],['sw1','ws2'],['sw2','as1'],['sw3','as2'],
+  ['sw3','db1'],['sw4','db2'],['sw5','st1'],['dsw4','vpn1'],
+];
+
+const STATUS_COLORS = { healthy:'#22C55E', warning:'#F59E0B', degraded:'#F97316', critical:'#EF4444', offline:'#475569' };
+const TYPE_SHAPE = { router:'diamond', switch:'rect', server:'circle', firewall:'hex' };
+
+let topoPackets = [];
+let animFrame;
+
+function initTopo() {
+  const canvas = document.getElementById('topo-canvas');
+  const W = canvas.offsetWidth || 900;
+  canvas.width = W;
+
+  function px(node) {
+    return { x: node.x * W, y: node.y * 420 };
+  }
+
+  function drawNode(ctx, node) {
+    const p = px(node);
+    const c = STATUS_COLORS[node.status];
+    const r = node.type === 'server' ? 10 : node.type === 'router' ? 14 : 12;
+    ctx.save();
+    ctx.shadowColor = c;
+    ctx.shadowBlur = 8;
+
+    if (node.type === 'server') {
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+      ctx.fillStyle = c+'30'; ctx.fill();
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
+    } else if (node.type === 'router') {
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - r*1.2);
+      ctx.lineTo(p.x + r*1.2, p.y);
+      ctx.lineTo(p.x, p.y + r*1.2);
+      ctx.lineTo(p.x - r*1.2, p.y);
+      ctx.closePath();
+      ctx.fillStyle = c+'30'; ctx.fill();
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
+    } else if (node.type === 'firewall') {
+      const s = r*1.3;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - s);
+      ctx.lineTo(p.x + s*0.866, p.y - s*0.5);
+      ctx.lineTo(p.x + s*0.866, p.y + s*0.5);
+      ctx.lineTo(p.x, p.y + s);
+      ctx.lineTo(p.x - s*0.866, p.y + s*0.5);
+      ctx.lineTo(p.x - s*0.866, p.y - s*0.5);
+      ctx.closePath();
+      ctx.fillStyle = c+'30'; ctx.fill();
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      const s = r*1.2;
+      ctx.beginPath(); ctx.roundRect(p.x-s, p.y-s*0.8, s*2, s*1.6, 3);
+      ctx.fillStyle = c+'30'; ctx.fill();
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    ctx.restore();
+
+    // Label
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(node.label, p.x, p.y + r*1.8 + 6);
+  }
+
+  function drawEdge(ctx, a, b) {
+    const pa = px(a), pb = px(b);
+    const bothOk = a.status !== 'offline' && b.status !== 'offline';
+    ctx.beginPath();
+    ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
+    ctx.strokeStyle = bothOk ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.15)';
+    ctx.lineWidth = 1;
+    if (!bothOk) { ctx.setLineDash([4,4]); } else { ctx.setLineDash([]); }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  function spawnPacket() {
+    const edge = TOPO_EDGES[Math.floor(Math.random()*TOPO_EDGES.length)];
+    const fromNode = TOPO_NODES.find(n=>n.id===edge[0]);
+    const toNode = TOPO_NODES.find(n=>n.id===edge[1]);
+    if (!fromNode || !toNode) return;
+    if (fromNode.status === 'offline' || toNode.status === 'offline') return;
+    const reverse = Math.random() > 0.5;
+    const src = reverse ? toNode : fromNode;
+    const dst = reverse ? fromNode : toNode;
+    topoPackets.push({ sx:src.x*W, sy:src.y*420, ex:dst.x*W, ey:dst.y*420, t:0, color: STATUS_COLORS[src.status] });
+  }
+
+  function draw() {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, 420);
+
+    // Draw edges
+    TOPO_EDGES.forEach(([a,b]) => {
+      const na = TOPO_NODES.find(n=>n.id===a);
+      const nb = TOPO_NODES.find(n=>n.id===b);
+      if (na && nb) drawEdge(ctx, na, nb);
+    });
+
+    // Draw packets
+    topoPackets = topoPackets.filter(p => p.t < 1);
+    topoPackets.forEach(p => {
+      const x = p.sx + (p.ex-p.sx)*p.t;
+      const y = p.sy + (p.ey-p.sy)*p.t;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fillStyle = p.color+'BB'; ctx.fill();
+      p.t += 0.04;
+    });
+
+    // Draw nodes
+    TOPO_NODES.forEach(n => drawNode(ctx, n));
+
+    animFrame = requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  // Spawn packets periodically
+  setInterval(spawnPacket, 200);
+
+  // Tooltip
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const W2 = canvas.offsetWidth;
+    let found = null;
+    TOPO_NODES.forEach(n => {
+      const dx = n.x*W2 - mx, dy = n.y*420 - my;
+      if (Math.sqrt(dx*dx+dy*dy) < 20) found = n;
+    });
+    const tt = document.getElementById('topo-tooltip');
+    if (found) {
+      tt.style.display = 'block';
+      tt.style.left = (e.clientX+12)+'px';
+      tt.style.top = (e.clientY-10)+'px';
+      tt.innerHTML = `
+        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;margin-bottom:6px;color:${STATUS_COLORS[found.status]}">${found.label}</div>
+        <div style="font-size:11px;color:var(--muted2);margin-bottom:4px;">Type: <span style="color:var(--text);text-transform:capitalize">${found.type}</span></div>
+        <div style="font-size:11px;color:var(--muted2);">Status: <span style="color:${STATUS_COLORS[found.status]}">${getStatusLabel(found.status)}</span></div>
+      `;
+    } else {
+      tt.style.display = 'none';
+    }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    document.getElementById('topo-tooltip').style.display = 'none';
+  });
+}
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────
+const INIT_ALERTS = [
+  { id:1, ts:'08:14:22', level:'critical', title:'Switch acc-sw-04 unreachable', sub:'SNMP timeout after 3 retries · Last seen 8 min ago', ack:false },
+  { id:2, ts:'08:21:05', level:'critical', title:'db-srv-02 offline', sub:'Ping failed · ICMP unreachable from all probes', ack:false },
+  { id:3, ts:'09:02:17', level:'warning',  title:'fw-02 CPU high', sub:'CPU sustained at 78% for 15 min · Threshold: 75%', ack:false },
+  { id:4, ts:'09:15:44', level:'warning',  title:'dist-sw-03 degraded', sub:'3 port errors in 60s · CRC mismatch on Gi0/4', ack:false },
+  { id:5, ts:'09:30:01', level:'info',     title:'Prometheus scrape delay', sub:'mon-srv-01 scrape latency 4.1s · Expected <2s', ack:false },
+  { id:6, ts:'10:01:12', level:'info',     title:'VPN tunnel renegotiated', sub:'vpn-gw-01 ↔ remote-site-3 — IKEv2 rekeyed', ack:false },
+];
+alertLog = [...INIT_ALERTS];
+let alertFilter = 'all';
+
+function renderAlerts() {
+  const list = document.getElementById('alert-list');
+  const filtered = alertLog.filter(a => alertFilter === 'all' || a.level === alertFilter);
+  list.innerHTML = filtered.length === 0
+    ? '<div style="text-align:center;color:var(--muted);padding:40px;font-size:12px;">No alerts match the current filter</div>'
+    : filtered.map(a => `
+      <div class="alert-item ${a.level === 'critical' ? 'crit' : a.level === 'warning' ? 'warn' : 'info'}">
+        <div class="alert-ts">${a.ts}</div>
+        <div class="alert-body">
+          <div class="alert-title">${a.title}</div>
+          <div class="alert-sub">${a.sub}</div>
+        </div>
+        <span class="alert-lvl ${a.level === 'critical' ? 'lvl-crit' : a.level === 'warning' ? 'lvl-warn' : 'lvl-info'}">${a.level.toUpperCase()}</span>
+      </div>
+    `).join('');
+
+  // Update badge
+  const crit = alertLog.filter(a=>a.level==='critical').length;
+  const warn = alertLog.filter(a=>a.level==='warning').length;
+  const badge = document.getElementById('alert-count-badge');
+  const dot = document.getElementById('alert-nav-dot');
+  if (crit > 0) {
+    badge.textContent = crit; badge.classList.remove('hidden');
+    dot.style.background = 'var(--red)';
+    document.getElementById('card-alerts').textContent = crit + warn;
+    document.getElementById('alert-sev-label').textContent = `${crit} Crit / ${warn} Warn`;
+  } else {
+    badge.classList.add('hidden');
+    dot.style.background = 'var(--muted)';
+  }
+}
+
+function filterAlerts(f, btn) {
+  alertFilter = f;
+  document.querySelectorAll('#pane-alerts .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAlerts();
+}
+
+// ─── LOG ─────────────────────────────────────────────────────────────────
+const LOG_SOURCES = ['SNMP','PROM','SYSLOG','NETFLOW','ICMP','BGP','OSPF','LLDP','WEBHOOK'];
+const LOG_MSGS = [
+  ['ok', '{src}', 'Interface {dev} eth0 — tx:{tx}Mbps rx:{rx}Mbps'],
+  ['metrics', '{src}', 'Scrape OK · {n} series ingested · latency {lat}ms'],
+  ['info', '{src}', 'BGP keepalive {dev} — AS65001 ↔ AS65002'],
+  ['warn', '{src}', 'High CPU on {dev} ({cpu}%) — threshold 75%'],
+  ['ok', '{src}', 'SNMP walk {dev} — 142 OIDs returned in {lat}ms'],
+  ['info', '{src}', 'LLDP neighbor change on {dev} port Gi0/{n}'],
+  ['ok', '{src}', 'Netflow records ingested: {n} flows/s from {dev}'],
+  ['warn', '{src}', 'Packet retransmit rate elevated: {dev} — {pct}%'],
+  ['ok', '{src}', 'OSPF adjacency {dev} ↔ {dev2} — Full'],
+  ['metrics', '{src}', 'Prometheus target {dev}:9100 — health OK'],
+];
+
+function logMsg(type, src, msg) {
+  const box = document.getElementById('log-box');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const classMap = { ok:'log-ok', warn:'log-warn', err:'log-err', info:'log-info', metrics:'log-metrics' };
+  const el = document.createElement('div');
+  el.className = 'log-line';
+  el.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-src">[${src}]</span><span class="${classMap[type]||'log-info'}">${msg}</span>`;
+  box.appendChild(el);
+  // Limit log entries
+  while (box.children.length > 300) box.removeChild(box.firstChild);
+  if (logAutoScroll) box.scrollTop = box.scrollHeight;
+}
+
+function randomLogLine() {
+  const template = LOG_MSGS[Math.floor(Math.random()*LOG_MSGS.length)];
+  const devs = ['core-rtr-01','dist-sw-02','acc-sw-01','web-srv-02','app-srv-03','db-srv-01','vpn-gw-01'];
+  const dev = devs[Math.floor(Math.random()*devs.length)];
+  const dev2 = devs[Math.floor(Math.random()*devs.length)];
+  const src = LOG_SOURCES[Math.floor(Math.random()*LOG_SOURCES.length)];
+  const msg = template[2]
+    .replace(/{src}/g, src).replace(/{dev}/g, dev).replace(/{dev2}/g, dev2)
+    .replace(/{tx}/g, (10+Math.random()*80).toFixed(1))
+    .replace(/{rx}/g, (5+Math.random()*60).toFixed(1))
+    .replace(/{lat}/g, Math.round(1+Math.random()*50))
+    .replace(/{cpu}/g, Math.round(70+Math.random()*20))
+    .replace(/{n}/g, Math.round(100+Math.random()*500))
+    .replace(/{pct}/g, (1+Math.random()*8).toFixed(2));
+  logMsg(template[0], template[1].replace('{src}',src), msg);
+}
+
+function clearLog() {
+  document.getElementById('log-box').innerHTML = '<div class="log-line"><span class="log-info">Log cleared.</span></div>';
+}
+function toggleLogScroll() {
+  logAutoScroll = !logAutoScroll;
+  const btn = document.getElementById('log-autoscroll-btn');
+  btn.textContent = logAutoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF';
+  btn.classList.toggle('active', logAutoScroll);
+}
+
+// ─── MAIN TICK ────────────────────────────────────────────────────────────
+let tickCount = 0;
+
+function tick() {
+  tickCount++;
+  const traffic = parseFloat(document.getElementById('sim-traffic').value);
+  const cpuBase = parseFloat(document.getElementById('sim-cpu').value);
+  const memBase = parseFloat(document.getElementById('sim-mem').value);
+  const latBase = parseFloat(document.getElementById('sim-lat').value);
+  const lossBase = parseFloat(document.getElementById('sim-loss').value);
+
+  const tv = Math.max(0, traffic + (Math.random()*14-7));
+  const cv = Math.max(0, Math.min(100, cpuBase + (Math.random()*8-4)));
+  const mv = Math.max(0, Math.min(100, memBase + (Math.random()*5-2.5)));
+  const lv = Math.max(0.5, latBase + (Math.random()*6-3));
+  const lossV = Math.max(0, lossBase + (Math.random()*0.02-0.01));
+
+  // Push to charts
+  pushChart(chTraffic, tv.toFixed(1));
+  pushChart(chCpu, cv.toFixed(1));
+  pushChart(chMem, mv.toFixed(1));
+
+  // Update overview chart vals
+  document.getElementById('cv-traffic').textContent = tv.toFixed(1)+' Mbps';
+  document.getElementById('cv-cpu').textContent = cv.toFixed(1)+'%';
+  document.getElementById('cv-mem').textContent = mv.toFixed(1)+'%';
+
+  // Summary cards
+  const offlineCount = parseInt(document.getElementById('sim-offline').value);
+  document.getElementById('card-devices').textContent = `${50-offlineCount}/50`;
+  document.getElementById('card-cpu').textContent = cv.toFixed(1)+'%';
+  document.getElementById('card-mem').textContent = mv.toFixed(1)+'%';
+  document.getElementById('card-throughput').textContent = (tv/1000*10).toFixed(2)+' Gbps';
+
+  const cpuTrend = document.getElementById('cpu-trend');
+  if (cv > 75) { cpuTrend.textContent='↑ High'; cpuTrend.className='stat-trend trend-down'; }
+  else if (cv > 50) { cpuTrend.textContent='↑ Moderate'; cpuTrend.className='stat-trend'; cpuTrend.style.color='var(--amber)'; cpuTrend.style.background='var(--amber-dim)'; }
+  else { cpuTrend.textContent='Stable'; cpuTrend.className='stat-trend trend-up'; }
+
+  // AI cards jitter
+  const aiCpu = Math.max(5,Math.min(100, 20 + (Math.random()*10-5)));
+  const aiGpu = Math.max(2,Math.min(100, 10 + (Math.random()*6-3)));
+  const aiApu = Math.max(5,Math.min(100, 30 + cv*0.2 + (Math.random()*8-4)));
+  document.getElementById('ai-cpu-val').textContent = aiCpu.toFixed(0)+'%';
+  document.getElementById('ai-gpu-val').textContent = aiGpu.toFixed(0)+'%';
+  document.getElementById('ai-apu-val').textContent = aiApu.toFixed(0)+'%';
+  document.getElementById('ai-cpu-bar').style.width = aiCpu+'%';
+  document.getElementById('ai-gpu-bar').style.width = aiGpu+'%';
+  document.getElementById('ai-apu-bar').style.width = aiApu+'%';
+  document.getElementById('ai-cpu-alloc').textContent = `${Math.round(aiCpu/10*4)} / 10 cores active`;
+  
+  // Dynamic GPU memory & allocation
+  const aiGpuActive = Math.ceil(aiGpu / 100 * 12);
+  const aiGpuVram = Math.round(aiGpu / 100 * 1692);
+  document.getElementById('ai-gpu-alloc').textContent = `${aiGpuActive} / 12 active · ${aiGpuVram}GB / 1692GB VRAM`;
+  
+  document.getElementById('ai-apu-alloc').textContent = `${Math.round(aiApu/10*20)} / 20 CUs active · 48GB VRAM`;
+
+  // Protocol distribution
+  const tcp = 50 + Math.round(Math.random()*15);
+  const udp = 15 + Math.round(Math.random()*12);
+  const http = 8 + Math.round(Math.random()*8);
+  const other = 100 - tcp - udp - http;
+  document.getElementById('ps-tcp').style.flex = tcp;
+  document.getElementById('ps-udp').style.flex = udp;
+  document.getElementById('ps-http').style.flex = http;
+  document.getElementById('ps-other').style.flex = Math.max(1,other);
+  document.getElementById('pl-tcp').textContent = `TCP ${tcp}%`;
+  document.getElementById('pl-udp').textContent = `UDP ${udp}%`;
+  document.getElementById('pl-http').textContent = `HTTP/S ${http}%`;
+  document.getElementById('pl-other').textContent = `Other ${Math.max(1,other)}%`;
+
+  // Metrics tab
+  document.getElementById('m-pkt-in').textContent = Math.round(tv*140).toLocaleString()+' pps';
+  document.getElementById('m-pkt-out').textContent = Math.round(tv*110).toLocaleString()+' pps';
+  document.getElementById('m-pkt-loss').textContent = lossV.toFixed(3)+'%';
+  document.getElementById('m-pkt-loss').style.color = lossV > 1 ? 'var(--red)' : lossV > 0.1 ? 'var(--amber)' : 'var(--green)';
+  document.getElementById('m-bcast').textContent = Math.round(tv*2.3).toLocaleString()+' pps';
+  document.getElementById('m-mcast').textContent = Math.round(tv*1.1).toLocaleString()+' pps';
+  document.getElementById('m-err-rate').textContent = (Math.random()*0.005).toFixed(4)+'%';
+  document.getElementById('m-rtt').textContent = lv.toFixed(1)+' ms';
+  document.getElementById('m-p95').textContent = (lv*2.1).toFixed(1)+' ms';
+  document.getElementById('m-p99').textContent = (lv*3.8).toFixed(1)+' ms';
+  document.getElementById('m-jitter').textContent = (Math.random()*3+0.2).toFixed(2)+' ms';
+  document.getElementById('m-bwutil').textContent = (tv/100*0.83).toFixed(1)+'%';
+  document.getElementById('m-rx').textContent = Math.round(tv*125000).toLocaleString()+' B/s';
+  document.getElementById('m-tx').textContent = Math.round(tv*98000).toLocaleString()+' B/s';
+  document.getElementById('m-series').textContent = Math.round(tv*8+200)+' /s';
+  const now = new Date();
+  document.getElementById('m-lastscrape').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  // Alert banner logic
+  if (!alertDismissed) {
+    const banner = document.getElementById('alert-banner');
+    const statusText = document.getElementById('system-status-text');
+    if (tv > 85) {
+      banner.classList.remove('hidden');
+      document.getElementById('alert-text').textContent = `CRITICAL: Traffic spike detected — ${tv.toFixed(1)} Mbps (threshold 85)`;
+      statusText.textContent = 'Degraded Performance';
+      statusText.parentElement.style.background = 'rgba(239,68,68,0.12)';
+      statusText.parentElement.style.borderColor = 'rgba(239,68,68,0.3)';
+      statusText.parentElement.style.color = 'var(--red)';
+    } else if (cv > 82) {
+      banner.classList.remove('hidden');
+      document.getElementById('alert-text').textContent = `WARNING: CPU overload — ${cv.toFixed(1)}% on cluster (threshold 82%)`;
+      statusText.textContent = 'Elevated CPU';
+      statusText.parentElement.style.background = 'rgba(245,158,11,0.12)';
+      statusText.parentElement.style.borderColor = 'rgba(245,158,11,0.3)';
+      statusText.parentElement.style.color = 'var(--amber)';
+    } else {
+      banner.classList.add('hidden');
+      statusText.textContent = 'All Systems Operational';
+      statusText.parentElement.style.background = 'var(--green-dim)';
+      statusText.parentElement.style.borderColor = 'rgba(34,197,94,0.2)';
+      statusText.parentElement.style.color = 'var(--green)';
+    }
+  }
+
+  // Periodic log entries
+  if (tickCount % 2 === 0) randomLogLine();
+
+  // Occasionally inject a dynamic alert
+  if (tickCount % 30 === 0 && cv > 78) {
+    const now2 = new Date();
+    const ts = `${String(now2.getHours()).padStart(2,'0')}:${String(now2.getMinutes()).padStart(2,'0')}:${String(now2.getSeconds()).padStart(2,'0')}`;
+    alertLog.unshift({ id: Date.now(), ts, level:'warning', title:`Cluster CPU warning — ${cv.toFixed(0)}%`, sub:`Sustained for 30s · Load balanced across 4 nodes`, ack:false });
+    renderAlerts();
+    alertDismissed = false;
+  }
+
+  // Update device CPU/mem with slight jitter
+  if (tickCount % 5 === 0) {
+    devices.forEach(d => {
+      if (d.status !== 'offline') {
+        d.cpu = Math.max(5, Math.min(99, d.cpu + Math.round(Math.random()*6-3)));
+        d.mem = Math.max(5, Math.min(99, d.mem + Math.round(Math.random()*4-2)));
+      }
+    });
+    renderDevices();
+  }
+
+  // ── OVERVIEW EXTENDED UPDATES ────────────────────────────────────────────
+
+  // CPU breakdown
+  const cpuUser = Math.round(cv * 0.65 + Math.random()*3);
+  const cpuSys  = Math.round(cv * 0.22 + Math.random()*2);
+  const cpuIow  = Math.round(cv * 0.09 + Math.random()*1.5);
+  const cpuIdle = Math.max(0, 100 - cpuUser - cpuSys - cpuIow);
+  const setTxt = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  const setW   = (id, w) => { const el = document.getElementById(id); if(el) el.style.width = w; };
+  const setCol = (id, c) => { const el = document.getElementById(id); if(el) el.style.color = c; };
+
+  setTxt('ov-cpu-pct', cv.toFixed(0)+'%');
+  setW('ov-cpu-bar', cv+'%');
+  document.getElementById('ov-cpu-bar') && (document.getElementById('ov-cpu-bar').style.background = cv > 80 ? 'var(--red)' : cv > 60 ? 'var(--amber)' : 'var(--cyan)');
+  setTxt('cpu-user-val', cpuUser+'%'); setW('cpu-user-bar', cpuUser+'%');
+  setTxt('cpu-sys-val',  cpuSys+'%');  setW('cpu-sys-bar', cpuSys+'%');
+  setTxt('cpu-iow-val',  cpuIow+'%');  setW('cpu-iow-bar', cpuIow+'%');
+  setTxt('cpu-idle-val', cpuIdle+'%'); setW('cpu-idle-bar', cpuIdle+'%');
+
+  // Memory breakdown
+  const memUsedGB = (mv/100*1056).toFixed(0);
+  setTxt('ov-mem-pct', mv.toFixed(0)+'%');
+  setTxt('ov-mem-used', memUsedGB+' GB used');
+  setW('ov-mem-bar', mv+'%');
+  setTxt('mem-used-val', memUsedGB+' GB'); setW('mem-used-bar', mv+'%');
+  const swapPct = Math.max(0, lossBase*5 + Math.random()*2);
+  setTxt('swap-val', (swapPct*0.4+0.8).toFixed(1)+' GB');
+  setW('swap-bar', Math.min(swapPct*4+2, 30)+'%');
+
+  // Disk I/O
+  const diskRd = Math.round(80 + tv*1.1 + Math.random()*30);
+  const diskWr = Math.round(40 + tv*0.6 + Math.random()*20);
+  const diskIops = (diskRd/8 + diskWr/4).toFixed(1);
+  setTxt('ov-disk-rd', diskRd+' MB/s'); setW('ov-disk-bar', Math.min(diskRd/3, 100)+'%');
+  setTxt('disk-rd-val', diskRd+' MB/s'); setW('disk-rd-bar', Math.min(diskRd/3, 100)+'%');
+  setTxt('disk-wr-val', diskWr+' MB/s'); setW('disk-wr-bar', Math.min(diskWr/3, 100)+'%');
+  setTxt('disk-iops-val', parseFloat(diskIops).toFixed(1)+'k'); setW('disk-iops-bar', Math.min(parseFloat(diskIops)/40*100, 100)+'%');
+  setTxt('card-diskio', diskRd+' MB/s');
+
+  // Power & Thermal breakdown (Dynamic 12kW calculation)
+  // Idle: ~800W, CPU max: 350W, 12x H200 Max: 8400W
+  const currentPower = 800 + (cv / 100 * 350) + (aiGpu / 100 * 8400) + (Math.random() * 50);
+  const maxPower = 12000;
+  const psuLoadPct = Math.min(100, (currentPower / maxPower) * 100);
+
+  const cpuTemp = Math.min(95, 35 + (cv / 100 * 50) + (Math.random() * 3));
+  const sysTemp = Math.min(65, 28 + (psuLoadPct / 100 * 30) + (Math.random() * 2));
+  const fanRpm = Math.min(12000, 2500 + (psuLoadPct / 100 * 7500) + (Math.random() * 200));
+
+  setTxt('ov-pwr-val', Math.round(currentPower).toLocaleString() + ' W');
+  setW('ov-pwr-bar', psuLoadPct + '%');
+  const pwrBar = document.getElementById('ov-pwr-bar');
+  if (pwrBar) pwrBar.style.background = psuLoadPct > 80 ? 'var(--red)' : psuLoadPct > 60 ? 'var(--amber)' : 'var(--green)';
+  setCol('ov-pwr-val', psuLoadPct > 80 ? 'var(--red)' : psuLoadPct > 60 ? 'var(--amber)' : 'var(--green)');
+
+  setTxt('temp-cpu-val', Math.round(cpuTemp) + '°C');
+  setW('temp-cpu-bar', (cpuTemp / 100 * 100) + '%');
+  const tempCpuBar = document.getElementById('temp-cpu-bar');
+  if (tempCpuBar) tempCpuBar.style.background = cpuTemp > 85 ?'var(--red)' : cpuTemp > 75 ? 'var(--amber)' : 'var(--green)';
+  setCol('temp-cpu-val', cpuTemp > 85 ? 'var(--red)' : cpuTemp > 75 ? 'var(--amber)' : 'var(--green)');
+
+  setTxt('temp-sys-val', Math.round(sysTemp) + '°C');
+  setW('temp-sys-bar', (sysTemp / 100 * 100) + '%');
+  const tempSysBar = document.getElementById('temp-sys-bar');
+  if (tempSysBar) tempSysBar.style.background = sysTemp > 60 ? 'var(--red)' : sysTemp > 50 ? 'var(--amber)' : 'var(--green)';
+  setCol('temp-sys-val', sysTemp > 60 ? 'var(--red)' : sysTemp > 50 ? 'var(--amber)' : 'var(--green)');
+
+  setTxt('fan-val', Math.round(fanRpm) + ' RPM');
+  setW('fan-bar', (fanRpm / 12000 * 100) + '%');
+  const fanBarEl = document.getElementById('fan-bar');
+  if (fanBarEl) fanBarEl.style.background = fanRpm > 10000 ? 'var(--red)' : fanRpm > 8000 ? 'var(--amber)' : 'var(--cyan)';
+  setCol('fan-val', fanRpm > 10000 ? 'var(--red)' : fanRpm > 8000 ? 'var(--amber)' : 'var(--cyan)');
+
+  setTxt('psu-val', Math.round(psuLoadPct) + '%');
+  setW('psu-bar', psuLoadPct + '%');
+  const psuBarEl = document.getElementById('psu-bar');
+  if (psuBarEl) psuBarEl.style.background = psuLoadPct > 80 ? 'var(--red)' : psuLoadPct > 60 ? 'var(--amber)' : 'var(--cyan)';
+  setCol('psu-val', psuLoadPct > 80 ? 'var(--red)' : psuLoadPct > 60 ? 'var(--amber)' : 'var(--muted2)');
+}
+
+// ─── UI INTERACTIONS & INITIALIZATION ─────────────────────────────────────
+
+function switchTab(tabId) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('pane-' + tabId).classList.add('active');
+}
+
+function toggleDrawer() {
+  document.getElementById('settings-drawer').classList.toggle('open');
+}
+
+function dismissAlert() {
+  alertDismissed = true;
+  document.getElementById('alert-banner').classList.add('hidden');
+}
+
+function doLogin() {
+  const user = document.getElementById('l-user').value || 'operator@corp.net';
+  const roleSel = document.getElementById('l-role');
+  const roleText = roleSel.options[roleSel.selectedIndex].text;
+  const roleVal = roleSel.value;
+
+  // Set user details in top bar
+  document.getElementById('user-name-display').textContent = user.split('@')[0];
+  document.getElementById('user-avatar').textContent = user.charAt(0).toUpperCase();
+  
+  // Update the badge text and color based on the selected role
+  const badge = document.getElementById('role-badge-display');
+  badge.textContent = roleText;
+  
+  if (roleVal === 'admin') {
+    badge.style.background = 'var(--red-dim)';
+    badge.style.color = 'var(--red)';
+  } else if (roleVal === 'security') {
+    badge.style.background = 'var(--amber-dim)';
+    badge.style.color = 'var(--amber)';
+  } else if (roleVal === 'noc') {
+    badge.style.background = 'var(--cyan-dim)';
+    badge.style.color = 'var(--cyan)';
+  } else {
+    // Read-only or default
+    badge.style.background = 'var(--gray-dim)';
+    badge.style.color = 'var(--muted2)';
+  }
+
+  // Hide login, show app
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+
+  // Boot up the simulation
+  initCharts();
+  initTopo();
+  rebuildDevices();
+  renderAlerts();
+  setInterval(tick, 1000);
+  setInterval(updateClock, 1000);
+  updateClock();
+}
+
+function doLogout() {
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = 
+    String(now.getHours()).padStart(2, '0') + ':' + 
+    String(now.getMinutes()).padStart(2, '0') + ':' + 
+    String(now.getSeconds()).padStart(2, '0');
+}
+
+</script>
+</body>
+</html>

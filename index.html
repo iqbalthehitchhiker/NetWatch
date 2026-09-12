@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch — Network Monitoring Trainer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080C14;
+  --panel: #0D1320;
+  --panel2: #111827;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #E2E8F0;
+  --muted: #64748B;
+  --muted2: #94A3B8;
+  --cyan: #06B6D4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --cyan-glow: rgba(6,182,212,0.3);
+  --green: #22C55E;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #F59E0B;
+  --amber-dim: rgba(245,158,11,0.12);
+  --orange: #F97316;
+  --orange-dim: rgba(249,115,22,0.12);
+  --red: #EF4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --purple: #A78BFA;
+  --purple-dim: rgba(167,139,250,0.12);
+  --gray: #475569;
+  --gray-dim: rgba(71,85,105,0.2);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.hidden { display: none !important; }
+.font-mono { font-family: var(--font-mono); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── SHARED PANEL / CARD PRIMITIVES ─── */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 12px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); background: none; color: var(--muted2); font-size: 11px; cursor: pointer; transition: all 0.2s; font-family: var(--font-ui); }
+.filter-btn:hover { border-color: var(--cyan); color: var(--text); }
+.filter-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border2); background: none; color: var(--text); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: var(--font-ui); font-weight: 500; }
+.btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: var(--cyan); color: #061019; border-color: var(--cyan); }
+.btn-primary:hover { opacity: .88; color: #061019; }
+.btn-ghost { border-color: transparent; color: var(--muted2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-in-out infinite; }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 var(--cyan-glow); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ─── LESSON SELECT SCREEN ─── */
+#screen-select { min-height: 100vh; padding: 40px 24px 60px; max-width: 1080px; margin: 0 auto; }
+.select-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.select-hero .logo-icon { width: 40px; height: 40px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+.select-hero-name { font-family: var(--font-mono); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.select-hero-sub { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+.select-tagline { color: var(--muted2); font-size: 13px; margin: 14px 0 8px; max-width: 640px; line-height: 1.6; }
+.select-loop { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.loop-step { font-size: 11px; font-family: var(--font-mono); color: var(--cyan); background: var(--cyan-dim); border: 1px solid var(--cyan-glow); padding: 4px 10px; border-radius: 20px; }
+.loop-arrow { color: var(--muted); font-size: 11px; align-self: center; }
+.lesson-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.lesson-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; transition: border-color .2s; cursor: pointer; }
+.lesson-card:hover { border-color: var(--cyan-glow); }
+.lesson-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent, var(--cyan)), transparent); }
+.lesson-diff { display: inline-block; font-size: 9px; font-family: var(--font-mono); font-weight: 700; letter-spacing: .06em; padding: 3px 8px; border-radius: 4px; margin-bottom: 10px; text-transform: uppercase; }
+.diff-beginner { background: var(--green-dim); color: #4ADE80; }
+.diff-intermediate { background: var(--amber-dim); color: #FCD34D; }
+.diff-advanced { background: var(--red-dim); color: #F87171; }
+.lesson-card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.lesson-card-focus { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 10px; }
+.lesson-card-desc { font-size: 12px; color: var(--muted2); line-height: 1.55; margin-bottom: 16px; min-height: 54px; }
+.lesson-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.lesson-card-topo { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+.lesson-start-btn { font-size: 11px; font-weight: 600; color: var(--cyan); background: var(--cyan-dim); border: 1px solid var(--cyan-glow); padding: 6px 12px; border-radius: 6px; }
+.select-footnote { margin-top: 32px; font-size: 11px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 16px; }
+
+/* ─── APP LAYOUT ─── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.active { display: flex; }
+.topbar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+.topbar-logo { display: flex; align-items: center; gap: 8px; }
+.topbar-logo-icon { width: 26px; height: 26px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.topbar-name { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.topbar-div { width: 1px; height: 20px; background: var(--border2); }
+.topbar-lesson-title { font-size: 12px; color: var(--muted2); }
+.topbar-lesson-title b { color: var(--text); }
+.topbar-spacer { flex: 1; }
+.topbar-time { font-family: var(--font-mono); font-size: 12px; color: var(--muted2); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ─── LESSON BAR ─── */
+#lesson-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0; }
+.lb-objective { font-size: 12px; color: var(--muted2); flex: 1; min-width: 220px; line-height: 1.4; }
+.lb-objective b { color: var(--text); }
+.lb-run-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--border2); color: var(--muted2); }
+.lb-run-badge.running { color: var(--green); border-color: rgba(34,197,94,.3); background: var(--green-dim); }
+.lb-run-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lb-run-badge.running .lb-run-dot { animation: blink 1.4s ease-in-out infinite; }
+
+/* ─── ALERT BANNER ─── */
+#alert-banner { background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; display: flex; align-items: center; gap: 10px; animation: alert-flash 1.5s ease-in-out infinite; font-size: 12px; }
+#alert-banner.hidden { display: none !important; }
+@keyframes alert-flash { 0%,100% { background: rgba(239,68,68,0.08); } 50% { background: rgba(239,68,68,0.16); } }
+.alert-icon { color: var(--red); font-size: 14px; }
+#alert-text { color: #FCA5A5; font-family: var(--font-mono); flex: 1; }
+.alert-dismiss { background: none; border: 1px solid rgba(239,68,68,0.4); color: var(--red); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+.alert-dismiss:hover { background: var(--red-dim); }
+
+/* ─── NAV TABS ─── */
+.nav-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; flex-shrink: 0; overflow-x: auto; }
+.nav-tab { padding: 10px 16px; font-size: 12px; color: var(--muted2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 500; user-select: none; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ─── CONTENT AREA ─── */
+.content { flex: 1; padding: 20px; overflow-y: auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── STAT BAR ─── */
+#stat-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; background: var(--panel); border-bottom: 2px solid var(--border2); flex-shrink: 0; }
+#stat-bar .sc { padding: 10px 14px; border-right: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; }
+#stat-bar .sc:last-child { border-right: none; }
+#stat-bar .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+#stat-bar .sc:nth-child(1)::before { background: var(--green); }
+#stat-bar .sc:nth-child(2)::before { background: var(--red); }
+#stat-bar .sc:nth-child(3)::before { background: var(--cyan); }
+#stat-bar .sc:nth-child(4)::before { background: var(--amber); }
+#stat-bar .sc:nth-child(5)::before { background: var(--green); }
+#stat-bar .sc:nth-child(6)::before { background: var(--purple); }
+#stat-bar .sc-label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: var(--font-ui); }
+#stat-bar .sc-value { font-family: var(--font-mono); font-size: 18px; font-weight: 700; line-height: 1.1; margin-bottom: 3px; white-space: nowrap; }
+#stat-bar .sc-sub { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* ─── CHARTS ─── */
+.charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.chart-panel { padding: 16px; }
+.chart-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.chart-panel-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.chart-val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
+.chart-canvas-wrap { height: 110px; position: relative; }
+
+/* ─── DEVICE TYPE GRID (Overview) ─── */
+.device-mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.dm-card { padding: 14px 16px; cursor: pointer; transition: border-color .15s; }
+.dm-card:hover { border-color: var(--cyan-glow); }
+.dm-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dm-card-name { font-size: 11px; color: var(--muted2); font-family: var(--font-mono); }
+.dm-card-usage { font-family: var(--font-mono); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.dm-bar-track { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.dm-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.dm-card-sub { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+
+/* ─── TOPOLOGY VIEW ─── */
+#topo-wrap { padding: 16px; margin-bottom: 20px; }
+#topo-svg { width: 100%; height: 380px; display: block; }
+.topo-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.topo-node-label { font-family: var(--font-mono); font-size: 10px; fill: var(--text); }
+.topo-node-sub { font-family: var(--font-mono); font-size: 9px; fill: var(--muted2); }
+
+/* ─── DEVICE TABLE ─── */
+.device-table { width: 100%; border-collapse: collapse; }
+.device-table th { text-align: left; padding: 8px 12px; font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 500; }
+.device-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 12px; }
+.device-table tr:last-child td { border-bottom: none; }
+.device-table tr:hover td { background: rgba(255,255,255,0.02); cursor: pointer; }
+.device-row-container { overflow: hidden; margin-bottom: 20px; }
+
+/* ─── STATUS BADGES ─── */
+.status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.05em; white-space: nowrap; }
+.s-healthy  { background: rgba(34,197,94,0.12);  color: #4ADE80; }
+.s-warning  { background: rgba(245,158,11,0.12); color: #FCD34D; }
+.s-degraded { background: rgba(249,115,22,0.12); color: #FB923C; }
+.s-critical { background: rgba(239,68,68,0.12);  color: #F87171; }
+.s-offline  { background: rgba(71,85,105,0.2);   color: #64748B; }
+.s-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.mini-bar { display: inline-flex; height: 4px; width: 60px; background: var(--border2); border-radius: 2px; overflow: hidden; vertical-align: middle; }
+.mini-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+/* ─── ALERTS PANEL ─── */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item { padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px; border-left-width: 3px; border-left-style: solid; cursor: pointer; }
+.alert-item.crit { border-left-color: var(--red); }
+.alert-item.warn { border-left-color: var(--amber); }
+.alert-item.info { border-left-color: var(--cyan); }
+.alert-ts { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 66px; padding-top: 1px; }
+.alert-body { flex: 1; }
+.alert-title { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+.alert-sub { font-size: 11px; color: var(--muted2); }
+.alert-lvl { font-size: 9px; font-family: var(--font-mono); font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.lvl-crit { background: var(--red-dim); color: #F87171; }
+.lvl-warn { background: var(--amber-dim); color: #FCD34D; }
+.lvl-info { background: var(--cyan-dim); color: #67E8F9; }
+.empty-note { font-size: 12px; color: var(--muted); padding: 24px 0; text-align: center; }
+
+/* ─── LOG CONSOLE ─── */
+.log-console { background: #050810; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-family: var(--font-mono); font-size: 11px; height: 280px; overflow-y: auto; line-height: 1.7; }
+.log-line { padding: 1px 0; }
+.log-ts { color: var(--muted); margin-right: 8px; }
+.log-ok { color: #4ADE80; }
+.log-warn { color: #FCD34D; }
+.log-err { color: #F87171; }
+.log-info { color: var(--muted2); }
+
+/* ─── METRICS ─── */
+.metrics-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.metrics-panel { padding: 16px; }
+.metrics-panel-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+.metric-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.metric-row:last-child { border-bottom: none; }
+.metric-name { font-size: 12px; color: var(--muted2); }
+.metric-val { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+
+/* ─── PACKET VIEWER ─── */
+.packet-table-wrap { padding: 12px; }
+.packet-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.packet-table th { text-align: left; padding: 6px 10px; font-size: 9px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.packet-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; cursor: pointer; }
+.packet-table tr.flagged td { background: rgba(239,68,68,0.06); }
+.proto-tag { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; }
+.proto-TCP  { background: var(--cyan-dim);   color: #67E8F9; }
+.proto-UDP  { background: var(--purple-dim); color: var(--purple); }
+.proto-ICMP { background: var(--amber-dim);  color: #FCD34D; }
+.proto-DNS  { background: var(--green-dim);  color: #4ADE80; }
+.proto-ARP  { background: var(--gray-dim);   color: #CBD5E1; }
+.proto-STP  { background: var(--orange-dim); color: #FDBA74; }
+.packet-note { font-size: 11px; color: var(--muted); padding: 10px 12px 2px; }
+
+/* ─── HISTORY ─── */
+.history-panel { padding: 16px; margin-bottom: 20px; }
+.history-canvas-wrap { height: 160px; position: relative; }
+
+/* ─── NOTES ─── */
+.notes-area { width: 100%; min-height: 110px; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; resize: vertical; }
+.notes-area:focus { border-color: var(--cyan); }
+
+/* ─── SETTINGS DRAWER ─── */
+.settings-toggle { position: fixed; bottom: 24px; right: 24px; z-index: 200; width: 40px; height: 40px; border-radius: 50%; background: var(--panel); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); font-size: 16px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.settings-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+.settings-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 290px; background: var(--panel2); border-left: 1px solid var(--border2); z-index: 300; transform: translateX(100%); transition: transform 0.3s ease; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.settings-drawer.open { transform: translateX(0); }
+.drawer-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.drawer-label { font-size: 11px; color: var(--muted2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.drawer-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--border2); border-radius: 2px; outline: none; cursor: pointer; }
+.drawer-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--cyan); cursor: pointer; }
+.drawer-row { display: flex; flex-direction: column; gap: 4px; }
+.drawer-section-label { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+.drawer-select { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; cursor: pointer; }
+
+/* ─── MODALS ─── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(3,6,12,0.72); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { background: var(--panel2); border: 1px solid var(--border2); border-radius: 12px; padding: 26px; width: 100%; max-width: 480px; max-height: 86vh; overflow-y: auto; position: relative; }
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: var(--muted2); margin-bottom: 18px; line-height: 1.6; }
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.modal-close:hover { color: var(--text); }
+.diag-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--border2); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all .15s; font-size: 12.5px; line-height: 1.5; }
+.diag-option:hover { border-color: var(--cyan-glow); }
+.diag-option.picked  { border-color: var(--cyan);  background: var(--cyan-dim); }
+.diag-option.correct { border-color: var(--green); background: var(--green-dim); }
+.diag-option.wrong   { border-color: var(--red);   background: var(--red-dim); }
+.diag-result { margin-top: 14px; padding: 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.6; display: none; }
+.diag-result.show { display: block; }
+.diag-result.ok { background: var(--green-dim); border: 1px solid rgba(34,197,94,.3); color: #BBF7D0; }
+.diag-result.no { background: var(--amber-dim); border: 1px solid rgba(245,158,11,.3); color: #FDE68A; }
+.hint-box { background: var(--bg); border: 1px dashed var(--border2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--muted2); margin-top: 10px; }
+.hint-box b { color: var(--amber); }
+
+/* ─── DEVICE DETAIL MODAL ─── */
+.dd-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.dd-row:last-child { border-bottom: none; }
+.dd-row span:first-child { color: var(--muted2); }
+.dd-row span:last-child { font-family: var(--font-mono); }
+
+/* ─── MODE SELECTOR ─── */
+.mode-choice-card { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; padding: 16px; cursor: pointer; transition: border-color .2s; margin-bottom: 10px; }
+.mode-choice-card:hover { border-color: var(--cyan-glow); }
+.mode-choice-label { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.mode-choice-desc { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+
+/* ─── MODE BADGE ─── */
+.mode-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+.mode-badge-teach { background: var(--cyan-dim);  color: var(--cyan);  border: 1px solid var(--cyan-glow); }
+.mode-badge-quiz  { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+
+/* ─── LOGIN FIELDS ─── */
+.login-field { margin-bottom: 14px; }
+.login-label { display: block; font-size: 11px; color: var(--muted2); margin-bottom: 5px; font-weight: 500; }
+.login-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; }
+.login-input:focus { border-color: var(--cyan); }
+.login-err { font-size: 11px; color: var(--red); margin-top: 4px; }
+
+/* ─── EXPLAIN PANEL ─── */
+.explain-panel { position: fixed; right: 0; top: 52px; bottom: 0; width: 320px; background: var(--panel2); border-left: 1px solid var(--border2); z-index: 400; display: flex; flex-direction: column; box-shadow: -4px 0 16px rgba(0,0,0,0.4); }
+.explain-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.explain-panel-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+.explain-panel-close { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0; line-height: 1; }
+.explain-panel-close:hover { color: var(--text); }
+.explain-panel-body { padding: 16px; font-size: 12px; color: var(--muted2); line-height: 1.7; overflow-y: auto; flex: 1; }
+
+/* ─── QUIZ MODE SUPPRESSION ─── */
+body.quiz-mode .dm-card,
+body.quiz-mode .sc,
+body.quiz-mode .alert-item,
+body.quiz-mode .packet-table tr,
+body.quiz-mode .topo-node,
+body.quiz-mode .chart-panel,
+body.quiz-mode .metric-row { cursor: default !important; }
+body.quiz-mode .dm-card:hover       { border-color: var(--border) !important; background: var(--panel) !important; }
+body.quiz-mode .alert-item:hover    { background: none !important; }
+body.quiz-mode .packet-table tr:hover td { background: none !important; }
+body.quiz-mode .topo-node:hover circle  { stroke: inherit !important; }
+</style>
+</head>
+
+<body>
+
+<!-- ══════════════ LESSON SELECT ══════════════ -->
+<div id="screen-select">
+  <div class="select-hero">
+    <div class="logo-icon"><div class="pulse-dot"></div></div>
+    <div>
+      <div class="select-hero-name">NetWatch</div>
+      <div class="select-hero-sub">Network Monitoring Trainer</div>
+    </div>
+  </div>
+  <div class="select-tagline">
+    NetWatch teaches you to <b>monitor, analyze and diagnose</b> a network — not to build or configure one.
+    Every lesson loads a predefined network, plays out a scripted incident, and asks you to find the root
+    cause using only the evidence a monitoring engineer would actually have: telemetry, topology state and packet captures.
+  </div>
+  <div class="select-loop">
+    <span class="loop-step">Select lesson</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Choose mode</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Observe network</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Detect anomaly</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Investigate evidence</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Diagnose</span>
+  </div>
+
+  <div class="lesson-grid" id="lesson-grid"></div>
+
+  <div class="select-footnote">
+    All topologies below are predefined — NetWatch is a monitoring simulator, not a topology editor. All telemetry
+    and packet data are simulated/mock for educational purposes; nothing here touches a real network.
+    <br><button class="btn btn-ghost" onclick="openAdminReset()" style="font-size:11px;margin-top:10px;">Admin Reset</button>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon"><div class="pulse-dot" style="width:6px;height:6px;"></div></div>
+      <span class="topbar-name">NetWatch</span>
+    </div>
+    <div class="topbar-div"></div>
+    <div id="topbar-mode-badge" class="mode-badge hidden"></div>
+    <div id="topbar-welcome" class="topbar-lesson-title hidden"></div>
+    <div class="topbar-div" id="topbar-div-mode" style="display:none"></div>
+    <div class="topbar-lesson-title">Lesson: <b id="topbar-lesson-name">—</b></div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-right">
+      <div class="topbar-time font-mono" id="clock">00:00:00</div>
+      <button class="btn btn-ghost" onclick="exitToLessons()">← All Lessons</button>
+    </div>
+  </div>
+
+  <div id="lesson-bar">
+    <div class="lb-run-badge" id="lb-run-badge"><div class="lb-run-dot"></div><span id="lb-run-text">Sim Stopped</span></div>
+    <div class="lb-objective"><b>Objective:</b> <span id="lb-objective-text">—</span></div>
+    <button class="btn btn-primary" id="btn-start-sim" onclick="startSimulation()">▶ Start Simulation</button>
+    <button class="btn" id="btn-reset-sim" onclick="resetSimulation()">↺ Reset</button>
+    <button class="btn" onclick="openHint()">💡 Hint</button>
+    <button class="btn btn-primary" onclick="openDiagnosis()">🩺 Diagnose</button>
+  </div>
+
+  <div id="alert-banner" class="hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="alert-text">—</span>
+    <button class="alert-dismiss" onclick="dismissAlertBanner()">Dismiss</button>
+  </div>
+
+  <div id="stat-bar">
+    <div class="sc" data-metric-key="devices_healthy">
+      <div class="sc-label">Devices Healthy</div>
+      <div class="sc-value" style="color:var(--green)" id="card-devices">—</div>
+      <div class="sc-sub" id="card-devices-sub">—</div>
+    </div>
+    <div class="sc" data-metric-key="alerts">
+      <div class="sc-label">Active Alerts</div>
+      <div class="sc-value" style="color:var(--red)" id="card-alerts">0</div>
+      <div class="sc-sub" id="alert-sev-label">None</div>
+    </div>
+    <div class="sc" data-metric-key="latency_avg">
+      <div class="sc-label">Avg Latency</div>
+      <div class="sc-value" style="color:var(--cyan)" id="card-latency">—</div>
+      <div class="sc-sub" id="latency-trend">Stable</div>
+    </div>
+    <div class="sc" data-metric-key="cpu_avg">
+      <div class="sc-label">Avg CPU</div>
+      <div class="sc-value" style="color:var(--amber)" id="card-cpu">—</div>
+      <div class="sc-sub" id="cpu-trend">Stable</div>
+    </div>
+    <div class="sc" data-metric-key="pktloss">
+      <div class="sc-label">Pkt Loss</div>
+      <div class="sc-value" style="color:var(--green)" id="card-pktloss">—</div>
+      <div class="sc-sub" id="pktloss-trend" style="color:var(--green)">Within SLA</div>
+    </div>
+    <div class="sc" data-metric-key="sim_time">
+      <div class="sc-label">Sim Time</div>
+      <div class="sc-value" style="color:var(--purple)" id="card-simtime">00:00</div>
+      <div class="sc-sub" id="incident-phase-label">Baseline</div>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-tab active" onclick="switchTab('overview')"  id="tab-overview"><div class="nav-dot" style="background:var(--cyan)"></div> Overview</div>
+    <div class="nav-tab"       onclick="switchTab('topology')"  id="tab-topology"><div class="nav-dot" style="background:var(--amber)"></div> Topology</div>
+    <div class="nav-tab"       onclick="switchTab('devices')"   id="tab-devices"><div class="nav-dot" style="background:var(--green)"></div> Devices</div>
+    <div class="nav-tab"       onclick="switchTab('alerts')"    id="tab-alerts">
+      <div class="nav-dot" id="alert-nav-dot" style="background:var(--muted)"></div> Alerts
+      <span id="alert-count-badge" style="background:var(--red-dim);color:#F87171;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--font-mono);font-weight:700;" class="hidden">0</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('metrics')" id="tab-metrics"><div class="nav-dot" style="background:var(--cyan)"></div> Metrics</div>
+    <div class="nav-tab" onclick="switchTab('packets')" id="tab-packets"><div class="nav-dot" style="background:var(--purple)"></div> Packets</div>
+    <div class="nav-tab" onclick="switchTab('history')" id="tab-history"><div class="nav-dot" style="background:var(--muted)"></div> History &amp; Logs</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ─── OVERVIEW ─── -->
+    <div class="tab-pane active" id="pane-overview">
+      <div class="section-header"><div class="section-title">Live Telemetry</div><div style="font-size:11px;color:var(--muted)" id="ov-topo-name">—</div></div>
+      <div class="charts-row">
+        <div class="panel chart-panel" data-metric-key="traffic_chart" style="cursor:pointer">
+          <div class="chart-panel-header"><div class="chart-panel-title">Traffic (Mbps)</div><div class="chart-val" id="chv-traffic" style="color:var(--cyan)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-traffic"></canvas></div>
+        </div>
+        <div class="panel chart-panel" data-metric-key="cpu_chart" style="cursor:pointer">
+          <div class="chart-panel-header"><div class="chart-panel-title">CPU (%)</div><div class="chart-val" id="chv-cpu" style="color:var(--amber)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-cpu"></canvas></div>
+        </div>
+        <div class="panel chart-panel" data-metric-key="latency_chart" style="cursor:pointer">
+          <div class="chart-panel-header"><div class="chart-panel-title">Latency (ms)</div><div class="chart-val" id="chv-latency" style="color:var(--purple)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-latency"></canvas></div>
+        </div>
+      </div>
+      <div class="section-header"><div class="section-title">Monitored Devices</div></div>
+      <div class="device-mini-grid" id="ov-device-grid"></div>
+      <div class="section-header"><div class="section-title">Notes</div></div>
+      <div class="panel" style="padding:14px;">
+        <textarea class="notes-area" id="notes-area" placeholder="Jot down what you're observing — symptoms, suspects, timestamps..." oninput="saveNotes()"></textarea>
+      </div>
+    </div>
+
+    <!-- ─── TOPOLOGY ─── -->
+    <div class="tab-pane" id="pane-topology">
+      <div class="topo-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ADE80"></div>Healthy</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FCD34D"></div>Warning</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FB923C"></div>Degraded</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#F87171"></div>Critical</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#64748B"></div>Offline</div>
+      </div>
+      <div class="panel" id="topo-wrap">
+        <svg id="topo-svg" viewBox="0 0 800 380"></svg>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Click a device to inspect its live monitoring data. This is a fixed, predefined topology.</div>
+    </div>
+
+    <!-- ─── DEVICES ─── -->
+    <div class="tab-pane" id="pane-devices">
+      <div class="section-header"><div class="section-title">Device Inventory</div></div>
+      <div class="panel device-row-container">
+        <table class="device-table">
+          <thead><tr><th>Device</th><th>Type</th><th>Status</th><th>CPU</th><th>Mem</th><th>Extra</th><th></th></tr></thead>
+          <tbody id="device-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── ALERTS ─── -->
+    <div class="tab-pane" id="pane-alerts">
+      <div class="section-header"><div class="section-title">Active Alerts &amp; Events</div></div>
+      <div class="alert-list panel" style="padding:12px;" id="alert-list"></div>
+    </div>
+
+    <!-- ─── METRICS ─── -->
+    <div class="tab-pane" id="pane-metrics">
+      <div class="metrics-2col">
+        <div class="panel metrics-panel">
+          <div class="metrics-panel-title">Packet Statistics</div>
+          <div class="metric-row" data-metric-key="pkt_in" style="cursor:pointer"><span class="metric-name">Packets In (pps)</span><span class="metric-val" id="m-pkt-in">—</span></div>
+          <div class="metric-row" data-metric-key="pkt_out" style="cursor:pointer"><span class="metric-name">Packets Out (pps)</span><span class="metric-val" id="m-pkt-out">—</span></div>
+          <div class="metric-row" data-metric-key="pktloss" style="cursor:pointer"><span class="metric-name">Packet Loss</span><span class="metric-val" id="m-pkt-loss">—</span></div>
+          <div class="metric-row" data-metric-key="retransmissions" style="cursor:pointer"><span class="metric-name">Retransmissions</span><span class="metric-val" id="m-retrans">—</span></div>
+        </div>
+        <div class="panel metrics-panel">
+          <div class="metrics-panel-title">Link Quality</div>
+          <div class="metric-row" data-metric-key="latency_avg" style="cursor:pointer"><span class="metric-name">Avg Latency</span><span class="metric-val" id="m-lat">—</span></div>
+          <div class="metric-row" data-metric-key="jitter" style="cursor:pointer"><span class="metric-name">Jitter</span><span class="metric-val" id="m-jitter">—</span></div>
+          <div class="metric-row" data-metric-key="bandwidth" style="cursor:pointer"><span class="metric-name">Bandwidth Utilization</span><span class="metric-val" id="m-bwutil">—</span></div>
+          <div class="metric-row" data-metric-key="hotlink" style="cursor:pointer"><span class="metric-name">Most Loaded Link</span><span class="metric-val" id="m-hotlink">—</span></div>
+        </div>
+      </div>
+      <div class="panel" style="padding:16px;">
+        <div class="metrics-panel-title">Per-Device Snapshot</div>
+        <div id="metrics-device-list"></div>
+      </div>
+    </div>
+
+    <!-- ─── PACKETS ─── -->
+    <div class="tab-pane" id="pane-packets">
+      <div class="section-header">
+        <div class="section-title">Packet Evidence (pre-processed / simulated capture)</div>
+        <div class="filter-row" style="margin:0;">
+          <button class="filter-btn active" onclick="setPacketFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setPacketFilter('TCP',this)">TCP</button>
+          <button class="filter-btn" onclick="setPacketFilter('UDP',this)">UDP</button>
+          <button class="filter-btn" onclick="setPacketFilter('ICMP',this)">ICMP</button>
+          <button class="filter-btn" onclick="setPacketFilter('flagged',this)">Flagged</button>
+        </div>
+      </div>
+      <div class="panel packet-table-wrap">
+        <div class="packet-note">Educational evidence only — packets are pre-generated to match the lesson's incident signature.</div>
+        <table class="packet-table">
+          <thead><tr><th>Time</th><th>Src</th><th>Dst</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead>
+          <tbody id="packet-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── HISTORY / LOGS ─── -->
+    <div class="tab-pane" id="pane-history">
+      <div class="panel history-panel">
+        <div class="chart-panel-header"><div class="chart-panel-title">Session History — Traffic &amp; CPU</div></div>
+        <div class="history-canvas-wrap"><canvas id="ch-history"></canvas></div>
+      </div>
+      <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-title">Event Log</div>
+        <button class="filter-btn" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="log-console" id="log-box"></div>
+    </div>
+
+  </div>
+</div>
+
+<button class="settings-toggle" onclick="toggleDrawer()" title="Manual Simulation Controls (Sandbox)">⚙</button>
+
+<div class="settings-drawer" id="settings-drawer">
+  <div>
+    <div class="drawer-title">Sandbox Controls</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+      Optional manual overrides on top of the running lesson script. Everything here stays simulated — no real connections are made.
+    </div>
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Focus Device Load Override (%) <span id="d-override-val" style="font-family:var(--font-mono);color:var(--cyan)">0</span></div>
+    <input class="drawer-slider" type="range" id="sim-override" min="0" max="100" value="0" step="1"
+      oninput="document.getElementById('d-override-val').textContent=this.value;setManualOverride(parseInt(this.value))">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label" style="margin-bottom:6px;">Inject Test Alert</div>
+    <div style="display:flex;gap:6px;">
+      <button class="filter-btn" onclick="injectAlert('critical')" style="color:#F87171;border-color:rgba(239,68,68,0.4)">Critical</button>
+      <button class="filter-btn" onclick="injectAlert('warning')"  style="color:#FCD34D;border-color:rgba(245,158,11,0.4)">Warning</button>
+      <button class="filter-btn" onclick="injectAlert('info')"     style="color:#67E8F9;border-color:rgba(6,182,212,0.3)">Info</button>
+    </div>
+  </div>
+  <div style="margin-top:auto;font-size:10px;color:var(--muted);padding-top:16px;border-top:1px solid var(--border);">
+    All data is simulated for training purposes. Predefined topologies only.
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+<div class="modal-overlay hidden" id="modal-hint">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-hint')">✕</button>
+    <div class="modal-title">💡 Hint</div>
+    <div class="modal-sub">Hints reveal a little more each time — try to reason it out before asking for the next one.</div>
+    <div id="hint-content"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="nextHint()">Next Hint</button>
+      <button class="btn" onclick="closeModal('modal-hint')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-diagnosis">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-diagnosis')">✕</button>
+    <div class="modal-title">Diagnose the Problem</div>
+    <div class="modal-sub" id="diag-question">—</div>
+    <div id="diag-options"></div>
+    <div class="diag-result" id="diag-result"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn btn-primary" id="diag-submit-btn" onclick="submitDiagnosis()">Submit Diagnosis</button>
+      <button class="btn" onclick="closeModal('modal-diagnosis')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-device">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-device')">✕</button>
+    <div class="modal-title" id="dd-title">Device</div>
+    <div class="modal-sub" id="dd-sub">—</div>
+    <div id="dd-rows"></div>
+  </div>
+</div>
+
+<!-- Mode Selector Modal -->
+<div id="modal-mode-select" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:420px">
+    <button class="modal-close" onclick="cancelModeSelect()">✕</button>
+    <div class="modal-title">Choose Learning Mode</div>
+    <div class="modal-sub" id="msel-lesson-title">—</div>
+
+    <div class="mode-choice-card" onclick="confirmMode('teach')">
+      <div class="mode-choice-label">📖 Teach Mode</div>
+      <div class="mode-choice-desc">Explore freely with guided explanations. No scoring, no login, no attempt limits.</div>
+    </div>
+    <div class="mode-choice-card" onclick="confirmMode('quiz')">
+      <div class="mode-choice-label">📝 Quiz Mode</div>
+      <div class="mode-choice-desc">Scored assessment tied to your identity. Limited to 3 attempts. No guided hints.</div>
+    </div>
+
+    <div style="margin-top:14px">
+      <button class="btn btn-ghost" onclick="cancelModeSelect()">← Back to Lessons</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login Screen Modal -->
+<div id="modal-login" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:400px">
+    <button class="modal-close" onclick="backFromLogin()">✕</button>
+    <div class="modal-title">Quiz Mode — Student Login</div>
+    <div class="modal-sub">Your identity is verified by the server and used to track your attempts and results.</div>
+
+    <div class="login-field">
+      <label class="login-label" for="login-npm">NPM (Student ID)</label>
+      <input id="login-npm" type="text" class="login-input" placeholder="Digits only, 1–20 characters"
+             maxlength="20" inputmode="numeric" autocomplete="username">
+      <div id="login-npm-err" class="login-err hidden"></div>
+    </div>
+    <div class="login-field">
+      <label class="login-label" for="login-password">Password</label>
+      <input id="login-password" type="password" class="login-input" placeholder="Your account password"
+             autocomplete="current-password">
+      <div id="login-password-err" class="login-err hidden"></div>
+    </div>
+    <div id="login-general-err" class="login-err hidden" style="margin-bottom:10px;"></div>
+
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="btn btn-primary" id="login-submit-btn" onclick="submitLogin()">Sign In →</button>
+      <button class="btn btn-ghost" onclick="backFromLogin()">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Blocked Screen Modal -->
+<div id="modal-blocked" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-title" style="color:var(--red)">Attempt Limit Reached</div>
+    <div class="modal-sub">You have used all available attempts for this lesson.</div>
+    <div id="blocked-identity" class="modal-sub" style="margin-bottom:8px;"></div>
+    <div id="blocked-best-result"></div>
+    <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="exitToLessons()">← All Lessons</button>
+      <button class="btn btn-ghost" style="font-size:11px" onclick="openAdminReset()">Admin Reset…</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Reset Modal -->
+<div id="modal-admin-reset" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:420px">
+    <button class="modal-close" onclick="closeModal('modal-admin-reset')">✕</button>
+    <div class="modal-title">Admin Reset — Attempt Counter</div>
+    <div class="modal-sub">Resets a student's attempt counter for one lesson. Does not touch recorded results.</div>
+    <div id="ar-success" class="hidden"></div>
+
+    <!-- Instructor login sub-form -->
+    <div id="ar-instructor-form">
+      <div class="login-field">
+        <label class="login-label" for="ar-instructor-username">Instructor Username</label>
+        <input id="ar-instructor-username" type="text" class="login-input" placeholder="Instructor account username" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <label class="login-label" for="ar-instructor-password">Password</label>
+        <input id="ar-instructor-password" type="password" class="login-input" placeholder="Instructor password" autocomplete="current-password">
+        <div id="ar-instructor-err" class="login-err hidden"></div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="ar-instructor-submit" onclick="submitInstructorLogin()">Sign In as Instructor</button>
+      </div>
+    </div>
+
+    <!-- Reset sub-form (shown after instructor auth) -->
+    <div id="ar-reset-form" class="hidden">
+      <div class="login-field">
+        <label class="login-label" for="ar-npm">Student NPM</label>
+        <input id="ar-npm" type="text" class="login-input" placeholder="e.g. 1234567890">
+        <div id="ar-npm-err" class="login-err hidden"></div>
+      </div>
+      <div class="login-field">
+        <label class="login-label" for="ar-lesson">Lesson ID</label>
+        <input id="ar-lesson" type="text" class="login-input" placeholder="e.g. ddos_edge">
+        <div id="ar-lesson-err" class="login-err hidden"></div>
+      </div>
+      <div id="ar-general-err" class="login-err hidden" style="margin-bottom:10px;"></div>
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="submitAdminReset()">Reset Counter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Explain Panel (fixed side panel) -->
+<div id="explain-panel" class="explain-panel hidden" role="dialog" aria-modal="false" aria-label="Element Explanation">
+  <div class="explain-panel-header">
+    <div class="explain-panel-title" id="ep-title">—</div>
+    <button class="explain-panel-close" onclick="closeExplainPanel()" aria-label="Close explanation">✕</button>
+  </div>
+  <div class="explain-panel-body" id="ep-body">—</div>
+</div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

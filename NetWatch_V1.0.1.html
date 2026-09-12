@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetWatch — Network Monitoring Trainer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080C14;
+  --panel: #0D1320;
+  --panel2: #111827;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #E2E8F0;
+  --muted: #64748B;
+  --muted2: #94A3B8;
+  --cyan: #06B6D4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --cyan-glow: rgba(6,182,212,0.3);
+  --green: #22C55E;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #F59E0B;
+  --amber-dim: rgba(245,158,11,0.12);
+  --orange: #F97316;
+  --orange-dim: rgba(249,115,22,0.12);
+  --red: #EF4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --purple: #A78BFA;
+  --purple-dim: rgba(167,139,250,0.12);
+  --gray: #475569;
+  --gray-dim: rgba(71,85,105,0.2);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.hidden { display: none !important; }
+.font-mono { font-family: var(--font-mono); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── SHARED PANEL / CARD PRIMITIVES ─── */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 12px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2); background: none; color: var(--muted2); font-size: 11px; cursor: pointer; transition: all 0.2s; font-family: var(--font-ui); }
+.filter-btn:hover { border-color: var(--cyan); color: var(--text); }
+.filter-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border2); background: none; color: var(--text); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: var(--font-ui); font-weight: 500; }
+.btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: var(--cyan); color: #061019; border-color: var(--cyan); }
+.btn-primary:hover { opacity: .88; color: #061019; }
+.btn-ghost { border-color: transparent; color: var(--muted2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); animation: pulse-ring 2s ease-in-out infinite; }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 var(--cyan-glow); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ─── LESSON SELECT SCREEN ─── */
+#screen-select { min-height: 100vh; padding: 40px 24px 60px; max-width: 1080px; margin: 0 auto; }
+.select-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.select-hero .logo-icon { width: 40px; height: 40px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+.select-hero-name { font-family: var(--font-mono); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.select-hero-sub { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+.select-tagline { color: var(--muted2); font-size: 13px; margin: 14px 0 8px; max-width: 640px; line-height: 1.6; }
+.select-loop { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.loop-step { font-size: 11px; font-family: var(--font-mono); color: var(--cyan); background: var(--cyan-dim); border: 1px solid var(--cyan-glow); padding: 4px 10px; border-radius: 20px; }
+.loop-arrow { color: var(--muted); font-size: 11px; align-self: center; }
+.lesson-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.lesson-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; transition: border-color .2s; cursor: pointer; }
+.lesson-card:hover { border-color: var(--cyan-glow); }
+.lesson-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent, var(--cyan)), transparent); }
+.lesson-diff { display: inline-block; font-size: 9px; font-family: var(--font-mono); font-weight: 700; letter-spacing: .06em; padding: 3px 8px; border-radius: 4px; margin-bottom: 10px; text-transform: uppercase; }
+.diff-beginner { background: var(--green-dim); color: #4ADE80; }
+.diff-intermediate { background: var(--amber-dim); color: #FCD34D; }
+.diff-advanced { background: var(--red-dim); color: #F87171; }
+.lesson-card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.lesson-card-focus { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 10px; }
+.lesson-card-desc { font-size: 12px; color: var(--muted2); line-height: 1.55; margin-bottom: 16px; min-height: 54px; }
+.lesson-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.lesson-card-topo { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+.lesson-start-btn { font-size: 11px; font-weight: 600; color: var(--cyan); background: var(--cyan-dim); border: 1px solid var(--cyan-glow); padding: 6px 12px; border-radius: 6px; }
+.select-footnote { margin-top: 32px; font-size: 11px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 16px; }
+
+/* ─── APP LAYOUT ─── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+#app.active { display: flex; }
+.topbar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+.topbar-logo { display: flex; align-items: center; gap: 8px; }
+.topbar-logo-icon { width: 26px; height: 26px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.topbar-name { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.topbar-div { width: 1px; height: 20px; background: var(--border2); }
+.topbar-lesson-title { font-size: 12px; color: var(--muted2); }
+.topbar-lesson-title b { color: var(--text); }
+.topbar-spacer { flex: 1; }
+.topbar-time { font-family: var(--font-mono); font-size: 12px; color: var(--muted2); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ─── LESSON BAR ─── */
+#lesson-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0; }
+.lb-objective { font-size: 12px; color: var(--muted2); flex: 1; min-width: 220px; line-height: 1.4; }
+.lb-objective b { color: var(--text); }
+.lb-run-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--border2); color: var(--muted2); }
+.lb-run-badge.running { color: var(--green); border-color: rgba(34,197,94,.3); background: var(--green-dim); }
+.lb-run-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lb-run-badge.running .lb-run-dot { animation: blink 1.4s ease-in-out infinite; }
+
+/* ─── ALERT BANNER ─── */
+#alert-banner { background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.3); padding: 8px 20px; display: flex; align-items: center; gap: 10px; animation: alert-flash 1.5s ease-in-out infinite; font-size: 12px; }
+#alert-banner.hidden { display: none !important; }
+@keyframes alert-flash { 0%,100% { background: rgba(239,68,68,0.08); } 50% { background: rgba(239,68,68,0.16); } }
+.alert-icon { color: var(--red); font-size: 14px; }
+#alert-text { color: #FCA5A5; font-family: var(--font-mono); flex: 1; }
+.alert-dismiss { background: none; border: 1px solid rgba(239,68,68,0.4); color: var(--red); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+.alert-dismiss:hover { background: var(--red-dim); }
+
+/* ─── NAV TABS ─── */
+.nav-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; flex-shrink: 0; overflow-x: auto; }
+.nav-tab { padding: 10px 16px; font-size: 12px; color: var(--muted2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 500; user-select: none; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ─── CONTENT AREA ─── */
+.content { flex: 1; padding: 20px; overflow-y: auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── STAT BAR ─── */
+#stat-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; background: var(--panel); border-bottom: 2px solid var(--border2); flex-shrink: 0; }
+#stat-bar .sc { padding: 10px 14px; border-right: 1px solid var(--border); position: relative; overflow: hidden; }
+#stat-bar .sc:last-child { border-right: none; }
+#stat-bar .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+#stat-bar .sc:nth-child(1)::before { background: var(--green); }
+#stat-bar .sc:nth-child(2)::before { background: var(--red); }
+#stat-bar .sc:nth-child(3)::before { background: var(--cyan); }
+#stat-bar .sc:nth-child(4)::before { background: var(--amber); }
+#stat-bar .sc:nth-child(5)::before { background: var(--purple); }
+#stat-bar .sc:nth-child(6)::before { background: var(--gray); }
+#stat-bar .sc-label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: var(--font-ui); }
+#stat-bar .sc-value { font-family: var(--font-mono); font-size: 18px; font-weight: 700; line-height: 1.1; margin-bottom: 3px; white-space: nowrap; }
+#stat-bar .sc-sub { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* ─── CHARTS ─── */
+.charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.chart-panel { padding: 16px; }
+.chart-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.chart-panel-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+.chart-val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; }
+.chart-canvas-wrap { height: 110px; position: relative; }
+
+/* ─── DEVICE TYPE GRID (Overview) ─── */
+.device-mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.dm-card { padding: 14px 16px; cursor: pointer; transition: border-color .15s; }
+.dm-card:hover { border-color: var(--cyan-glow); }
+.dm-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dm-card-name { font-size: 11px; color: var(--muted2); font-family: var(--font-mono); }
+.dm-card-usage { font-family: var(--font-mono); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.dm-bar-track { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.dm-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.dm-card-sub { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+
+/* ─── TOPOLOGY VIEW ─── */
+#topo-wrap { padding: 16px; margin-bottom: 20px; }
+#topo-svg { width: 100%; height: 380px; display: block; }
+.topo-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.topo-node-label { font-family: var(--font-mono); font-size: 10px; fill: var(--text); }
+.topo-node-sub { font-family: var(--font-mono); font-size: 9px; fill: var(--muted2); }
+.topo-link-label { font-family: var(--font-mono); font-size: 8.5px; }
+
+/* ─── DEVICE TABLE ─── */
+.device-table { width: 100%; border-collapse: collapse; }
+.device-table th { text-align: left; padding: 8px 12px; font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 500; }
+.device-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 12px; }
+.device-table tr:last-child td { border-bottom: none; }
+.device-table tr:hover td { background: rgba(255,255,255,0.02); cursor: pointer; }
+.device-row-container { overflow: hidden; margin-bottom: 20px; }
+
+/* ─── STATUS BADGES ─── */
+.status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.05em; white-space: nowrap; }
+.s-healthy { background: rgba(34,197,94,0.12); color: #4ADE80; }
+.s-warning { background: rgba(245,158,11,0.12); color: #FCD34D; }
+.s-degraded { background: rgba(249,115,22,0.12); color: #FB923C; }
+.s-critical { background: rgba(239,68,68,0.12); color: #F87171; }
+.s-offline { background: rgba(71,85,105,0.2); color: #64748B; }
+.s-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.mini-bar { display: inline-flex; height: 4px; width: 60px; background: var(--border2); border-radius: 2px; overflow: hidden; vertical-align: middle; }
+.mini-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+/* ─── ALERTS PANEL ─── */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item { padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px; border-left-width: 3px; border-left-style: solid; }
+.alert-item.crit { border-left-color: var(--red); }
+.alert-item.warn { border-left-color: var(--amber); }
+.alert-item.info { border-left-color: var(--cyan); }
+.alert-ts { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 66px; padding-top: 1px; }
+.alert-body { flex: 1; }
+.alert-title { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+.alert-sub { font-size: 11px; color: var(--muted2); }
+.alert-lvl { font-size: 9px; font-family: var(--font-mono); font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.lvl-crit { background: var(--red-dim); color: #F87171; }
+.lvl-warn { background: var(--amber-dim); color: #FCD34D; }
+.lvl-info { background: var(--cyan-dim); color: #67E8F9; }
+.empty-note { font-size: 12px; color: var(--muted); padding: 24px 0; text-align: center; }
+
+/* ─── LOG CONSOLE ─── */
+.log-console { background: #050810; border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-family: var(--font-mono); font-size: 11px; height: 280px; overflow-y: auto; line-height: 1.7; }
+.log-line { padding: 1px 0; }
+.log-ts { color: var(--muted); margin-right: 8px; }
+.log-ok { color: #4ADE80; }
+.log-warn { color: #FCD34D; }
+.log-err { color: #F87171; }
+.log-info { color: var(--muted2); }
+
+/* ─── METRICS ─── */
+.metrics-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.metrics-panel { padding: 16px; }
+.metrics-panel-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+.metric-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.metric-row:last-child { border-bottom: none; }
+.metric-name { font-size: 12px; color: var(--muted2); }
+.metric-val { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+
+/* ─── PACKET VIEWER ─── */
+.packet-table-wrap { padding: 12px; }
+.packet-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.packet-table th { text-align: left; padding: 6px 10px; font-size: 9px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.packet-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; }
+.packet-table tr.flagged td { background: rgba(239,68,68,0.06); }
+.proto-tag { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; }
+.proto-TCP { background: var(--cyan-dim); color: #67E8F9; }
+.proto-UDP { background: var(--purple-dim); color: var(--purple); }
+.proto-ICMP { background: var(--amber-dim); color: #FCD34D; }
+.proto-DNS { background: var(--green-dim); color: #4ADE80; }
+.proto-ARP { background: var(--gray-dim); color: #CBD5E1; }
+.proto-STP { background: var(--orange-dim); color: #FDBA74; }
+.packet-note { font-size: 11px; color: var(--muted); padding: 10px 12px 2px; }
+
+/* ─── HISTORY ─── */
+.history-panel { padding: 16px; margin-bottom: 20px; }
+.history-canvas-wrap { height: 160px; position: relative; }
+
+/* ─── NOTES ─── */
+.notes-area { width: 100%; min-height: 110px; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; resize: vertical; }
+.notes-area:focus { border-color: var(--cyan); }
+
+/* ─── SETTINGS DRAWER (sandbox / manual controls) ─── */
+.settings-toggle { position: fixed; bottom: 24px; right: 24px; z-index: 200; width: 40px; height: 40px; border-radius: 50%; background: var(--panel); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); font-size: 16px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.settings-toggle:hover { border-color: var(--cyan); color: var(--cyan); }
+.settings-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 290px; background: var(--panel2); border-left: 1px solid var(--border2); z-index: 300; transform: translateX(100%); transition: transform 0.3s ease; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.settings-drawer.open { transform: translateX(0); }
+.drawer-title { font-size: 11px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.drawer-label { font-size: 11px; color: var(--muted2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.drawer-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--border2); border-radius: 2px; outline: none; cursor: pointer; }
+.drawer-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--cyan); cursor: pointer; }
+.drawer-row { display: flex; flex-direction: column; gap: 4px; }
+.drawer-section-label { font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+.drawer-select { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; cursor: pointer; }
+
+/* ─── MODALS ─── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(3,6,12,0.72); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { background: var(--panel2); border: 1px solid var(--border2); border-radius: 12px; padding: 26px; width: 100%; max-width: 480px; max-height: 86vh; overflow-y: auto; position: relative; }
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.modal-sub { font-size: 12px; color: var(--muted2); margin-bottom: 18px; line-height: 1.6; }
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.modal-close:hover { color: var(--text); }
+.diag-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--border2); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all .15s; font-size: 12.5px; line-height: 1.5; }
+.diag-option:hover { border-color: var(--cyan-glow); }
+.diag-option.picked { border-color: var(--cyan); background: var(--cyan-dim); }
+.diag-option.correct { border-color: var(--green); background: var(--green-dim); }
+.diag-option.wrong { border-color: var(--red); background: var(--red-dim); }
+.diag-result { margin-top: 14px; padding: 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.6; display: none; }
+.diag-result.show { display: block; }
+.diag-result.ok { background: var(--green-dim); border: 1px solid rgba(34,197,94,.3); color: #BBF7D0; }
+.diag-result.no { background: var(--amber-dim); border: 1px solid rgba(245,158,11,.3); color: #FDE68A; }
+.hint-box { background: var(--bg); border: 1px dashed var(--border2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--muted2); margin-top: 10px; }
+.hint-box b { color: var(--amber); }
+
+/* ─── DEVICE DETAIL MODAL ─── */
+.dd-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.dd-row:last-child { border-bottom: none; }
+.dd-row span:first-child { color: var(--muted2); }
+.dd-row span:last-child { font-family: var(--font-mono); }
+
+/* ─── TEACH/QUIZ MODE — Mode Selector Cards ─── */
+.mode-choice-card { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; padding: 16px; cursor: pointer; transition: border-color .2s; margin-bottom: 10px; }
+.mode-choice-card:hover { border-color: var(--cyan-glow); }
+.mode-choice-label { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.mode-choice-desc { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+
+/* ─── TEACH/QUIZ MODE — Mode Badge (topbar) ─── */
+.mode-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+.mode-badge-teach { background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan-glow); }
+.mode-badge-quiz { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+
+/* ─── TEACH/QUIZ MODE — Login Screen Fields ─── */
+.login-field { margin-bottom: 14px; }
+.login-label { display: block; font-size: 11px; color: var(--muted2); margin-bottom: 5px; font-weight: 500; }
+.login-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: var(--font-ui); font-size: 12px; outline: none; }
+.login-input:focus { border-color: var(--cyan); }
+.login-err { font-size: 11px; color: var(--red); margin-top: 4px; }
+
+/* ─── TEACH/QUIZ MODE — Explain Panel ─── */
+.explain-panel { position: fixed; right: 0; top: 52px; bottom: 0; width: 320px; background: var(--panel2); border-left: 1px solid var(--border2); z-index: 400; display: flex; flex-direction: column; box-shadow: -4px 0 16px rgba(0,0,0,0.4); }
+.explain-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.explain-panel-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+.explain-panel-close { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0; line-height: 1; }
+.explain-panel-close:hover { color: var(--text); }
+.explain-panel-body { padding: 16px; font-size: 12px; color: var(--muted2); line-height: 1.7; overflow-y: auto; flex: 1; }
+
+/* ─── TEACH/QUIZ MODE — Quiz Mode Affordance Suppression ─── */
+body.quiz-mode .dm-card,
+body.quiz-mode .sc,
+body.quiz-mode .alert-item,
+body.quiz-mode .packet-table tr,
+body.quiz-mode .topo-node { cursor: default !important; }
+body.quiz-mode .dm-card:hover { border-color: var(--border) !important; background: var(--panel) !important; }
+body.quiz-mode .alert-item:hover { background: none !important; }
+body.quiz-mode .packet-table tr:hover td { background: none !important; }
+body.quiz-mode .topo-node:hover circle { stroke: inherit !important; }
+</style>
+</head>
+
+<body>
+
+<!-- ══════════════ LESSON SELECT ══════════════ -->
+<div id="screen-select">
+  <div class="select-hero">
+    <div class="logo-icon"><div class="pulse-dot"></div></div>
+    <div>
+      <div class="select-hero-name">NetWatch</div>
+      <div class="select-hero-sub">Network Monitoring Trainer</div>
+    </div>
+  </div>
+  <div class="select-tagline">
+    NetWatch teaches you to <b>monitor, analyze and diagnose</b> a network — not to build or configure one.
+    Every lesson loads a predefined network, plays out a scripted incident, and asks you to find the root
+    cause using only the evidence a monitoring engineer would actually have: telemetry, topology state and packet captures.
+  </div>
+  <div class="select-loop">
+    <span class="loop-step">Select lesson</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Observe network</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Detect anomaly</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Investigate evidence</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Diagnose</span><span class="loop-arrow">→</span>
+    <span class="loop-step">Learn</span>
+  </div>
+
+  <div class="lesson-grid" id="lesson-grid"></div>
+
+  <div class="select-footnote">
+    All topologies below are predefined — NetWatch is a monitoring simulator, not a topology editor. All telemetry
+    and packet data are simulated/mock for this prototype; nothing here touches a real network.
+    <br><button class="btn btn-ghost" onclick="openAdminReset()" style="font-size:11px;margin-top:10px;">Admin Reset</button>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="app">
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon"><div class="pulse-dot" style="width:6px;height:6px;"></div></div>
+      <span class="topbar-name">NetWatch</span>
+    </div>
+    <div class="topbar-div"></div>
+    <div id="topbar-mode-badge" class="mode-badge hidden"></div>
+    <div id="topbar-welcome" class="topbar-lesson-title hidden"></div>
+    <div class="topbar-div" id="topbar-div-mode" style="display:none"></div>
+    <div class="topbar-lesson-title">Lesson: <b id="topbar-lesson-name">—</b></div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-right">
+      <div class="topbar-time font-mono" id="clock">00:00:00</div>
+      <button class="btn btn-ghost" onclick="exitToLessons()">← All Lessons</button>
+    </div>
+  </div>
+
+  <div id="lesson-bar">
+    <div class="lb-run-badge" id="lb-run-badge"><div class="lb-run-dot"></div><span id="lb-run-text">Sim Stopped</span></div>
+    <div class="lb-objective"><b>Objective:</b> <span id="lb-objective-text">—</span></div>
+    <button class="btn btn-primary" id="btn-start-sim" onclick="startSimulation()">▶ Start Simulation</button>
+    <button class="btn" id="btn-reset-sim" onclick="resetSimulation()">↺ Reset</button>
+    <button class="btn" onclick="openHint()">💡 Hint</button>
+    <button class="btn btn-primary" onclick="openDiagnosis()">🩺 Diagnose</button>
+  </div>
+
+  <div id="alert-banner" class="hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="alert-text">—</span>
+    <button class="alert-dismiss" onclick="dismissAlertBanner()">Dismiss</button>
+  </div>
+
+  <div id="stat-bar">
+    <div class="sc" data-metric-key="devices_healthy">
+      <div class="sc-label">Devices Healthy</div>
+      <div class="sc-value" style="color:var(--green)" id="card-devices">—</div>
+      <div class="sc-sub" id="card-devices-sub">—</div>
+    </div>
+    <div class="sc" data-metric-key="alerts">
+      <div class="sc-label">Active Alerts</div>
+      <div class="sc-value" style="color:var(--red)" id="card-alerts">0</div>
+      <div class="sc-sub" id="alert-sev-label">None</div>
+    </div>
+    <div class="sc" data-metric-key="latency_avg">
+      <div class="sc-label">Avg Latency</div>
+      <div class="sc-value" style="color:var(--cyan)" id="card-latency">—</div>
+      <div class="sc-sub" id="latency-trend">Stable</div>
+    </div>
+    <div class="sc" data-metric-key="cpu_avg">
+      <div class="sc-label">Avg CPU</div>
+      <div class="sc-value" style="color:var(--amber)" id="card-cpu">—</div>
+      <div class="sc-sub" id="cpu-trend">Stable</div>
+    </div>
+    <div class="sc" data-metric-key="pktloss">
+      <div class="sc-label">Pkt Loss</div>
+      <div class="sc-value" style="color:var(--green)" id="card-pktloss">—</div>
+      <div class="sc-sub" id="pktloss-trend" style="color:var(--green)">Within SLA</div>
+    </div>
+    <div class="sc" data-metric-key="sim_time">
+      <div class="sc-label">Sim Time</div>
+      <div class="sc-value" style="color:var(--purple)" id="card-simtime">00:00</div>
+      <div class="sc-sub" id="incident-phase-label">Baseline</div>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-tab active" onclick="switchTab('overview')" id="tab-overview"><div class="nav-dot" style="background:var(--cyan)"></div> Overview</div>
+    <div class="nav-tab" onclick="switchTab('topology')" id="tab-topology"><div class="nav-dot" style="background:var(--amber)"></div> Topology</div>
+    <div class="nav-tab" onclick="switchTab('devices')" id="tab-devices"><div class="nav-dot" style="background:var(--green)"></div> Devices</div>
+    <div class="nav-tab" onclick="switchTab('alerts')" id="tab-alerts">
+      <div class="nav-dot" id="alert-nav-dot" style="background:var(--muted)"></div> Alerts
+      <span id="alert-count-badge" style="background:var(--red-dim);color:#F87171;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--font-mono);font-weight:700;" class="hidden">0</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('metrics')" id="tab-metrics"><div class="nav-dot" style="background:var(--cyan)"></div> Metrics</div>
+    <div class="nav-tab" onclick="switchTab('packets')" id="tab-packets"><div class="nav-dot" style="background:var(--purple)"></div> Packets</div>
+    <div class="nav-tab" onclick="switchTab('history')" id="tab-history"><div class="nav-dot" style="background:var(--muted)"></div> History &amp; Logs</div>
+  </div>
+
+  <div class="content">
+
+    <!-- ─── OVERVIEW ─── -->
+    <div class="tab-pane active" id="pane-overview">
+      <div class="section-header"><div class="section-title">Live Telemetry</div><div style="font-size:11px;color:var(--muted)" id="ov-topo-name">—</div></div>
+      <div class="charts-row">
+        <div class="panel chart-panel">
+          <div class="chart-panel-header"><div class="chart-panel-title">Traffic (Mbps)</div><div class="chart-val" id="chv-traffic" style="color:var(--cyan)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-traffic"></canvas></div>
+        </div>
+        <div class="panel chart-panel">
+          <div class="chart-panel-header"><div class="chart-panel-title">CPU (%)</div><div class="chart-val" id="chv-cpu" style="color:var(--amber)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-cpu"></canvas></div>
+        </div>
+        <div class="panel chart-panel">
+          <div class="chart-panel-header"><div class="chart-panel-title">Latency (ms)</div><div class="chart-val" id="chv-latency" style="color:var(--purple)">—</div></div>
+          <div class="chart-canvas-wrap"><canvas id="ch-latency"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section-header"><div class="section-title">Monitored Devices</div></div>
+      <div class="device-mini-grid" id="ov-device-grid"></div>
+
+      <div class="section-header"><div class="section-title">Notes</div></div>
+      <div class="panel" style="padding:14px;">
+        <textarea class="notes-area" id="notes-area" placeholder="Jot down what you're observing — symptoms, suspects, timestamps..." oninput="saveNotes()"></textarea>
+      </div>
+    </div>
+
+    <!-- ─── TOPOLOGY ─── -->
+    <div class="tab-pane" id="pane-topology">
+      <div class="topo-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ADE80"></div>Healthy</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FCD34D"></div>Warning</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FB923C"></div>Degraded</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#F87171"></div>Critical</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#64748B"></div>Offline</div>
+      </div>
+      <div class="panel" id="topo-wrap">
+        <svg id="topo-svg" viewBox="0 0 800 380"></svg>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Click a device to inspect its live monitoring data. This is a fixed, predefined topology — NetWatch does not support building or rewiring networks.</div>
+    </div>
+
+    <!-- ─── DEVICES ─── -->
+    <div class="tab-pane" id="pane-devices">
+      <div class="section-header"><div class="section-title">Device Inventory</div></div>
+      <div class="panel device-row-container">
+        <table class="device-table">
+          <thead><tr><th>Device</th><th>Type</th><th>Status</th><th>CPU</th><th>Mem</th><th>Extra</th><th></th></tr></thead>
+          <tbody id="device-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── ALERTS ─── -->
+    <div class="tab-pane" id="pane-alerts">
+      <div class="section-header"><div class="section-title">Active Alerts &amp; Events</div></div>
+      <div class="alert-list panel" style="padding:12px;" id="alert-list"></div>
+    </div>
+
+    <!-- ─── METRICS ─── -->
+    <div class="tab-pane" id="pane-metrics">
+      <div class="metrics-2col">
+        <div class="panel metrics-panel">
+          <div class="metrics-panel-title">Packet Statistics</div>
+          <div class="metric-row"><span class="metric-name">Packets In (pps)</span><span class="metric-val" id="m-pkt-in">—</span></div>
+          <div class="metric-row"><span class="metric-name">Packets Out (pps)</span><span class="metric-val" id="m-pkt-out">—</span></div>
+          <div class="metric-row"><span class="metric-name">Packet Loss</span><span class="metric-val" id="m-pkt-loss">—</span></div>
+          <div class="metric-row"><span class="metric-name">Retransmissions</span><span class="metric-val" id="m-retrans">—</span></div>
+        </div>
+        <div class="panel metrics-panel">
+          <div class="metrics-panel-title">Link Quality</div>
+          <div class="metric-row"><span class="metric-name">Avg Latency</span><span class="metric-val" id="m-lat">—</span></div>
+          <div class="metric-row"><span class="metric-name">Jitter</span><span class="metric-val" id="m-jitter">—</span></div>
+          <div class="metric-row"><span class="metric-name">Bandwidth Utilization</span><span class="metric-val" id="m-bwutil">—</span></div>
+          <div class="metric-row"><span class="metric-name">Most Loaded Link</span><span class="metric-val" id="m-hotlink">—</span></div>
+        </div>
+      </div>
+      <div class="panel" style="padding:16px;">
+        <div class="metrics-panel-title">Per-Device Snapshot</div>
+        <div id="metrics-device-list"></div>
+      </div>
+    </div>
+
+    <!-- ─── PACKETS ─── -->
+    <div class="tab-pane" id="pane-packets">
+      <div class="section-header">
+        <div class="section-title">Packet Evidence (pre-processed / simulated capture)</div>
+        <div class="filter-row" style="margin:0;">
+          <button class="filter-btn active" onclick="setPacketFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setPacketFilter('TCP',this)">TCP</button>
+          <button class="filter-btn" onclick="setPacketFilter('UDP',this)">UDP</button>
+          <button class="filter-btn" onclick="setPacketFilter('ICMP',this)">ICMP</button>
+          <button class="filter-btn" onclick="setPacketFilter('flagged',this)">Flagged</button>
+        </div>
+      </div>
+      <div class="panel packet-table-wrap">
+        <div class="packet-note">This is educational evidence, not a live capture tool — packets are pre-generated/mock, matching the classic signature of this lesson's incident.</div>
+        <table class="packet-table">
+          <thead><tr><th>Time</th><th>Src</th><th>Dst</th><th>Proto</th><th>Len</th><th>Info</th></tr></thead>
+          <tbody id="packet-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── HISTORY / LOGS ─── -->
+    <div class="tab-pane" id="pane-history">
+      <div class="panel history-panel">
+        <div class="chart-panel-header"><div class="chart-panel-title">Session History — Traffic &amp; CPU</div></div>
+        <div class="history-canvas-wrap"><canvas id="ch-history"></canvas></div>
+      </div>
+      <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-title">Event Log</div>
+        <button class="filter-btn" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="log-console" id="log-box"></div>
+    </div>
+
+  </div>
+</div>
+
+<button class="settings-toggle" onclick="toggleDrawer()" title="Manual Simulation Controls (Sandbox)">⚙</button>
+
+<div class="settings-drawer" id="settings-drawer">
+  <div>
+    <div class="drawer-title">Sandbox Controls</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+      Optional manual overrides on top of the running lesson script. Everything here stays simulated — no real connections are made.
+    </div>
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label">Focus Device Load Override (%) <span id="d-override-val" style="font-family:var(--font-mono);color:var(--cyan)">0</span></div>
+    <input class="drawer-slider" type="range" id="sim-override" min="0" max="100" value="0" step="1"
+      oninput="document.getElementById('d-override-val').textContent=this.value;setManualOverride(parseInt(this.value))">
+  </div>
+  <div class="drawer-row">
+    <div class="drawer-label" style="margin-bottom:6px;">Inject Test Alert</div>
+    <div style="display:flex;gap:6px;">
+      <button class="filter-btn" onclick="injectAlert('critical')" style="color:#F87171;border-color:rgba(239,68,68,0.4)">Critical</button>
+      <button class="filter-btn" onclick="injectAlert('warning')" style="color:#FCD34D;border-color:rgba(245,158,11,0.4)">Warning</button>
+      <button class="filter-btn" onclick="injectAlert('info')" style="color:#67E8F9;border-color:rgba(6,182,212,0.3)">Info</button>
+    </div>
+  </div>
+  <div style="margin-top:auto;font-size:10px;color:var(--muted);padding-top:16px;border-top:1px solid var(--border);">
+    All data is simulated for training purposes. Predefined topologies only — no free-form topology editing in V1.
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+<div class="modal-overlay hidden" id="modal-hint">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-hint')">✕</button>
+    <div class="modal-title">💡 Hint</div>
+    <div class="modal-sub">Hints reveal a little more each time — try to reason it out before asking for the next one.</div>
+    <div id="hint-content"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="nextHint()">Next Hint</button>
+      <button class="btn" onclick="closeModal('modal-hint')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-diagnosis">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-diagnosis')">✕</button>
+    <div class="modal-title">Diagnose the Problem</div>
+    <div class="modal-sub" id="diag-question">—</div>
+    <div id="diag-options"></div>
+    <div class="diag-result" id="diag-result"></div>
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn btn-primary" id="diag-submit-btn" onclick="submitDiagnosis()">Submit Diagnosis</button>
+      <button class="btn" onclick="closeModal('modal-diagnosis')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-device">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-device')">✕</button>
+    <div class="modal-title" id="dd-title">Device</div>
+    <div class="modal-sub" id="dd-sub">—</div>
+    <div id="dd-rows"></div>
+  </div>
+</div>
+
+<!-- ══════════════ TEACH/QUIZ MODE MODALS ══════════════ -->
+
+<!-- Mode Selector Modal -->
+<div id="modal-mode-select" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:420px">
+    <button class="modal-close" onclick="cancelModeSelect()">✕</button>
+    <div class="modal-title">Choose Learning Mode</div>
+    <div class="modal-sub" id="msel-lesson-title">—</div>
+
+    <div id="mode-card-teach" class="mode-choice-card" onclick="confirmMode('teach')">
+      <div class="mode-choice-label">📖 Teach Mode</div>
+      <div class="mode-choice-desc">No scoring, no limits — explore freely with guided explanations on every element.</div>
+    </div>
+    <div id="mode-card-quiz" class="mode-choice-card" onclick="confirmMode('quiz')">
+      <div class="mode-choice-label">📝 Quiz Mode</div>
+      <div class="mode-choice-desc">Scored, limited to 3 attempts — tied to your student identity. No guided hints.</div>
+    </div>
+
+    <div style="margin-top:14px">
+      <button class="btn btn-ghost" onclick="cancelModeSelect()">← Back to Lessons</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login Screen Modal -->
+<div id="modal-login" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:400px">
+    <button class="modal-close" onclick="backFromLogin()">✕</button>
+    <div class="modal-title">Quiz Mode — Student Login</div>
+    <div class="modal-sub">Your identity is stored locally to track your attempt count and result.</div>
+
+    <div class="login-field">
+      <label class="login-label">Full Name</label>
+      <input id="login-name" type="text" class="login-input" placeholder="Enter your name" maxlength="100">
+      <div id="login-name-err" class="login-err hidden"></div>
+    </div>
+    <div class="login-field">
+      <label class="login-label">NPM (Student ID)</label>
+      <input id="login-npm" type="text" class="login-input" placeholder="Digits only" maxlength="20" inputmode="numeric">
+      <div id="login-npm-err" class="login-err hidden"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="btn btn-primary" onclick="submitLogin()">Continue →</button>
+      <button class="btn btn-ghost" onclick="backFromLogin()">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Blocked Screen Modal -->
+<div id="modal-blocked" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-title" style="color:var(--red)">Attempt Limit Reached</div>
+    <div class="modal-sub">You have used all available attempts for this lesson.</div>
+    <div id="blocked-identity" class="modal-sub" style="margin-bottom:8px;"></div>
+    <div id="blocked-best-result"></div>
+    <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="exitToLessons()">← All Lessons</button>
+      <button class="btn btn-ghost" style="font-size:11px" onclick="openAdminReset()">Admin Reset…</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Reset Modal -->
+<div id="modal-admin-reset" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('modal-admin-reset')">✕</button>
+    <div class="modal-title">Admin Reset — Attempt Counter</div>
+    <div class="modal-sub">Resets a student's attempt counter for one lesson. Does not touch recorded results.</div>
+    <div id="ar-success" class="hidden"></div>
+    <div id="ar-form">
+      <div class="login-field">
+        <label class="login-label">Reset Password</label>
+        <input id="ar-password" type="password" class="login-input" placeholder="Enter admin password">
+        <div id="ar-password-err" class="login-err hidden"></div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Student NPM</label>
+        <input id="ar-npm" type="text" class="login-input" placeholder="e.g. 1234567890">
+        <div id="ar-npm-err" class="login-err hidden"></div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Lesson ID</label>
+        <input id="ar-lesson" type="text" class="login-input" placeholder="e.g. ddos_edge">
+        <div id="ar-lesson-err" class="login-err hidden"></div>
+        <div id="ar-general-err" class="login-err hidden"></div>
+      </div>
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="submitAdminReset()">Reset Counter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Explain Panel (fixed side panel, not a modal overlay) -->
+<div id="explain-panel" class="explain-panel hidden" role="dialog" aria-modal="false" aria-label="Element Explanation">
+  <div class="explain-panel-header">
+    <div class="explain-panel-title" id="ep-title">—</div>
+    <button class="explain-panel-close" onclick="closeExplainPanel()" aria-label="Close explanation">✕</button>
+  </div>
+  <div class="explain-panel-body" id="ep-body">—</div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   NetWatch — Network Monitoring Trainer
+   Single-file educational simulator. Everything below is generated/
+   scripted data. No real network access of any kind occurs.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────── DEVICE TYPES ─────────────────────────── */
+const DEVICE_TYPES = {
+  gateway:  { label: 'Gateway / Router', icon: 'GW', color: '#F59E0B' },
+  web:      { label: 'Web / App Server', icon: 'WEB', color: '#06B6D4' },
+  database: { label: 'Database Server',  icon: 'DB',  color: '#A78BFA' },
+  aicompute:{ label: 'AI / GPU Compute', icon: 'GPU', color: '#22C55E' },
+  client:   { label: 'Client Workstation', icon: 'PC', color: '#64748B' },
+  switch:   { label: 'Switch', icon: 'SW', color: '#38BDF8' },
+};
+
+/* ─── TEACH/QUIZ MODE CONSTANTS ─── */
+const ATTEMPT_LIMIT   = 3;
+const RESET_PASSWORD  = 'netwatch-reset-v1';
+const RESULT_MAX_ENTRIES = 20;
+
+/* ─── TEACH/QUIZ MODE SESSION STATE ─── */
+let currentMode   = null;
+let studentName   = null;
+let studentNPM    = null;
+let pendingLesson = null;
+
+/* baseline "resting" telemetry per device type — the network in calm state */
+const BASELINE = {
+  gateway:  { cpu: 22, mem: 35, traffic: 60,  disk: 8,  temp: 38, gpu: 0,  vram: 0  },
+  web:      { cpu: 28, mem: 44, traffic: 40,  disk: 15, temp: 40, gpu: 0,  vram: 0  },
+  database: { cpu: 24, mem: 55, traffic: 18,  disk: 30, temp: 39, gpu: 0,  vram: 0  },
+  aicompute:{ cpu: 30, mem: 40, traffic: 25,  disk: 20, temp: 52, gpu: 35, vram: 40 },
+  client:   { cpu: 12, mem: 30, traffic: 4,   disk: 4,  temp: 34, gpu: 0,  vram: 0  },
+  switch:   { cpu: 15, mem: 22, traffic: 80,  disk: 5,  temp: 35, gpu: 0,  vram: 0  },
+};
+
+/* ─────────────────────────── TOPOLOGY TEMPLATES ─────────────────────────── */
+/* Predefined only — V1 has no free-form topology editor. */
+const TOPOLOGIES = {
+  branch_office: {
+    name: 'Branch Office Network',
+    nodes: [
+      { id: 'isp',  label: 'ISP Uplink',   type: 'client',   x: 60,  y: 190, isExternal: true },
+      { id: 'gw1',  label: 'GW-1',         type: 'gateway',  x: 220, y: 190 },
+      { id: 'web1', label: 'SRV-WEB-1',    type: 'web',      x: 420, y: 90  },
+      { id: 'db1',  label: 'SRV-DB-1',     type: 'database', x: 420, y: 290 },
+      { id: 'wks1', label: 'WKS-01',       type: 'client',   x: 620, y: 40  },
+      { id: 'wks2', label: 'WKS-02',       type: 'client',   x: 620, y: 140 },
+      { id: 'wks3', label: 'WKS-03',       type: 'client',   x: 620, y: 340 },
+    ],
+    links: [
+      { a: 'isp', b: 'gw1' },
+      { a: 'gw1', b: 'web1' },
+      { a: 'gw1', b: 'db1' },
+      { a: 'web1', b: 'db1' },
+      { a: 'web1', b: 'wks1' },
+      { a: 'web1', b: 'wks2' },
+      { a: 'db1', b: 'wks3' },
+    ],
+  },
+  ai_cluster: {
+    name: 'AI Training Cluster',
+    nodes: [
+      { id: 'isp',  label: 'ISP Uplink',   type: 'client',    x: 60,  y: 190, isExternal: true },
+      { id: 'gw1',  label: 'GW-1',         type: 'gateway',   x: 200, y: 190 },
+      { id: 'sched', label: 'SRV-SCHED',   type: 'web',       x: 360, y: 190 },
+      { id: 'gpu1', label: 'GPU-NODE-01',  type: 'aicompute', x: 540, y: 80  },
+      { id: 'gpu2', label: 'GPU-NODE-02',  type: 'aicompute', x: 540, y: 190 },
+      { id: 'gpu3', label: 'GPU-NODE-03',  type: 'aicompute', x: 540, y: 300 },
+      { id: 'store', label: 'SRV-STORAGE', type: 'database',  x: 700, y: 190 },
+    ],
+    links: [
+      { a: 'isp', b: 'gw1' },
+      { a: 'gw1', b: 'sched' },
+      { a: 'sched', b: 'gpu1' },
+      { a: 'sched', b: 'gpu2' },
+      { a: 'sched', b: 'gpu3' },
+      { a: 'gpu1', b: 'store' },
+      { a: 'gpu2', b: 'store' },
+      { a: 'gpu3', b: 'store' },
+    ],
+  },
+  small_lan: {
+    name: 'Small Office LAN',
+    nodes: [
+      { id: 'isp',  label: 'ISP Uplink',   type: 'client',  x: 60,  y: 190, isExternal: true },
+      { id: 'gw1',  label: 'GW-1',         type: 'gateway', x: 210, y: 190 },
+      { id: 'web1', label: 'SRV-WEB-1',    type: 'web',     x: 400, y: 90  },
+      { id: 'sw1',  label: 'SW-1',         type: 'switch',  x: 400, y: 290 },
+      { id: 'wks1', label: 'WKS-01',       type: 'client',  x: 610, y: 150 },
+      { id: 'wks2', label: 'WKS-02',       type: 'client',  x: 610, y: 230 },
+      { id: 'wks3', label: 'WKS-03',       type: 'client',  x: 610, y: 330 },
+    ],
+    links: [
+      { a: 'isp', b: 'gw1' },
+      { a: 'gw1', b: 'web1' },
+      { a: 'gw1', b: 'sw1' },
+      { a: 'sw1', b: 'wks1' },
+      { a: 'sw1', b: 'wks2' },
+      { a: 'sw1', b: 'wks3' },
+    ],
+  },
+};
+
+/* ─────────────────────────── INCIDENT SCRIPTS ───────────────────────────
+   Each incident is a timeline of stages. At `atSecond`, the named devices'
+   telemetry TARGETS change (the tick loop lerps toward these targets rather
+   than jumping), so the network reacts coherently instead of as isolated
+   random numbers. Alerts/logs fire once, exactly when their stage is
+   reached, and are always mirrored to Dashboard + Topology + Alerts +
+   Metrics + Logs from the same tick. */
+const INCIDENTS = {
+  ddos_incident: {
+    packetPattern: 'ddos',
+    focusDevice: 'gw1',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 6,  targets: { gw1: { cpu: 58, traffic: 220 } },
+        links: [{ a:'isp', b:'gw1', latency: 60, loss: 1.2 }],
+        log: { level: 'warn', text: 'GW-1: inbound traffic climbing above baseline.' } },
+      { atSecond: 14, targets: { gw1: { cpu: 95, traffic: 480, mem: 70 } },
+        links: [{ a:'isp', b:'gw1', latency: 240, loss: 7.5 }],
+        alert: { level: 'critical', device: 'gw1', title: 'GW-1: Abnormal inbound traffic flood', detail: 'Inbound packet rate is ~8x baseline from many distinct source addresses.' },
+        log: { level: 'err', text: 'ALERT: GW-1 CPU 95% — uplink saturated, packet loss rising.' } },
+      { atSecond: 26, targets: { web1: { cpu: 46, traffic: 20 } },
+        alert: { level: 'warning', device: 'web1', title: 'SRV-WEB-1: reduced throughput', detail: 'Traffic reaching SRV-WEB-1 has dropped — likely starved behind the congested gateway.' },
+        log: { level: 'warn', text: 'SRV-WEB-1: inbound traffic dropped, requests timing out.' } },
+    ],
+  },
+  db_slowdown_incident: {
+    packetPattern: 'dbslow',
+    focusDevice: 'db1',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 7,  targets: { db1: { cpu: 55, disk: 60, mem: 66 } },
+        log: { level: 'warn', text: 'SRV-DB-1: disk I/O pressure increasing.' } },
+      { atSecond: 15, targets: { db1: { cpu: 92, disk: 96, mem: 88 } },
+        alert: { level: 'critical', device: 'db1', title: 'SRV-DB-1: sustained high disk I/O + CPU', detail: 'A long-running query appears to be scanning large tables repeatedly, saturating disk I/O.' },
+        log: { level: 'err', text: 'ALERT: SRV-DB-1 disk I/O at 96% — query latency spiking.' } },
+      { atSecond: 24, targets: { web1: { cpu: 50 } },
+        links: [{ a:'web1', b:'db1', latency: 180, loss: 0.4 }],
+        alert: { level: 'warning', device: 'web1', title: 'SRV-WEB-1: elevated response times', detail: 'SRV-WEB-1 is waiting on slow database responses, causing request queues to build.' },
+        log: { level: 'warn', text: 'SRV-WEB-1: DB query latency now above 150ms, requests queueing.' } },
+    ],
+  },
+  gpu_thermal_incident: {
+    packetPattern: 'gpu_net',
+    focusDevice: 'gpu2',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 6,  targets: { gpu2: { gpu: 92, temp: 78, cpu: 60 } },
+        log: { level: 'warn', text: 'GPU-NODE-02: utilization and temperature climbing during checkpoint sync.' } },
+      { atSecond: 15, targets: { gpu2: { gpu: 99, temp: 94, cpu: 80, vram: 97 } },
+        alert: { level: 'critical', device: 'gpu2', title: 'GPU-NODE-02: thermal threshold exceeded', detail: 'Sustained near-100% GPU utilization has pushed core temperature past safe limits; thermal throttling is likely.' },
+        log: { level: 'err', text: 'ALERT: GPU-NODE-02 temp 94°C — thermal throttling engaged, clocks reduced.' } },
+      { atSecond: 24, targets: { gpu2: { gpu: 55, cpu: 55 } },
+        links: [{ a:'sched', b:'gpu2', latency: 90, loss: 3.5 }],
+        alert: { level: 'warning', device: 'gpu2', title: 'GPU-NODE-02: degraded training throughput', detail: 'Throttling has cut effective compute throughput; job progress on this node has stalled relative to its peers.' },
+        log: { level: 'warn', text: 'GPU-NODE-02: throughput dropped ~40% after throttle, sync traffic retrying.' } },
+    ],
+  },
+  internal_overload_incident: {
+    packetPattern: 'connflood',
+    focusDevice: 'gw1',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 6,  targets: { gw1: { cpu: 52, mem: 50 } },
+        log: { level: 'warn', text: 'GW-1: new-connection rate rising steadily.' } },
+      { atSecond: 15, targets: { gw1: { cpu: 94, mem: 83 } },
+        alert: { level: 'critical', device: 'gw1', title: 'GW-1: connection-tracking table near exhaustion', detail: 'An internal host is opening new connections at an unusually high rate; GW-1\'s session table is filling up, degrading forwarding for every device behind it.' },
+        log: { level: 'err', text: 'ALERT: GW-1 CPU 94%, connection table 96% full — not an inbound flood.' } },
+      { atSecond: 24, targets: { web1: { cpu: 42 } },
+        links: [{ a:'web1', b:'wks2', latency: 150, loss: 2.0 }],
+        alert: { level: 'warning', device: 'web1', title: 'WKS-02: connection churn straining shared services', detail: 'WKS-02\'s own bandwidth use looks normal, but the sheer rate of new connections it is opening is what is straining GW-1.' },
+        log: { level: 'warn', text: 'WKS-02 identified as source of new-connection churn; ISP uplink traffic itself is not elevated.' } },
+    ],
+  },
+  web_leak_incident: {
+    packetPattern: 'webleak',
+    focusDevice: 'web1',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 8,  targets: { web1: { mem: 70 } },
+        log: { level: 'warn', text: 'SRV-WEB-1: memory usage climbing steadily, no corresponding traffic increase.' } },
+      { atSecond: 18, targets: { web1: { mem: 96, cpu: 58 } },
+        alert: { level: 'critical', device: 'web1', title: 'SRV-WEB-1: memory near exhaustion', detail: 'Memory has climbed continuously without leveling off — consistent with a memory leak. CPU is only now rising as the system begins swapping.' },
+        log: { level: 'err', text: 'ALERT: SRV-WEB-1 memory 96% — swapping, worker processes slow to respond.' } },
+      { atSecond: 27, targets: { web1: { cpu: 84 } },
+        links: [{ a:'gw1', b:'web1', latency: 170, loss: 1.5 }],
+        alert: { level: 'warning', device: 'web1', title: 'SRV-WEB-1: requests timing out', detail: 'Downstream clients are now seeing timeouts as the overloaded worker processes fail to keep up with the request queue.' },
+        log: { level: 'warn', text: 'WKS-01 and WKS-02 report timeouts reaching SRV-WEB-1.' } },
+    ],
+  },
+  loop_storm_incident: {
+    packetPattern: 'loop',
+    focusDevice: 'sw1',
+    stages: [
+      { atSecond: 0,  log: { level: 'info', text: 'Baseline monitoring active. All systems nominal.' } },
+      { atSecond: 5,  targets: { sw1: { cpu: 55, traffic: 320 } },
+        log: { level: 'warn', text: 'SW-1: broadcast traffic climbing — possible duplicate link forming a loop.' } },
+      { atSecond: 13, targets: { sw1: { cpu: 97, traffic: 960 } },
+        links: [{ a:'sw1', b:'wks1', latency: 220, loss: 6 }, { a:'sw1', b:'wks2', latency: 230, loss: 6.5 }, { a:'sw1', b:'wks3', latency: 210, loss: 5.5 }],
+        alert: { level: 'critical', device: 'sw1', title: 'SW-1: broadcast storm detected', detail: 'Broadcast/multicast frames are being endlessly re-forwarded around a loop, consuming nearly all of SW-1\'s switching capacity.' },
+        log: { level: 'err', text: 'ALERT: SW-1 traffic near link capacity — all attached workstations losing connectivity.' } },
+      { atSecond: 22, log: { level: 'warn', text: 'GW-1 and SRV-WEB-1 (upstream of SW-1) remain unaffected — the storm is confined to the SW-1 LAN segment.' } },
+    ],
+  },
+};
+
+/* ─────────────────────────── LESSONS ─────────────────────────── */
+const LESSONS = [
+  {
+    id: 'ddos_edge',
+    title: 'DDoS at the Edge',
+    difficulty: 'Beginner',
+    focus: 'Gateway / Router',
+    accent: '#F59E0B',
+    topology: 'branch_office',
+    incident: 'ddos_incident',
+    description: 'Users report the branch office site is unreachable and slow. Watch the network react and find the affected device.',
+    objective: 'Traffic into the branch office has spiked and users report slow or failed connections. Determine what is happening and which device is affected.',
+    diagQuestion: 'Based on the telemetry, topology, and packet evidence, what is the most likely root cause?',
+    options: [
+      { id: 'a', text: 'GW-1 is being overwhelmed by a traffic flood (DDoS) from many external sources.', correct: true },
+      { id: 'b', text: 'SRV-DB-1 has run out of disk space.', correct: false },
+      { id: 'c', text: 'A workstation NIC has failed.', correct: false },
+      { id: 'd', text: 'This is normal end-of-month backup traffic and nothing is wrong.', correct: false },
+    ],
+    hints: [
+      'Start on the Overview tab — which device shows the largest change in CPU and traffic once the simulation starts?',
+      'Open Topology and watch link color between the ISP uplink and GW-1 as the incident develops.',
+      'Check the Packets tab: do you see many different source addresses all hitting the same destination and port in a short window?',
+    ],
+    explanation: 'GW-1 received an abnormal surge of inbound connections from many distinct source addresses in a short window — a volumetric/SYN-style flood. That drove GW-1\'s CPU and uplink utilization to their limits, which is why packet loss and latency rose on the ISP link, and why SRV-WEB-1 then looked starved (it simply stopped receiving as much traffic, because it was stuck behind a congested gateway). The fix in the real world is upstream filtering/rate-limiting at the edge — not touching the web or database servers, which were never the actual problem.',
+  },
+  {
+    id: 'db_slowdown',
+    title: 'Runaway Database Query',
+    difficulty: 'Intermediate',
+    focus: 'Database Server',
+    accent: '#A78BFA',
+    topology: 'branch_office',
+    incident: 'db_slowdown_incident',
+    description: 'The web app feels sluggish for everyone. No obvious network flood this time — dig into the database tier.',
+    objective: 'SRV-WEB-1 is responding slowly to all requests, but there is no unusual inbound traffic at the edge. Find the underlying cause.',
+    diagQuestion: 'What is most likely causing the slow web responses?',
+    options: [
+      { id: 'a', text: 'SRV-DB-1 is disk-I/O bound from a heavy/long-running query, and SRV-WEB-1 is waiting on it.', correct: true },
+      { id: 'b', text: 'GW-1 is under a DDoS attack.', correct: false },
+      { id: 'c', text: 'WKS-03 is offline.', correct: false },
+      { id: 'd', text: 'The ISP uplink has been disconnected.', correct: false },
+    ],
+    hints: [
+      'The Gateway looks calm this time — traffic in is normal. Check Devices and compare CPU/disk across all servers, not just the gateway.',
+      'Open Metrics and look at "Per-Device Snapshot" — which device has both high CPU and high disk I/O together?',
+      'Look at the SRV-WEB-1 ↔ SRV-DB-1 link latency in Topology once the incident is underway.',
+    ],
+    explanation: 'SRV-DB-1 shows high CPU together with high disk I/O — the signature of a query doing heavy, repeated disk scans rather than a network problem. Because SRV-WEB-1 depends on SRV-DB-1 for every request, its response times rise in lockstep once the database falls behind, even though nothing at the network edge changed. The evidence chain (DB disk I/O → DB CPU → web↔db link latency → web app slowness) is what separates this from a network-layer incident like the DDoS lesson.',
+  },
+  {
+    id: 'gpu_thermal',
+    title: 'GPU Cluster Thermal Throttling',
+    difficulty: 'Advanced',
+    focus: 'AI / GPU Compute',
+    accent: '#22C55E',
+    topology: 'ai_cluster',
+    incident: 'gpu_thermal_incident',
+    description: 'One node in the training cluster is slowing everyone else down. Use monitoring to find which node, and why.',
+    objective: 'A distributed training job across three GPU nodes has slowed down overall. One node is suspected. Identify it and explain the mechanism.',
+    diagQuestion: 'What is happening to the affected GPU node, and why does it slow the whole job down?',
+    options: [
+      { id: 'a', text: 'GPU-NODE-02 overheated under sustained load and is now thermal-throttling, which stalls its sync traffic with the other nodes.', correct: true },
+      { id: 'b', text: 'SRV-STORAGE has run out of disk space, stopping all checkpoints.', correct: false },
+      { id: 'c', text: 'GW-1 is dropping all packets to the AI cluster.', correct: false },
+      { id: 'd', text: 'GPU-NODE-02 is idle and simply not doing any work.', correct: false },
+    ],
+    hints: [
+      'Compare the three GPU nodes on the Devices tab — GPU utilization alone won\'t tell the whole story, also check temperature.',
+      'A node that throttles will show GPU load fall back down even though the job is not finished — check the trend, not just one snapshot.',
+      'Check the link between SRV-SCHED and the affected node in Topology/Metrics for rising latency or loss once throttling kicks in.',
+    ],
+    explanation: 'GPU-NODE-02 ran at sustained near-100% GPU utilization long enough for its temperature to cross a safe threshold, triggering thermal throttling. Throttling forces the node to reduce clock speed, which cuts its effective throughput — visible as GPU utilization dropping back down even though the job isn\'t finished. Because distributed training nodes must synchronize with each other, the slow node\'s sync traffic to SRV-SCHED starts showing added latency/loss, and the whole job\'s pace drops to match its slowest member. This is a compute/thermal problem wearing a "network slowness" costume — the topology and link metrics are evidence of the cause, not the cause itself.',
+  },
+  {
+    id: 'internal_overload',
+    title: 'The Overload That Came From Inside',
+    difficulty: 'Intermediate',
+    focus: 'Gateway / Router',
+    accent: '#EF4444',
+    topology: 'branch_office',
+    incident: 'internal_overload_incident',
+    description: 'GW-1 is struggling again — but this time the WAN link looks calm. If it isn\'t a flood from outside, where is the load actually coming from?',
+    objective: 'GW-1\'s CPU and memory are climbing even though inbound WAN traffic is normal. Determine whether this is an external attack or something originating inside the network.',
+    diagQuestion: 'GW-1 is overloaded, but the ISP uplink shows no unusual traffic volume. What is the most likely explanation?',
+    options: [
+      { id: 'a', text: 'An internal host is opening new connections at an abnormally high rate, exhausting GW-1\'s connection-tracking table from the inside.', correct: true },
+      { id: 'b', text: 'GW-1 is being hit by an external DDoS attack, identical to the branch office\'s earlier incident.', correct: false },
+      { id: 'c', text: 'SRV-DB-1\'s disk has failed, forcing GW-1 to compensate.', correct: false },
+      { id: 'd', text: 'The ISP has throttled the uplink bandwidth.', correct: false },
+    ],
+    hints: [
+      'Compare this incident to the DDoS lesson: is the ISP-uplink link showing the same traffic spike this time?',
+      'Open Packets — where is the flood of new connections actually coming from: outside addresses, or one particular internal device?',
+      'A connection-tracking table can fill up from connection *count*, not just raw bandwidth — a device can overload a router without pushing much data at all.',
+    ],
+    explanation: 'Unlike the DDoS lesson, the ISP uplink here stays calm — inbound WAN traffic never spikes. The packet evidence instead shows WKS-02 opening an unusually high rate of new outbound connections. Each connection needs an entry in GW-1\'s connection-tracking (NAT) table, and enough of them opened fast enough exhausts that table regardless of how much actual data flows through it. That is why GW-1\'s CPU and memory climb while its traffic volume barely moves — a good reminder that "overloaded" and "flooded with bandwidth" are not the same thing, and that the fix here is investigating WKS-02, not the network edge.',
+  },
+  {
+    id: 'web_leak',
+    title: 'The Web Server That Forgot to Let Go',
+    difficulty: 'Intermediate',
+    focus: 'Web / App Server',
+    accent: '#06B6D4',
+    topology: 'branch_office',
+    incident: 'web_leak_incident',
+    description: 'SRV-WEB-1 gets slower and slower over several minutes with no traffic spike anywhere. Something on the server itself isn\'t releasing memory.',
+    objective: 'SRV-WEB-1\'s response times are steadily degrading with no change in incoming traffic. Identify the resource that is failing and explain the order symptoms appeared in.',
+    diagQuestion: 'Memory on SRV-WEB-1 rises continuously well before CPU or latency move at all. What does that ordering point to?',
+    options: [
+      { id: 'a', text: 'A memory leak in the web application — memory exhaustion forces swapping, which is what eventually drags CPU and response time down with it.', correct: true },
+      { id: 'b', text: 'SRV-DB-1 is under heavy disk I/O load.', correct: false },
+      { id: 'c', text: 'GW-1 is being flooded with inbound traffic.', correct: false },
+      { id: 'd', text: 'WKS-01 has a failing network cable.', correct: false },
+    ],
+    hints: [
+      'Check the Overview traffic chart for SRV-WEB-1 — has inbound traffic actually changed at all during the incident?',
+      'On the Devices tab, watch the order metrics change: which one moves first, memory or CPU?',
+      'Once a system\'s memory is exhausted it starts swapping to disk — what does that do to CPU usage and response latency?',
+    ],
+    explanation: 'The timeline is the evidence: SRV-WEB-1\'s memory climbs steadily from early in the incident while traffic stays flat and CPU barely moves — ruling out a network or load-driven cause. Only once memory is nearly exhausted does CPU start climbing too, because the system has begun swapping memory to disk, which is slow and CPU-intensive. Response times then degrade for everyone downstream (WKS-01, WKS-02) purely as a consequence of that swapping, not because of anything happening on the network. That memory-first, CPU-and-latency-second ordering is the signature of an application-level memory leak, distinct from the disk-I/O-driven database incident elsewhere in this trainer.',
+  },
+  {
+    id: 'loop_storm',
+    title: 'Broadcast Storm on the LAN',
+    difficulty: 'Beginner',
+    focus: 'Switch',
+    accent: '#38BDF8',
+    topology: 'small_lan',
+    incident: 'loop_storm_incident',
+    description: 'Every workstation on one switch suddenly loses its connection at the same time, while the router and web server upstream look completely fine.',
+    objective: 'WKS-01, WKS-02, and WKS-03 all degrade at once while GW-1 and SRV-WEB-1 stay healthy. Localize the fault to the correct layer of the network.',
+    diagQuestion: 'All three workstations behind SW-1 degrade simultaneously, while GW-1 and SRV-WEB-1 — both upstream of SW-1 — stay perfectly healthy. What does this pattern indicate?',
+    options: [
+      { id: 'a', text: 'SW-1 is experiencing a broadcast storm, likely from a switching loop, flooding the LAN segment behind it while everything upstream is unaffected.', correct: true },
+      { id: 'b', text: 'GW-1 has lost its connection to the ISP.', correct: false },
+      { id: 'c', text: 'SRV-WEB-1 has crashed.', correct: false },
+      { id: 'd', text: 'All three workstations independently developed hardware faults at the same moment.', correct: false },
+    ],
+    hints: [
+      'Three unrelated devices failing at the exact same instant is unlikely to be three coincidental hardware faults — look for a shared point they all pass through.',
+      'Check SW-1\'s own CPU and traffic on the Devices tab — how do they compare to GW-1 and SRV-WEB-1, which sit one hop further upstream?',
+      'Open Packets: repeated broadcast frames and Spanning Tree Protocol topology-change notifications are the classic signature of a network loop.',
+    ],
+    explanation: 'SW-1 sits directly between the three workstations and the rest of the network, and it is the only device whose traffic and CPU spike toward their limits — a broadcast storm, almost certainly caused by a physical loop (two cables connecting the same two switches/ports without loop protection). Broadcast frames get endlessly duplicated and re-forwarded around the loop, consuming nearly all of SW-1\'s switching capacity and starving every port behind it — which is exactly why all three workstations degrade at once. GW-1 and SRV-WEB-1 sit one hop further upstream, on the other side of SW-1, so they never see the storm. Three devices failing in perfect unison is a strong clue to look for a shared upstream device rather than three independent faults, and the packet evidence (repeated broadcasts, STP topology-change notifications) confirms a Layer-2 loop rather than a routing or server problem.',
+  },
+];
+
+/* ─────────────────────────── STATE ─────────────────────────── */
+let state = null; // built fresh per lesson start
+let charts = {};
+let simTimer = null;
+let clockTimer = null;
+let packetFilter = 'all';
+
+function nowTs() {
+  const d = new Date();
+  return d.toTimeString().slice(0, 8);
+}
+
+/* ─────────────────────────── LESSON SELECT ─────────────────────────── */
+function renderLessonSelect() {
+  const grid = document.getElementById('lesson-grid');
+  grid.innerHTML = LESSONS.map(l => `
+    <div class="lesson-card" style="--accent:${l.accent}" onclick="startLesson('${l.id}')">
+      <span class="lesson-diff diff-${l.difficulty.toLowerCase()}">${l.difficulty}</span>
+      <div class="lesson-card-title">${l.title}</div>
+      <div class="lesson-card-focus">Focus device: ${l.focus}</div>
+      <div class="lesson-card-desc">${l.description}</div>
+      <div class="lesson-card-foot">
+        <div class="lesson-card-topo">${TOPOLOGIES[l.topology].name}</div>
+        <div class="lesson-start-btn">Start Lesson →</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function exitToLessons() {
+  stopSimTimers();
+  // Reset all mode session state
+  currentMode   = null;
+  studentName   = null;
+  studentNPM    = null;
+  pendingLesson = null;
+  document.body.classList.remove('quiz-mode');
+  document.getElementById('topbar-mode-badge').classList.add('hidden');
+  document.getElementById('topbar-welcome').classList.add('hidden');
+  document.getElementById('topbar-div-mode').style.display = 'none';
+  closeExplainPanel();
+  // Also hide blocked modal if visible
+  document.getElementById('modal-blocked').classList.add('hidden');
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('screen-select').classList.remove('hidden');
+}
+
+/* ─────────────────────────── LESSON / SIM BOOTSTRAP ─────────────────────────── */
+function deepCopyTopology(topoId) {
+  const src = TOPOLOGIES[topoId];
+  return {
+    name: src.name,
+    nodes: src.nodes.map(n => ({ ...n })),
+    links: src.links.map(l => ({ ...l })),
+  };
+}
+
+function startLesson(lessonId) {
+  const lesson = LESSONS.find(l => l.id === lessonId);
+  if (!lesson) return;
+  pendingLesson = lessonId;
+  const titleEl = document.getElementById('msel-lesson-title');
+  if (titleEl) titleEl.textContent = lesson.title;
+  document.getElementById('modal-mode-select').classList.remove('hidden');
+}
+
+function _executeLessonLoad(lessonId) {
+  const lesson = LESSONS.find(l => l.id === lessonId);
+  if (!lesson) return;
+  const incident = INCIDENTS[lesson.incident];
+  const topo = deepCopyTopology(lesson.topology);
+
+  // seed every node with baseline telemetry + current/target values
+  topo.nodes.forEach(n => {
+    const base = BASELINE[n.type];
+    n.cur = { ...base };
+    n.target = { ...base };
+    n.offline = false;
+  });
+  // seed every link with baseline latency/loss/jitter/util
+  topo.links.forEach(link => {
+    link.cur = { latency: 8 + Math.random() * 6, loss: 0.05, jitter: 1, util: 15 + Math.random() * 10 };
+    link.target = { ...link.cur };
+  });
+
+  state = {
+    lesson, incident, topo,
+    simRunning: false,
+    elapsed: 0,
+    firedStages: new Set(),
+    alerts: [],
+    logs: [],
+    packets: [],
+    hintIndex: 0,
+    diagAnswered: false,
+    diagSelected: null,
+    manualOverride: 0,
+    history: { labels: [], traffic: [], cpu: [] },
+    series: { traffic: [], cpu: [], latency: [] },
+  };
+
+  document.getElementById('screen-select').classList.add('hidden');
+  document.getElementById('app').classList.add('active');
+  document.getElementById('topbar-lesson-name').textContent = lesson.title;
+  document.getElementById('lb-objective-text').textContent = lesson.objective;
+  document.getElementById('ov-topo-name').textContent = topo.name;
+  document.getElementById('notes-area').value = '';
+  document.getElementById('sim-override').value = 0;
+  document.getElementById('d-override-val').textContent = 0;
+
+  pushLog('info', `Lesson loaded: "${lesson.title}" — topology: ${topo.name}. ${topo.nodes.length} devices mapped.`);
+
+  buildCharts();
+  renderTopologySVG();
+  renderAll();
+  switchTab('overview');
+  startClock();
+  updateRunBadge();
+}
+
+function startSimulation() {
+  if (state.simRunning) return;
+  state.simRunning = true;
+  updateRunBadge();
+  pushLog('ok', 'Simulation started. Telemetry feed live.');
+  simTimer = setInterval(tick, 1000);
+}
+
+function resetSimulation() {
+  stopSimTimers();
+  _executeLessonLoad(state.lesson.id);
+}
+
+function stopSimTimers() {
+  if (simTimer) { clearInterval(simTimer); simTimer = null; }
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+}
+
+function updateRunBadge() {
+  const badge = document.getElementById('lb-run-badge');
+  const text = document.getElementById('lb-run-text');
+  const startBtn = document.getElementById('btn-start-sim');
+  if (state.simRunning) {
+    badge.classList.add('running');
+    text.textContent = 'Sim Running';
+    startBtn.disabled = true;
+    startBtn.textContent = '▶ Running…';
+  } else {
+    badge.classList.remove('running');
+    text.textContent = 'Sim Stopped';
+    startBtn.disabled = false;
+    startBtn.textContent = '▶ Start Simulation';
+  }
+}
+
+function startClock() {
+  const el = document.getElementById('clock');
+  el.textContent = nowTs();
+  clockTimer = setInterval(() => { el.textContent = nowTs(); }, 1000);
+}
+
+/* ─────────────────────────── TICK / SIMULATION ENGINE ───────────────────────────
+   Coherent behavior: incident stages set *targets*; every tick, each metric
+   eases toward its target (lerp) plus small noise, so cause → effect chains
+   (e.g. CPU up → latency up → packet loss up → alert) unfold smoothly and
+   consistently instead of as unrelated random jitter. */
+function lerp(cur, target, rate) { return cur + (target - cur) * rate; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function noise(amount) { return (Math.random() - 0.5) * amount; }
+
+function tick() {
+  state.elapsed += 1;
+
+  // 1. Apply any incident stages whose time has come (once each)
+  state.incident.stages.forEach((stage, idx) => {
+    if (state.elapsed >= stage.atSecond && !state.firedStages.has(idx)) {
+      state.firedStages.add(idx);
+      applyStage(stage);
+    }
+  });
+
+  // 2. Ease every node's telemetry toward its target
+  state.topo.nodes.forEach(n => {
+    if (n.isExternal) return;
+    const cur = n.cur, tgt = n.target;
+    cur.cpu = clamp(lerp(cur.cpu, tgt.cpu, 0.35) + noise(2), 1, 100);
+    cur.mem = clamp(lerp(cur.mem, tgt.mem, 0.25) + noise(1.5), 1, 100);
+    cur.traffic = clamp(lerp(cur.traffic, tgt.traffic, 0.35) + noise(4), 0, 1000);
+    cur.disk = clamp(lerp(cur.disk, tgt.disk, 0.3) + noise(2), 0, 100);
+    cur.temp = clamp(lerp(cur.temp, tgt.temp, 0.2) + noise(0.6), 20, 110);
+    if (n.type === 'aicompute') {
+      cur.gpu = clamp(lerp(cur.gpu, tgt.gpu, 0.3) + noise(2), 0, 100);
+      cur.vram = clamp(lerp(cur.vram, tgt.vram, 0.25) + noise(1.5), 0, 100);
+    }
+  });
+
+  // manual sandbox override nudges the lesson's focus device further (does not replace the script)
+  if (state.manualOverride > 0) {
+    const focus = findNode(state.incident.focusDevice);
+    if (focus) {
+      focus.cur.cpu = clamp(focus.cur.cpu + state.manualOverride * 0.15, 1, 100);
+    }
+  }
+
+  // 3. Ease every link toward its target
+  state.topo.links.forEach(link => {
+    const cur = link.cur, tgt = link.target;
+    cur.latency = clamp(lerp(cur.latency, tgt.latency, 0.3) + noise(2), 1, 500);
+    cur.loss = clamp(lerp(cur.loss, tgt.loss, 0.3) + noise(0.15), 0, 20);
+    cur.jitter = clamp(cur.latency * 0.05 + noise(1), 0, 60);
+    cur.util = clamp(lerp(cur.util, tgt.util !== undefined ? tgt.util : cur.util, 0.3) + noise(3), 0, 100);
+  });
+
+  // 4. Derive health status from thresholds (combines multiple signals — not one number)
+  state.topo.nodes.forEach(n => { if (!n.isExternal) n.health = computeHealth(n); });
+
+  // 5. Update rolling series for charts + history
+  const avg = key => {
+    const vals = state.topo.nodes.filter(n => !n.isExternal).map(n => n.cur[key]);
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+  const avgLink = key => {
+    const vals = state.topo.links.map(l => l.cur[key]);
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+  pushSeries('traffic', avg('traffic'));
+  pushSeries('cpu', avg('cpu'));
+  pushSeries('latency', avgLink('latency'));
+
+  if (state.elapsed % 5 === 0) {
+    state.history.labels.push(`${state.elapsed}s`);
+    state.history.traffic.push(Math.round(avg('traffic')));
+    state.history.cpu.push(Math.round(avg('cpu')));
+    if (state.history.labels.length > 24) { state.history.labels.shift(); state.history.traffic.shift(); state.history.cpu.shift(); }
+  }
+
+  // 6. Generate packet evidence matching the incident's signature
+  maybeGeneratePackets();
+
+  // 7. Re-render everything from the same tick's state — dashboard, topology,
+  //    alerts, metrics and logs all stay in sync by construction.
+  renderAll();
+}
+
+function applyStage(stage) {
+  if (stage.targets) {
+    Object.entries(stage.targets).forEach(([id, vals]) => {
+      const n = findNode(id);
+      if (n) Object.assign(n.target, vals);
+    });
+  }
+  if (stage.links) {
+    stage.links.forEach(spec => {
+      const link = findLink(spec.a, spec.b);
+      if (link) {
+        link.target.latency = spec.latency !== undefined ? spec.latency : link.target.latency;
+        link.target.loss = spec.loss !== undefined ? spec.loss : link.target.loss;
+        link.target.util = spec.util !== undefined ? spec.util : link.target.util;
+      }
+    });
+  }
+  if (stage.log) pushLog(stage.log.level, stage.log.text);
+  if (stage.alert) pushAlert(stage.alert.level, stage.alert.device, stage.alert.title, stage.alert.detail);
+}
+
+function findNode(id) { return state.topo.nodes.find(n => n.id === id); }
+function findLink(a, b) { return state.topo.links.find(l => (l.a === a && l.b === b) || (l.a === b && l.b === a)); }
+
+function computeHealth(n) {
+  if (n.offline) return 'offline';
+  const cpu = n.cur.cpu, temp = n.cur.temp, disk = n.cur.disk, traffic = n.cur.traffic;
+  const gpuHot = n.type === 'aicompute' && temp > 88;
+  const trafficCrit = n.type === 'switch' && traffic > 700;
+  const trafficDeg = n.type === 'switch' && traffic > 400;
+  const trafficWarn = n.type === 'switch' && traffic > 200;
+  if (cpu > 90 || gpuHot || disk > 92 || trafficCrit) return 'critical';
+  if (cpu > 72 || temp > 75 || disk > 75 || trafficDeg) return 'degraded';
+  if (cpu > 50 || temp > 60 || disk > 55 || trafficWarn) return 'warning';
+  return 'healthy';
+}
+
+function pushSeries(key, val) {
+  state.series[key].push(val);
+  if (state.series[key].length > 30) state.series[key].shift();
+}
+
+/* ─────────────────────────── ALERTS & LOGS ─────────────────────────── */
+const HEALTH_COLOR = { healthy: '#4ADE80', warning: '#FCD34D', degraded: '#FB923C', critical: '#F87171', offline: '#64748B' };
+
+function pushAlert(level, deviceId, title, detail) {
+  state.alerts.unshift({ id: Date.now() + Math.random(), level, deviceId, title, detail, ts: `+${state.elapsed}s` });
+  showAlertBanner(`${title}`);
+  pushLog(level === 'critical' ? 'err' : level === 'warning' ? 'warn' : 'info', `[ALERT:${level.toUpperCase()}] ${title}`);
+}
+
+function pushLog(level, text) {
+  state.logs.push({ level, text, ts: `+${state.elapsed}s` });
+  if (state.logs.length > 300) state.logs.shift();
+}
+
+function showAlertBanner(text) {
+  const banner = document.getElementById('alert-banner');
+  document.getElementById('alert-text').textContent = text;
+  banner.classList.remove('hidden');
+}
+function dismissAlertBanner() { document.getElementById('alert-banner').classList.add('hidden'); }
+
+function injectAlert(level) {
+  const focus = findNode(state.incident.focusDevice) || state.topo.nodes[0];
+  const titles = { critical: 'Manually injected critical test alert', warning: 'Manually injected warning test alert', info: 'Manually injected info test alert' };
+  pushAlert(level, focus.id, titles[level], 'This alert was injected manually from the sandbox drawer for testing, not generated by the lesson script.');
+  renderAll();
+}
+
+/* ─────────────────────────── PACKET EVIDENCE (mock/pre-generated) ─────────────────────────── */
+function randIp() { return `10.${Math.floor(Math.random()*4)+40}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`; }
+function randExternalIp() { return `${Math.floor(Math.random()*200)+10}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`; }
+
+function maybeGeneratePackets() {
+  const pattern = state.incident.packetPattern;
+  const active = state.firedStages.size > 1; // once past the first "baseline" stage marker
+  const focus = findNode(state.incident.focusDevice);
+  const focusLabel = focus ? focus.label : 'TARGET';
+
+  if (!active) {
+    // light baseline traffic
+    addPacket({ src: randIp(), dst: randIp(), proto: 'TCP', len: 120 + Math.floor(Math.random()*400), info: 'Normal session traffic', flagged: false });
+    return;
+  }
+
+  if (pattern === 'ddos') {
+    for (let i = 0; i < 4; i++) {
+      addPacket({ src: randExternalIp(), dst: focusLabel, proto: 'TCP', len: 60, info: 'SYN → :80 (no matching session)', flagged: true });
+    }
+  } else if (pattern === 'dbslow') {
+    addPacket({ src: 'SRV-WEB-1', dst: focusLabel, proto: 'TCP', len: 512, info: 'Query request (large table scan, slow response)', flagged: true });
+    addPacket({ src: randIp(), dst: 'SRV-WEB-1', proto: 'TCP', len: 200, info: 'HTTP request (queued, waiting on DB)', flagged: false });
+  } else if (pattern === 'gpu_net') {
+    addPacket({ src: focusLabel, dst: 'SRV-SCHED', proto: 'UDP', len: 8900, info: 'Gradient sync (retransmit, high latency)', flagged: true });
+    addPacket({ src: 'GPU-NODE-01', dst: 'SRV-SCHED', proto: 'UDP', len: 8900, info: 'Gradient sync (on time)', flagged: false });
+  } else if (pattern === 'connflood') {
+    addPacket({ src: 'WKS-02', dst: randExternalIp(), proto: 'TCP', len: 64, info: `SYN — new connection (ephemeral port ${10000 + Math.floor(Math.random()*50000)})`, flagged: true });
+    addPacket({ src: focusLabel, dst: 'WKS-02', proto: 'TCP', len: 64, info: 'Connection-tracking table 96% full', flagged: true });
+  } else if (pattern === 'webleak') {
+    addPacket({ src: focusLabel, dst: 'localhost', proto: 'UDP', len: 0, info: 'heap RSS climbing, no memory recovered after GC', flagged: true });
+    addPacket({ src: randIp(), dst: focusLabel, proto: 'TCP', len: 200, info: 'HTTP request queued — worker unresponsive', flagged: false });
+  } else if (pattern === 'loop') {
+    addPacket({ src: focusLabel, dst: 'FF:FF:FF:FF:FF:FF', proto: 'ARP', len: 60, info: 'Broadcast frame flood — same source seen re-entering on two ports', flagged: true });
+    addPacket({ src: focusLabel, dst: 'ALL-SWITCHES', proto: 'STP', len: 64, info: 'Topology Change Notification (repeating)', flagged: true });
+  }
+}
+
+function addPacket(pkt) {
+  state.packets.unshift({ ...pkt, ts: nowTs() });
+  if (state.packets.length > 150) state.packets.pop();
+}
+
+function setPacketFilter(f, el) {
+  packetFilter = f;
+  document.querySelectorAll('#pane-packets .filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderPackets();
+}
+
+/* ─────────────────────────── RENDER ─────────────────────────── */
+function renderAll() {
+  updateStatBar();
+  updateCharts();
+  renderTopologyColors();
+  renderDeviceGrid();
+  renderDeviceTable();
+  renderAlerts();
+  renderMetrics();
+  renderPackets();
+  renderLogs();
+  renderHistoryChart();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('pane-' + tab).classList.add('active');
+}
+
+function updateStatBar() {
+  const nodes = state.topo.nodes.filter(n => !n.isExternal);
+  const healthy = nodes.filter(n => n.health === 'healthy').length;
+  document.getElementById('card-devices').textContent = `${healthy}/${nodes.length}`;
+  document.getElementById('card-devices-sub').textContent = healthy === nodes.length ? 'All nominal' : 'Investigate degraded devices';
+
+  document.getElementById('card-alerts').textContent = state.alerts.length;
+  const crit = state.alerts.filter(a => a.level === 'critical').length;
+  const warn = state.alerts.filter(a => a.level === 'warning').length;
+  document.getElementById('alert-sev-label').textContent = state.alerts.length ? `${crit} Crit / ${warn} Warn` : 'None';
+
+  const avgLat = state.topo.links.reduce((a, l) => a + l.cur.latency, 0) / state.topo.links.length;
+  document.getElementById('card-latency').textContent = `${avgLat.toFixed(0)} ms`;
+  document.getElementById('latency-trend').textContent = avgLat > 100 ? 'Elevated' : 'Stable';
+
+  const avgCpu = state.series.cpu.length ? state.series.cpu[state.series.cpu.length - 1] : 0;
+  document.getElementById('card-cpu').textContent = `${avgCpu.toFixed(0)}%`;
+  document.getElementById('cpu-trend').textContent = avgCpu > 70 ? 'High' : 'Stable';
+
+  const avgLoss = state.topo.links.reduce((a, l) => a + l.cur.loss, 0) / state.topo.links.length;
+  const lossEl = document.getElementById('card-pktloss');
+  lossEl.textContent = `${avgLoss.toFixed(2)}%`;
+  lossEl.style.color = avgLoss > 3 ? 'var(--red)' : avgLoss > 1 ? 'var(--amber)' : 'var(--green)';
+  const lossTrend = document.getElementById('pktloss-trend');
+  lossTrend.textContent = avgLoss > 3 ? 'Above SLA' : 'Within SLA';
+  lossTrend.style.color = avgLoss > 3 ? 'var(--red)' : 'var(--green)';
+
+  const m = Math.floor(state.elapsed / 60), s = state.elapsed % 60;
+  document.getElementById('card-simtime').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('incident-phase-label').textContent = state.firedStages.size <= 1 ? 'Baseline' : (state.firedStages.size >= state.incident.stages.length ? 'Incident active' : 'Developing');
+
+  const alertNavDot = document.getElementById('alert-nav-dot');
+  const alertBadge = document.getElementById('alert-count-badge');
+  if (state.alerts.length) {
+    alertNavDot.style.background = crit ? 'var(--red)' : 'var(--amber)';
+    alertBadge.textContent = state.alerts.length;
+    alertBadge.classList.remove('hidden');
+  } else {
+    alertNavDot.style.background = 'var(--muted)';
+    alertBadge.classList.add('hidden');
+  }
+}
+
+/* ─── Charts (Chart.js) ─── */
+function buildCharts() {
+  Object.values(charts).forEach(c => c && c.destroy());
+  const mkLine = (id, color) => new Chart(document.getElementById(id).getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { display: false }, y: { display: false } },
+    },
+  });
+  charts.traffic = mkLine('ch-traffic', '#06B6D4');
+  charts.cpu = mkLine('ch-cpu', '#F59E0B');
+  charts.latency = mkLine('ch-latency', '#A78BFA');
+  charts.history = new Chart(document.getElementById('ch-history').getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: 'Traffic', data: [], borderColor: '#06B6D4', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 2 },
+      { label: 'CPU', data: [], borderColor: '#F59E0B', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 2 },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { color: '#94A3B8', font: { size: 10 } } } },
+      scales: { x: { ticks: { color: '#64748B', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#64748B', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } } },
+    },
+  });
+}
+
+function updateCharts() {
+  const setLine = (chart, arr) => { chart.data.labels = arr.map((_, i) => i); chart.data.datasets[0].data = arr; chart.update('none'); };
+  setLine(charts.traffic, state.series.traffic);
+  setLine(charts.cpu, state.series.cpu);
+  setLine(charts.latency, state.series.latency);
+  document.getElementById('chv-traffic').textContent = state.series.traffic.length ? `${state.series.traffic[state.series.traffic.length-1].toFixed(0)} Mbps` : '—';
+  document.getElementById('chv-cpu').textContent = state.series.cpu.length ? `${state.series.cpu[state.series.cpu.length-1].toFixed(0)}%` : '—';
+  document.getElementById('chv-latency').textContent = state.series.latency.length ? `${state.series.latency[state.series.latency.length-1].toFixed(0)} ms` : '—';
+}
+
+function renderHistoryChart() {
+  charts.history.data.labels = state.history.labels;
+  charts.history.data.datasets[0].data = state.history.traffic;
+  charts.history.data.datasets[1].data = state.history.cpu;
+  charts.history.update('none');
+}
+
+/* ─── Topology SVG ─── */
+function renderTopologySVG() {
+  const svg = document.getElementById('topo-svg');
+  const topo = state.topo;
+  let html = '';
+  topo.links.forEach(link => {
+    const a = findNode(link.a), b = findNode(link.b);
+    if (!a || !b) return;
+    html += `<line id="link-${link.a}-${link.b}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#334155" stroke-width="2" />`;
+  });
+  topo.nodes.forEach(n => {
+    const type = DEVICE_TYPES[n.type];
+    const r = n.isExternal ? 18 : 24;
+    html += `
+      <g class="topo-node" data-id="${n.id}" style="cursor:${n.isExternal ? 'default' : 'pointer'}" ${n.isExternal ? '' : `onclick="handleTopoNodeClick('${n.id}')"`}>
+        <circle id="node-${n.id}" cx="${n.x}" cy="${n.y}" r="${r}" fill="#111827" stroke="${HEALTH_COLOR.healthy}" stroke-width="2.5" />
+        <text x="${n.x}" y="${n.y + 4}" text-anchor="middle" class="topo-node-label" font-weight="700">${type.icon}</text>
+        <text x="${n.x}" y="${n.y + r + 14}" text-anchor="middle" class="topo-node-sub">${n.label}</text>
+      </g>`;
+  });
+  svg.innerHTML = html;
+}
+
+function renderTopologyColors() {
+  state.topo.nodes.forEach(n => {
+    const el = document.getElementById(`node-${n.id}`);
+    if (!el) return;
+    const color = n.isExternal ? '#334155' : HEALTH_COLOR[n.health || 'healthy'];
+    el.setAttribute('stroke', color);
+    el.setAttribute('fill', n.isExternal ? '#111827' : color + '1A');
+  });
+  state.topo.links.forEach(link => {
+    const el = document.getElementById(`link-${link.a}-${link.b}`);
+    if (!el) return;
+    let color = '#334155', width = 2;
+    if (link.cur.loss > 5 || link.cur.latency > 200) { color = '#F87171'; width = 3.5; }
+    else if (link.cur.loss > 1.5 || link.cur.latency > 100) { color = '#FB923C'; width = 3; }
+    else if (link.cur.latency > 50) { color = '#FCD34D'; width = 2.5; }
+    el.setAttribute('stroke', color);
+    el.setAttribute('stroke-width', width);
+  });
+}
+
+/* ─── Device grid (Overview) ─── */
+function renderDeviceGrid() {
+  const grid = document.getElementById('ov-device-grid');
+  grid.innerHTML = state.topo.nodes.filter(n => !n.isExternal).map(n => {
+    const type = DEVICE_TYPES[n.type];
+    const color = HEALTH_COLOR[n.health || 'healthy'];
+    return `
+      <div class="panel dm-card" data-metric-key="cpu" onclick="openDeviceDetail('${n.id}')">
+        <div class="dm-card-header">
+          <div class="dm-card-name">${n.label}</div>
+          <span class="status-badge s-${n.health || 'healthy'}"><span class="s-dot"></span>${(n.health || 'healthy').toUpperCase()}</span>
+        </div>
+        <div class="dm-card-usage" style="color:${color}">${n.cur.cpu.toFixed(0)}% CPU</div>
+        <div class="dm-bar-track"><div class="dm-bar-fill" style="width:${n.cur.cpu}%;background:${color}"></div></div>
+        <div class="dm-card-sub">${type.label} · mem ${n.cur.mem.toFixed(0)}%${n.type === 'aicompute' ? ' · gpu ' + n.cur.gpu.toFixed(0) + '%' : ''}${n.type === 'switch' ? ' · traffic ' + n.cur.traffic.toFixed(0) + ' Mbps' : ''}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ─── Device table ─── */
+function renderDeviceTable() {
+  const body = document.getElementById('device-table-body');
+  body.innerHTML = state.topo.nodes.filter(n => !n.isExternal).map(n => {
+    const type = DEVICE_TYPES[n.type];
+    const extra = n.type === 'aicompute' ? `GPU ${n.cur.gpu.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`
+      : n.type === 'switch' ? `Traffic ${n.cur.traffic.toFixed(0)} Mbps · ${n.cur.temp.toFixed(0)}°C`
+      : `Disk ${n.cur.disk.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`;
+    return `
+      <tr onclick="openDeviceDetail('${n.id}')">
+        <td class="font-mono">${n.label}</td>
+        <td>${type.label}</td>
+        <td><span class="status-badge s-${n.health || 'healthy'}"><span class="s-dot"></span>${(n.health || 'healthy').toUpperCase()}</span></td>
+        <td><span class="mini-bar"><span class="mini-bar-fill" style="width:${n.cur.cpu}%;background:${HEALTH_COLOR[n.health || 'healthy']}"></span></span> ${n.cur.cpu.toFixed(0)}%</td>
+        <td>${n.cur.mem.toFixed(0)}%</td>
+        <td class="font-mono" style="color:var(--muted2)">${extra}</td>
+        <td style="color:var(--cyan);font-size:11px;">Inspect →</td>
+      </tr>`;
+  }).join('');
+}
+
+/* ─── Alerts panel ─── */
+function renderAlerts() {
+  const list = document.getElementById('alert-list');
+  if (!state.alerts.length) { list.innerHTML = '<div class="empty-note">No alerts yet — start the simulation and keep watching the dashboard.</div>'; return; }
+  list.innerHTML = state.alerts.map(a => {
+    const cls = a.level === 'critical' ? 'crit' : a.level === 'warning' ? 'warn' : 'info';
+    const lvlCls = a.level === 'critical' ? 'lvl-crit' : a.level === 'warning' ? 'lvl-warn' : 'lvl-info';
+    const node = findNode(a.deviceId);
+    return `
+      <div class="alert-item ${cls}" data-level="${a.level}">
+        <div class="alert-ts font-mono">${a.ts}</div>
+        <div class="alert-body">
+          <div class="alert-title">${a.title} <span class="alert-lvl ${lvlCls}">${a.level.toUpperCase()}</span></div>
+          <div class="alert-sub">${a.detail}${node ? ' · Device: ' + node.label : ''}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─── Metrics ─── */
+function renderMetrics() {
+  const links = state.topo.links;
+  const avgLat = links.reduce((a, l) => a + l.cur.latency, 0) / links.length;
+  const avgJit = links.reduce((a, l) => a + l.cur.jitter, 0) / links.length;
+  const avgUtil = links.reduce((a, l) => a + l.cur.util, 0) / links.length;
+  const avgLoss = links.reduce((a, l) => a + l.cur.loss, 0) / links.length;
+  const hot = [...links].sort((a, b) => b.cur.util - a.cur.util)[0];
+  const hotA = findNode(hot.a), hotB = findNode(hot.b);
+
+  document.getElementById('m-pkt-in').textContent = `${Math.round(20 + (state.series.traffic.at(-1) || 0) * 1.4)} pps`;
+  document.getElementById('m-pkt-out').textContent = `${Math.round(15 + (state.series.traffic.at(-1) || 0) * 1.1)} pps`;
+  document.getElementById('m-pkt-loss').textContent = `${avgLoss.toFixed(2)}%`;
+  document.getElementById('m-retrans').textContent = `${Math.round(avgLoss * 12)} / min`;
+  document.getElementById('m-lat').textContent = `${avgLat.toFixed(0)} ms`;
+  document.getElementById('m-jitter').textContent = `${avgJit.toFixed(1)} ms`;
+  document.getElementById('m-bwutil').textContent = `${avgUtil.toFixed(0)}%`;
+  document.getElementById('m-hotlink').textContent = `${hotA.label} ↔ ${hotB.label}`;
+
+  const dl = document.getElementById('metrics-device-list');
+  dl.innerHTML = state.topo.nodes.filter(n => !n.isExternal).map(n => `
+    <div class="metric-row">
+      <span class="metric-name">${n.label}</span>
+      <span class="metric-val">cpu ${n.cur.cpu.toFixed(0)}% · mem ${n.cur.mem.toFixed(0)}% · traffic ${n.cur.traffic.toFixed(0)} Mbps</span>
+    </div>`).join('');
+}
+
+/* ─── Packets ─── */
+function renderPackets() {
+  const body = document.getElementById('packet-table-body');
+  let list = state.packets;
+  if (packetFilter === 'flagged') list = list.filter(p => p.flagged);
+  else if (packetFilter !== 'all') list = list.filter(p => p.proto === packetFilter);
+  body.innerHTML = list.slice(0, 60).map(p => `
+    <tr class="${p.flagged ? 'flagged' : ''}" data-proto="${p.proto}">
+      <td>${p.ts}</td>
+      <td>${p.src}</td>
+      <td>${p.dst}</td>
+      <td><span class="proto-tag proto-${p.proto}">${p.proto}</span></td>
+      <td>${p.len}</td>
+      <td style="color:${p.flagged ? '#F87171' : 'var(--muted2)'}">${p.info}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);padding:14px;">No packets captured yet — start the simulation.</td></tr>';
+}
+
+/* ─── Logs ─── */
+function renderLogs() {
+  const box = document.getElementById('log-box');
+  const cls = { info: 'log-info', warn: 'log-warn', err: 'log-err', ok: 'log-ok' };
+  box.innerHTML = state.logs.map(l => `<div class="log-line"><span class="log-ts">[${l.ts}]</span><span class="${cls[l.level]}">${l.text}</span></div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog() { state.logs = []; renderLogs(); }
+
+/* ─── Device detail modal ─── */
+function openDeviceDetail(id) {
+  const n = findNode(id);
+  if (!n) return;
+  const type = DEVICE_TYPES[n.type];
+  document.getElementById('dd-title').textContent = n.label;
+  document.getElementById('dd-sub').textContent = `${type.label} · Status: ${(n.health || 'healthy').toUpperCase()}`;
+  const rows = [
+    ['CPU', `${n.cur.cpu.toFixed(0)}%`],
+    ['Memory', `${n.cur.mem.toFixed(0)}%`],
+    ['Traffic', `${n.cur.traffic.toFixed(0)} Mbps`],
+    ['Disk I/O', `${n.cur.disk.toFixed(0)}%`],
+    ['Temperature', `${n.cur.temp.toFixed(0)}°C`],
+  ];
+  if (n.type === 'aicompute') { rows.push(['GPU Utilization', `${n.cur.gpu.toFixed(0)}%`]); rows.push(['VRAM', `${n.cur.vram.toFixed(0)}%`]); }
+  const links = state.topo.links.filter(l => l.a === n.id || l.b === n.id);
+  links.forEach(l => {
+    const other = findNode(l.a === n.id ? l.b : l.a);
+    rows.push([`Link → ${other.label}`, `${l.cur.latency.toFixed(0)}ms lat · ${l.cur.loss.toFixed(2)}% loss`]);
+  });
+  document.getElementById('dd-rows').innerHTML = rows.map(r => `<div class="dd-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  openModal('modal-device');
+}
+
+/* ─── Modals ─── */
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function openHint() {
+  state.hintIndex = 0;
+  renderHint();
+  openModal('modal-hint');
+}
+function nextHint() {
+  if (currentMode === 'quiz') return;
+  if (state.hintIndex < state.lesson.hints.length - 1) state.hintIndex++;
+  renderHint();
+}
+function renderHint() {
+  const hints = state.lesson.hints.slice(0, state.hintIndex + 1);
+  document.getElementById('hint-content').innerHTML = hints.map((h, i) => `<div class="hint-box"><b>Hint ${i+1}:</b> ${h}</div>`).join('');
+  const nextBtn = document.querySelector('#modal-hint .btn-primary');
+  if (nextBtn) {
+    const atCap = currentMode === 'quiz' || state.hintIndex >= state.lesson.hints.length - 1;
+    nextBtn.disabled = atCap;
+    nextBtn.textContent = atCap ? 'No More Hints' : 'Next Hint';
+  }
+}
+
+function openDiagnosis() {
+  state.diagSelected = null;
+  document.getElementById('diag-question').textContent = state.lesson.diagQuestion;
+  document.getElementById('diag-options').innerHTML = state.lesson.options.map(o => `
+    <div class="diag-option" data-id="${o.id}" onclick="pickDiagOption('${o.id}')">${o.text}</div>
+  `).join('');
+  document.getElementById('diag-result').className = 'diag-result';
+  document.getElementById('diag-result').textContent = '';
+  document.getElementById('diag-submit-btn').disabled = false;
+  openModal('modal-diagnosis');
+}
+function pickDiagOption(id) {
+  state.diagSelected = id;
+  document.querySelectorAll('.diag-option').forEach(el => {
+    el.classList.toggle('picked', el.dataset.id === id);
+  });
+}
+function submitDiagnosis() {
+  if (!state.diagSelected) { alert('Pick an option first.'); return; }
+  const opt = state.lesson.options.find(o => o.id === state.diagSelected);
+  const resultEl = document.getElementById('diag-result');
+  document.querySelectorAll('.diag-option').forEach(el => {
+    const o = state.lesson.options.find(x => x.id === el.dataset.id);
+    if (o.correct) el.classList.add('correct');
+    else if (el.dataset.id === state.diagSelected) el.classList.add('wrong');
+  });
+  if (opt.correct) {
+    recordQuizResult('correct');
+    recordTeachProgress(true);
+    resultEl.className = 'diag-result show ok';
+    resultEl.innerHTML = `<b>Correct.</b> ${state.lesson.explanation}`;
+    if (currentMode === 'quiz' && studentName && studentNPM) {
+      resultEl.innerHTML += `<div style="margin-top:10px;font-size:11px;color:var(--green);font-family:var(--font-mono);">Student: ${studentName} · NPM: ${studentNPM}</div>`;
+    }
+    document.getElementById('diag-submit-btn').disabled = true;
+    pushLog('ok', 'Diagnosis correct — lesson objective met.');
+  } else {
+    recordQuizResult('incorrect');
+    recordTeachProgress(false);
+    resultEl.className = 'diag-result show no';
+    resultEl.innerHTML = `Not quite — that doesn't match the evidence you've gathered. Re-check the dashboard, topology and packet evidence, or open a hint.`;
+    if (currentMode === 'quiz' && studentName && studentNPM) {
+      resultEl.innerHTML += `<div style="margin-top:10px;font-size:11px;color:var(--amber);font-family:var(--font-mono);">Student: ${studentName} · NPM: ${studentNPM}</div>`;
+    }
+    pushLog('warn', 'Diagnosis attempt incorrect — investigation continues.');
+  }
+  renderLogs();
+}
+
+/* ─── Notes ─── */
+function saveNotes() { /* in-memory only for this prototype; intentionally not persisted to disk */ }
+
+/* ─── Sandbox drawer ─── */
+function toggleDrawer() { document.getElementById('settings-drawer').classList.toggle('open'); }
+function setManualOverride(v) { state.manualOverride = v; }
+
+/* ─────────────────────────── EXPLAIN CONTENT LOOKUP TABLE ─────────────────────────── */
+const EXPLAIN_CONTENT = {
+  'device:gateway': {
+    title: 'Gateway / Router',
+    body: 'The gateway is the network\'s border crossing. It routes packets between your internal LAN and the ISP uplink, tracks NAT connection state, and enforces firewall rules. Watch its CPU and traffic graphs together — CPU rising while uplink traffic also rises points to a volumetric flood; CPU rising while traffic stays flat points to connection-table exhaustion from inside.',
+  },
+  'device:web': {
+    title: 'Web / App Server',
+    body: 'This server handles HTTP requests from clients and talks to the database tier. Its CPU, memory, and inbound-traffic metrics normally move together during load spikes. If memory climbs while traffic is flat, suspect a leak. If response times rise while the server looks calm, look one hop downstream at the database link.',
+  },
+  'device:database': {
+    title: 'Database Server',
+    body: 'Databases are I/O-heavy. The key metric pair here is CPU + disk I/O together. A long-running query scanning large tables drives both high simultaneously. High disk without high CPU is normal bulk read/write; high CPU without high disk might be a computation problem. Watch the link latency to the web server — it\'s the first place downstream effects appear.',
+  },
+  'device:aicompute': {
+    title: 'AI / GPU Compute Node',
+    body: 'GPU compute nodes are judged by GPU utilization and temperature together, not CPU. Sustained 90–100% GPU utilization produces heat; once temperature crosses the thermal throttle threshold (≈85–90°C for most hardware), the driver forcibly reduces clock speed. You\'ll see GPU utilization drop back down even though the job isn\'t finished — that\'s throttling, not completion. The slow node then stalls sync traffic to the scheduler, dragging the whole distributed job down.',
+  },
+  'device:client': {
+    title: 'Client Workstation',
+    body: 'Workstations are usually observers of network problems, not their cause — unless one is generating abnormal outbound traffic or connection churn. A workstation with normal bandwidth but extremely high new-connection rate can exhaust a router\'s connection-tracking table. Use packet evidence to distinguish "a workstation is a victim" from "a workstation is the source."',
+  },
+  'device:switch': {
+    title: 'Network Switch',
+    body: 'A switch operates at Layer 2 (Ethernet frames). Its CPU should stay low unless it\'s under attack or has a loop. Broadcast storms — caused by a switching loop — make switch CPU and traffic spike dramatically while every attached device loses connectivity simultaneously. The tell: multiple devices all fail at the same moment, and the switch itself is the shared upstream point.',
+  },
+  'metric:cpu': {
+    title: 'CPU Utilization',
+    body: 'CPU measures the fraction of processor time actually in use. A single sustained spike (>90%) usually points to a runaway process, heavy query, or traffic flood on that device. Look at what else is happening simultaneously: high CPU + high disk → database/IO bound; high CPU + high traffic on a gateway → volumetric flood; high CPU + rising memory → possible leak entering swap.',
+  },
+  'metric:memory': {
+    title: 'Memory / RAM Utilization',
+    body: 'Memory rising monotonically over time — without a corresponding traffic or load increase — is the signature of a memory leak. When memory is exhausted, the OS uses disk as virtual memory (swap), which is orders of magnitude slower and drags CPU up as a secondary effect. The causal order matters: memory up first, then CPU up, then latency up.',
+  },
+  'metric:traffic': {
+    title: 'Network Traffic (Mbps)',
+    body: 'Traffic measures total bytes per second flowing through a device\'s interfaces. A sudden spike from outside the network on a gateway points to an inbound flood. Normal traffic at the gateway but rising traffic on one internal link points to a lateral problem (e.g., a chatty internal host or a database scan producing large result sets). Flat traffic while response times rise means the problem is compute, not bandwidth.',
+  },
+  'metric:disk': {
+    title: 'Disk I/O Utilization',
+    body: 'Disk I/O measures how busy the storage subsystem is. On database servers, high disk I/O combined with high CPU almost always means a heavy or unoptimized query doing full-table scans. On web servers, high disk I/O with rising memory usually means the system has run out of RAM and is swapping. Disk I/O rarely causes problems on network devices (gateways, switches).',
+  },
+  'metric:temperature': {
+    title: 'Hardware Temperature (°C)',
+    body: 'Temperature matters most on GPU compute nodes and less on CPUs with good cooling. For GPUs, watch for sustained readings above ~85°C — many drivers enforce thermal throttling at that point by reducing clock speeds. That throttle then shows up as a mysterious drop in GPU utilization even while the job is still running.',
+  },
+  'metric:gpu': {
+    title: 'GPU Utilization',
+    body: 'GPU utilization shows what fraction of shader/compute cores are active. A node held at 95–100% for extended periods without a break will overheat if cooling is insufficient. The pattern to recognize: utilization climbs to near-100%, temperature follows, then utilization drops back down — that\'s thermal throttling, not a completed job.',
+  },
+  'metric:latency': {
+    title: 'Network Latency (ms)',
+    body: 'Latency is the round-trip time for a packet to travel between two points. Baseline LAN latency is typically under 5 ms. Values above 50 ms on internal links suggest congestion or CPU overload on one of the endpoints. Values above 150 ms typically correspond to dropped connections and user-visible timeouts.',
+  },
+  'metric:pktloss': {
+    title: 'Packet Loss (%)',
+    body: 'Packet loss occurs when packets are dropped in transit — usually at a congested device or a saturated link. Even 1–2% loss causes TCP to retry aggressively, which amplifies latency. Above 5%, connections become unreliable. A gateway showing both high traffic and high packet loss at the same time is a strong indicator of an inbound flood or link saturation.',
+  },
+  'metric:latency_avg': {
+    title: 'Average Latency',
+    body: 'The average across all monitored links. A rising average means multiple links are degrading simultaneously — suggesting the problem is upstream (a shared device like a gateway or switch) rather than isolated to a single device.',
+  },
+  'metric:cpu_avg': {
+    title: 'Average CPU',
+    body: 'Network-wide average CPU. If average is high but only one device is responsible, the other devices are acting as downstream victims. Isolate the high-CPU device and investigate its other metrics.',
+  },
+  'metric:devices_healthy': {
+    title: 'Devices Healthy',
+    body: 'Tracks how many devices are currently in healthy status. If this drops suddenly for multiple devices at once, look for a shared upstream device (gateway, switch) — individual hardware failures are statistically unlikely to happen simultaneously.',
+  },
+  'metric:sim_time': {
+    title: 'Simulation Time',
+    body: 'The elapsed time since the simulation was started. Use this to correlate when symptoms first appeared. Note the exact second a metric crossed a threshold — then look at which other metrics changed around that same time. The order of events is evidence.',
+  },
+  'alert:critical': {
+    title: 'Critical Alert',
+    body: 'Critical alerts indicate a device or link has crossed a threshold that is causing active service degradation right now. These require immediate investigation. Start at the device named in the alert and cross-reference its metrics with the Topology view. A critical alert on a gateway with traffic flood evidence in the Packets tab is a strong DDoS signature.',
+  },
+  'alert:warning': {
+    title: 'Warning Alert',
+    body: 'Warning alerts indicate a device is approaching a dangerous threshold or showing a secondary effect from another device\'s problem. They often appear after a critical alert on a different device — tracing the causal chain from the critical device to the warning device is the key diagnostic step.',
+  },
+  'alert:info': {
+    title: 'Informational Alert',
+    body: 'Info alerts record state changes that are not themselves problems — a simulation starting, a link coming back up, or a device returning to healthy. They provide the timeline context you need to sequence events.',
+  },
+  'proto:TCP': {
+    title: 'TCP Packet',
+    body: 'TCP provides reliable, ordered delivery with handshaking (SYN / SYN-ACK / ACK). A flood of SYN packets with no matching SYN-ACK responses is the signature of a SYN flood — the attacker never completes the handshake, filling the gateway\'s connection table. Watching the source-address diversity tells you whether the flood is from many sources (volumetric DDoS) or one internal host (connection-tracking exhaustion).',
+  },
+  'proto:UDP': {
+    title: 'UDP Packet',
+    body: 'UDP is connectionless — no handshake, no retransmit, no ordering. It\'s used for latency-sensitive traffic like DNS, streaming, and inter-node sync in distributed compute jobs. Large UDP packets between GPU nodes are typically gradient or weight synchronization in distributed training. Retransmitting them (visible in the Info column) means the underlying link is lossy or congested.',
+  },
+  'proto:ICMP': {
+    title: 'ICMP Packet',
+    body: 'ICMP is the "network health check" protocol — used for ping (echo request/reply) and for routers to send error messages (destination unreachable, time exceeded). In normal operation, ICMP traffic is minimal. Sudden ICMP floods can be a diagnostic tool being overused, or an attack vector. ICMP errors from a device mean that device is rejecting or dropping other traffic.',
+  },
+  'proto:DNS': {
+    title: 'DNS Packet',
+    body: 'DNS resolves human-readable names to IP addresses. DNS failures cascade quickly — even a brief DNS outage makes all name-based connections fail, which looks like a network outage even though routing is fine. Unusual DNS query volumes can indicate malware doing C2 phone-home, data exfiltration over DNS, or a misconfigured application retrying too aggressively.',
+  },
+  'proto:ARP': {
+    title: 'ARP Packet',
+    body: 'ARP (Address Resolution Protocol) maps IP addresses to MAC addresses on the same LAN. In normal operation, ARP traffic is sparse. Repeated ARP broadcasts from the same source, or the same ARP seen re-entering a switch on multiple ports, is the classic fingerprint of a switching loop — frames being duplicated and re-forwarded endlessly, creating a broadcast storm.',
+  },
+  'proto:STP': {
+    title: 'STP — Spanning Tree Protocol',
+    body: 'STP prevents Layer-2 loops by blocking redundant switch ports. Topology Change Notifications (TCN) in STP packets are normal when links go up or down, but a continuous stream of TCNs means the spanning tree is reconverging repeatedly — a strong indicator of a physical loop or a flapping link. Every convergence event briefly disrupts forwarding for the affected segment.',
+  },
+  'fallback': {
+    title: 'No Explanation Available',
+    body: 'No explanation is available for this element.',
+  },
+};
+
+/* ─────────────────────────── EXPLAIN PANEL ─────────────────────────── */
+function showExplainPanel(contentKey) {
+  if (currentMode !== 'teach') return;
+  const entry = EXPLAIN_CONTENT[contentKey] || EXPLAIN_CONTENT['fallback'];
+  document.getElementById('ep-title').textContent = entry.title;
+  document.getElementById('ep-body').textContent  = entry.body;
+  document.getElementById('explain-panel').classList.remove('hidden');
+}
+
+function closeExplainPanel() {
+  document.getElementById('explain-panel').classList.add('hidden');
+}
+
+/* ─────────────────────────── MODE SELECTOR ─────────────────────────── */
+function cancelModeSelect() {
+  document.getElementById('modal-mode-select').classList.add('hidden');
+  pendingLesson = null;
+}
+
+function confirmMode(mode) {
+  sessionStorage.setItem('nw_mode', mode);
+  currentMode = mode;
+  document.getElementById('modal-mode-select').classList.add('hidden');
+  if (mode === 'quiz') {
+    document.getElementById('modal-login').classList.remove('hidden');
+  } else {
+    _launchLesson(pendingLesson);
+  }
+}
+
+/* ─────────────────────────── LOGIN SCREEN ─────────────────────────── */
+function validateLogin(name, npm) {
+  let nameErr = null, npmErr = null;
+  const trimmedName = (name || '').trim();
+  if (trimmedName.length === 0) {
+    nameErr = 'Name is required';
+  } else if (trimmedName.length > 100) {
+    nameErr = 'Name must be 100 characters or fewer';
+  }
+  const trimmedNpm = (npm || '').trim();
+  if (trimmedNpm.length === 0) {
+    npmErr = 'NPM is required';
+  } else if (!/^\d+$/.test(trimmedNpm)) {
+    npmErr = 'NPM must contain digits only';
+  } else if (trimmedNpm.length > 20) {
+    npmErr = 'NPM must be 20 digits or fewer';
+  }
+  return { ok: nameErr === null && npmErr === null, nameErr, npmErr };
+}
+
+function submitLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const npm  = document.getElementById('login-npm').value.trim();
+  const result = validateLogin(name, npm);
+
+  const nameErrEl = document.getElementById('login-name-err');
+  const npmErrEl  = document.getElementById('login-npm-err');
+
+  if (!result.ok) {
+    if (result.nameErr) {
+      nameErrEl.textContent = result.nameErr;
+      nameErrEl.classList.remove('hidden');
+    } else {
+      nameErrEl.classList.add('hidden');
+    }
+    if (result.npmErr) {
+      npmErrEl.textContent = result.npmErr;
+      npmErrEl.classList.remove('hidden');
+    } else {
+      npmErrEl.classList.add('hidden');
+    }
+    return;
+  }
+
+  nameErrEl.classList.add('hidden');
+  npmErrEl.classList.add('hidden');
+
+  studentName = name;
+  studentNPM  = npm;
+  sessionStorage.setItem('nw_student_name', name);
+  sessionStorage.setItem('nw_student_npm', npm);
+
+  document.getElementById('modal-login').classList.add('hidden');
+  _launchLesson(pendingLesson);
+}
+
+function backFromLogin() {
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-npm').value  = '';
+  document.getElementById('login-name-err').textContent = '';
+  document.getElementById('login-name-err').classList.add('hidden');
+  document.getElementById('login-npm-err').textContent  = '';
+  document.getElementById('login-npm-err').classList.add('hidden');
+  document.getElementById('modal-login').classList.add('hidden');
+  document.getElementById('modal-mode-select').classList.remove('hidden');
+}
+
+/* ─────────────────────────── ATTEMPT GATING ─────────────────────────── */
+function showBlockedScreen(lessonId, count) {
+  document.getElementById('blocked-identity').textContent =
+    `Name: ${studentName || '—'}  ·  NPM: ${studentNPM || '—'}`;
+
+  let bestResultHtml = '';
+  if (studentNPM) {
+    const key = `nw_result_${studentNPM}_${lessonId}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        const firstCorrect = arr.find(e => e.outcome === 'correct');
+        if (firstCorrect) {
+          bestResultHtml = `<div style="margin-top:10px;font-size:12px;color:var(--green)">✔ Best result: Correct — ${firstCorrect.lessonId} at ${firstCorrect.timestamp}</div>`;
+        }
+      }
+    } catch (_) { /* silently ignore */ }
+  }
+  document.getElementById('blocked-best-result').innerHTML = bestResultHtml;
+
+  document.getElementById('app').classList.add('active');
+  document.getElementById('modal-blocked').classList.remove('hidden');
+}
+
+function _launchLesson(lessonId) {
+  if (!lessonId) return;
+  if (currentMode === 'quiz') {
+    const key   = `nw_attempts_${studentNPM}_${lessonId}`;
+    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    if (count >= ATTEMPT_LIMIT) {
+      showBlockedScreen(lessonId, count);
+      return;
+    }
+    localStorage.setItem(key, String(count + 1));
+  }
+  initModeSession(currentMode);
+  _executeLessonLoad(lessonId);
+}
+
+/* ─────────────────────────── INIT MODE SESSION ─────────────────────────── */
+function initModeSession(mode) {
+  currentMode = mode;
+  sessionStorage.setItem('nw_mode', mode);
+  document.body.classList.toggle('quiz-mode', mode === 'quiz');
+
+  const badge = document.getElementById('topbar-mode-badge');
+  badge.textContent = mode === 'teach' ? 'TEACH' : 'QUIZ';
+  badge.className = `mode-badge mode-badge-${mode}`;
+  badge.classList.remove('hidden');
+  document.getElementById('topbar-div-mode').style.display = '';
+
+  if (mode === 'quiz' && studentName) {
+    const truncated = studentName.length > 50 ? studentName.slice(0, 50) + '…' : studentName;
+    const welcome = document.getElementById('topbar-welcome');
+    welcome.textContent = `Welcome, ${truncated}`;
+    welcome.classList.remove('hidden');
+  }
+}
+
+/* ─────────────────────────── RESULT RECORDING ─────────────────────────── */
+function recordQuizResult(outcome) {
+  if (currentMode !== 'quiz' || !studentNPM) return;
+  const lessonId = state.lesson.id;
+  const key = `nw_result_${studentNPM}_${lessonId}`;
+  const entry = { npm: studentNPM, lessonId, outcome, timestamp: new Date().toISOString() };
+  try {
+    let arr = [];
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try { arr = JSON.parse(raw); } catch (_) { arr = []; }
+    }
+    arr.push(entry);
+    if (arr.length > RESULT_MAX_ENTRIES) arr.shift();
+    localStorage.setItem(key, JSON.stringify(arr));
+  } catch (err) {
+    showResultWriteError();
+  }
+}
+
+function showResultWriteError() {
+  const resultEl = document.getElementById('diag-result');
+  const errDiv = document.createElement('div');
+  errDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--red);';
+  errDiv.textContent = '⚠ Result could not be saved to local storage.';
+  resultEl.appendChild(errDiv);
+}
+
+function recordTeachProgress(correct) {
+  if (currentMode !== 'teach') return;
+  const lessonId = state.lesson.id;
+  const key = `nw_teach_${lessonId}`;
+  const entry = { lessonId, attempted: true, correct, lastTs: new Date().toISOString() };
+  try {
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch (_) { /* silent — teach mode has no mandatory persistence */ }
+}
+
+/* ─────────────────────────── ADMIN RESET ─────────────────────────── */
+function validateAdminReset(pw, npm, lessonId) {
+  let passwordErr = null, npmErr = null, lessonErr = null;
+  if (!(pw || '').trim()) passwordErr = 'Password is required.';
+  if (!(npm || '').trim()) npmErr = 'NPM is required.';
+  if (!(lessonId || '').trim()) lessonErr = 'Lesson ID is required.';
+  const ok = passwordErr === null && npmErr === null && lessonErr === null;
+  return { ok, passwordErr, npmErr, lessonErr };
+}
+
+function openAdminReset() {
+  document.getElementById('ar-password').value = '';
+  document.getElementById('ar-npm').value = '';
+  document.getElementById('ar-lesson').value = '';
+  ['ar-password-err','ar-npm-err','ar-lesson-err','ar-general-err'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    el.classList.add('hidden');
+  });
+  document.getElementById('ar-success').classList.add('hidden');
+  document.getElementById('ar-form').style.display = '';
+  document.getElementById('modal-admin-reset').classList.remove('hidden');
+}
+
+function submitAdminReset() {
+  const pw       = document.getElementById('ar-password').value;
+  const npm      = document.getElementById('ar-npm').value.trim();
+  const lessonId = document.getElementById('ar-lesson').value.trim();
+
+  // Step 1: field validation
+  const validation = validateAdminReset(pw, npm, lessonId);
+  if (!validation.ok) {
+    showAdminResetErrors({ password: validation.passwordErr, npm: validation.npmErr, lesson: validation.lessonErr });
+    return;
+  }
+
+  // Step 2: password check
+  if (pw !== RESET_PASSWORD) {
+    showAdminResetErrors({ password: 'Incorrect password.' });
+    return;
+  }
+
+  // Step 3: lesson ID validation
+  if (!LESSONS.find(l => l.id === lessonId)) {
+    showAdminResetErrors({ lesson: `Lesson ID "${lessonId}" was not recognised.` });
+    return;
+  }
+
+  // Step 4: backup and delete counter
+  const counterKey = `nw_attempts_${npm}_${lessonId}`;
+  const backupKey  = `nw_attempts_backup_${npm}_${lessonId}`;
+  const current    = localStorage.getItem(counterKey) || '0';
+  try {
+    localStorage.setItem(backupKey, current);
+    localStorage.removeItem(counterKey);
+    showAdminResetSuccess(npm, lessonId);
+  } catch (err) {
+    showAdminResetErrors({ general: 'Storage error — reset could not be completed.' });
+  }
+}
+
+function showAdminResetErrors(errs) {
+  const fields = { password: 'ar-password-err', npm: 'ar-npm-err', lesson: 'ar-lesson-err', general: 'ar-general-err' };
+  Object.entries(fields).forEach(([key, elId]) => {
+    const el = document.getElementById(elId);
+    if (errs[key]) {
+      el.textContent = errs[key];
+      el.classList.remove('hidden');
+    } else {
+      el.textContent = '';
+      el.classList.add('hidden');
+    }
+  });
+}
+
+function showAdminResetSuccess(npm, lessonId) {
+  document.getElementById('ar-form').style.display = 'none';
+  const successEl = document.getElementById('ar-success');
+  successEl.innerHTML = `<div style="padding:14px;background:var(--green-dim);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#BBF7D0;font-size:12px;line-height:1.6;">
+    <b>✔ Attempt counter reset.</b><br>
+    NPM: <span style="font-family:var(--font-mono)">${npm}</span> — Lesson: <span style="font-family:var(--font-mono)">${lessonId}</span><br>
+    The student may now attempt this lesson again. Their recorded results were not modified.
+  </div>`;
+  successEl.classList.remove('hidden');
+}
+
+/* ─────────────────────────── TOPOLOGY CLICK HANDLER ─────────────────────────── */
+function handleTopoNodeClick(nodeId) {
+  if (currentMode === 'teach') {
+    const n = findNode(nodeId);
+    if (n) showExplainPanel('device:' + n.type);
+  } else {
+    openDeviceDetail(nodeId);
+  }
+}
+
+/* ─────────────────────────── BOOT ─────────────────────────── */
+renderLessonSelect();
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeExplainPanel();
+});
+
+// Delegated click listener on #stat-bar for explain panel
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('stat-bar').addEventListener('click', function(e) {
+    const sc = e.target.closest('.sc[data-metric-key]');
+    if (sc) showExplainPanel('metric:' + sc.dataset.metricKey);
+  });
+
+  document.getElementById('ov-device-grid').addEventListener('click', function(e) {
+    const card = e.target.closest('.dm-card[data-metric-key]');
+    if (card) showExplainPanel('metric:' + card.dataset.metricKey);
+  });
+
+  document.getElementById('alert-list').addEventListener('click', function(e) {
+    const item = e.target.closest('.alert-item[data-level]');
+    if (item) showExplainPanel('alert:' + item.dataset.level);
+  });
+
+  document.getElementById('packet-table-body').addEventListener('click', function(e) {
+    const tr = e.target.closest('tr[data-proto]');
+    if (tr) showExplainPanel('proto:' + tr.dataset.proto);
+  });
+});
+
+</script>
+</body>
+</html>
