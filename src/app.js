@@ -67,6 +67,46 @@ export function proceedToLessons() {
   document.getElementById('screen-select').classList.remove('hidden');
 }
 
+/**
+ * Return to the landing screen from anywhere in the app.
+ *
+ * No confirmation prompt is shown, even mid-simulation in Quiz Mode.
+ * Reasoning: the attempt counter is incremented server-side when the
+ * simulation loads (POST /api/attempts), before any diagnosis is submitted.
+ * Navigating away is therefore identical in effect to closing the tab —
+ * the attempt is already counted, no result record exists yet. Adding a
+ * prompt would imply the student can save or pause their attempt, which
+ * is not supported. The cost of navigating away (one consumed attempt) is
+ * the same whether or not a prompt is shown.
+ */
+export function goToLanding() {
+  // Stop simulation timers and clean up session state (same as exitToLessons)
+  stopSimTimers();
+  clearStudentSession();
+  clearInstructorToken();
+  simState        = null;
+  pendingLessonId = null;
+  packetFilter    = 'all';
+
+  document.body.classList.remove('quiz-mode');
+  document.getElementById('topbar-mode-badge').classList.add('hidden');
+  document.getElementById('topbar-welcome').classList.add('hidden');
+  document.getElementById('topbar-div-mode').style.display = 'none';
+  closeExplainPanel();
+  closeAllModals();
+
+  // Hide everything else, show landing
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('screen-select').classList.add('hidden');
+
+  // Clear the "seen" flag so the landing screen renders fully again
+  sessionStorage.removeItem('nw_intro_seen');
+  document.getElementById('screen-landing').classList.remove('hidden');
+
+  // Scroll back to top in case the user had scrolled down
+  window.scrollTo(0, 0);
+}
+
 // ─── Lesson select screen ─────────────────────────────────────────────────────
 
 function renderLessonSelect() {
@@ -346,7 +386,7 @@ function renderDeviceTable() {
   const body = document.getElementById('device-table-body');
   body.innerHTML = simState.topo.nodes.filter(n => !n.isExternal).map(n => {
     const type  = DEVICE_TYPES[n.type];
-    const color = { healthy:'#4ADE80', warning:'#FCD34D', degraded:'#FB923C', critical:'#F87171', offline:'#64748B' }[n.health || 'healthy'];
+    const color = { healthy:'#4a9e6e', warning:'#c8893a', degraded:'#c8893a', critical:'#c85a4a', offline:'#8891a0' }[n.health || 'healthy'];
     const extra = n.type === 'aicompute' ? `GPU ${n.cur.gpu.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`
       : n.type === 'switch' ? `Traffic ${n.cur.traffic.toFixed(0)} Mbps · ${n.cur.temp.toFixed(0)}°C`
       : `Disk ${n.cur.disk.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`;
@@ -695,7 +735,7 @@ Object.assign(window, {
   // Nav
   exitToLessons, switchTab,
   // Landing
-  proceedToLessons,
+  proceedToLessons, goToLanding,
   // Sim controls
   startSimulation, resetSimulation,
   // Mode

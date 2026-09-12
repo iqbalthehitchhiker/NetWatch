@@ -7,11 +7,11 @@
 import { DEVICE_TYPES } from '../lessons.js';
 
 export const HEALTH_COLOR = {
-  healthy:  '#4ADE80',
-  warning:  '#FCD34D',
-  degraded: '#FB923C',
-  critical: '#F87171',
-  offline:  '#64748B',
+  healthy:  '#4a9e6e',
+  warning:  '#c8893a',
+  degraded: '#c8893a',
+  critical: '#c85a4a',
+  offline:  '#8891a0',
 };
 
 export function renderStatBar(state) {
