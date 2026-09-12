@@ -70,6 +70,41 @@ body {
 @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 var(--cyan-glow); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+/* ─── LANDING / INTRO SCREEN ─── */
+#screen-landing {
+  min-height: 100vh;
+  padding: 60px 24px 80px;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.landing-hero { display: flex; align-items: center; gap: 16px; }
+.landing-hero .logo-icon { width: 48px; height: 48px; background: var(--cyan-dim); border: 1px solid var(--cyan-glow); border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.landing-hero-name { font-family: var(--font-mono); font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.landing-hero-sub { font-size: 13px; color: var(--muted); font-family: var(--font-mono); margin-top: 3px; }
+.landing-lead { font-size: 14px; color: var(--muted2); line-height: 1.75; max-width: 680px; }
+.landing-lead b { color: var(--text); font-weight: 600; }
+.landing-section-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+.landing-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .landing-modes { grid-template-columns: 1fr; } }
+.landing-mode-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+.landing-mode-card-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.landing-mode-card-body { font-size: 12px; color: var(--muted2); line-height: 1.65; }
+.landing-mode-card-body li { margin-left: 14px; margin-top: 4px; }
+.landing-interface { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.landing-interface-desc { font-size: 12px; color: var(--muted2); line-height: 1.7; margin-bottom: 18px; }
+.landing-interface-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.landing-iface-item { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.landing-iface-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; font-family: var(--font-mono); }
+.landing-iface-desc { font-size: 11px; color: var(--muted2); line-height: 1.55; }
+.landing-cta { display: flex; align-items: center; gap: 14px; }
+.landing-cta-btn { padding: 11px 28px; font-size: 13px; font-weight: 600; background: var(--cyan); color: #061019; border: none; border-radius: 8px; cursor: pointer; font-family: var(--font-ui); transition: opacity 0.15s; }
+.landing-cta-btn:hover { opacity: 0.88; }
+.landing-cta-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.landing-cta-note { font-size: 11px; color: var(--muted); }
+
 /* ─── LESSON SELECT SCREEN ─── */
 #screen-select { min-height: 100vh; padding: 40px 24px 60px; max-width: 1080px; margin: 0 auto; }
 .select-hero { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
@@ -340,8 +375,113 @@ body.quiz-mode .topo-node:hover circle  { stroke: inherit !important; }
 
 <body>
 
+<!-- ══════════════ LANDING / INTRO ══════════════ -->
+<div id="screen-landing">
+
+  <div class="landing-hero">
+    <div class="logo-icon"><div class="pulse-dot"></div></div>
+    <div>
+      <div class="landing-hero-name">NetWatch</div>
+      <div class="landing-hero-sub">Network Monitoring Trainer</div>
+    </div>
+  </div>
+
+  <p class="landing-lead">
+    NetWatch is a <b>network monitoring simulator</b> for learning how to read a live network dashboard and
+    diagnose faults. Each lesson loads a predefined network, plays out a scripted incident in real time,
+    and asks you to identify the root cause from the evidence in front of you —
+    the same evidence a monitoring engineer would actually have.
+    <br><br>
+    You are not configuring or building anything. You are watching, interpreting, and diagnosing.
+  </p>
+
+  <div>
+    <div class="landing-section-title">What is a lesson?</div>
+    <p style="font-size:12px;color:var(--muted2);line-height:1.7;max-width:680px;">
+      A lesson is a fixed scenario: a network topology (a set of connected devices) and a scripted incident
+      that unfolds over time. The simulation runs second by second — metrics change, alerts fire, and the
+      packet capture fills with evidence. Your job is to watch the dashboard, spot the anomaly, and submit
+      a diagnosis from the multiple-choice options provided.
+    </p>
+  </div>
+
+  <div>
+    <div class="landing-section-title">Two modes</div>
+    <div class="landing-modes">
+      <div class="landing-mode-card">
+        <div class="landing-mode-card-title">
+          <span style="color:var(--cyan)">📖</span> Teach Mode
+        </div>
+        <div class="landing-mode-card-body">
+          <p>No login, no scoring, no attempt limit. Use this to learn the concepts before being assessed.</p>
+          <ul>
+            <li>Click any device, metric card, alert, or packet row to open an <b style="color:var(--text)">Explain Panel</b> — a plain-language description of what that element is and what it indicates about network health.</li>
+            <li>All hints are available, one at a time.</li>
+            <li>After you submit a diagnosis, the full explanation is shown automatically.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="landing-mode-card">
+        <div class="landing-mode-card-title">
+          <span style="color:var(--amber)">📝</span> Quiz Mode
+        </div>
+        <div class="landing-mode-card-body">
+          <p>Requires a student login. Results are recorded server-side against your identity.</p>
+          <ul>
+            <li>The Explain Panel is hidden — you must reason from the simulation evidence alone.</li>
+            <li>Only the first hint is available.</li>
+            <li>Attempts are limited per lesson. An instructor can reset your counter if needed.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-interface">
+    <div class="landing-section-title">What you will see inside a lesson</div>
+    <div class="landing-interface-desc">
+      The simulation dashboard has six tabs. You do not need all of them for every lesson —
+      part of the skill is knowing where to look.
+    </div>
+    <div class="landing-interface-grid">
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Stat Bar</div>
+        <div class="landing-iface-desc">Six live counters across the top: healthy device count, active alerts, average latency, average CPU, packet loss, and elapsed time.</div>
+      </div>
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Overview</div>
+        <div class="landing-iface-desc">Rolling charts for traffic, CPU, and latency, plus a card for each device showing its current health status.</div>
+      </div>
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Topology</div>
+        <div class="landing-iface-desc">An SVG diagram of the network. Link colours shift from green → amber → red as latency and packet loss rise. Click a node to inspect its metrics.</div>
+      </div>
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Alerts</div>
+        <div class="landing-iface-desc">A timestamped list of critical and warning events fired by the incident script as the simulation runs.</div>
+      </div>
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Packets</div>
+        <div class="landing-iface-desc">A simulated packet capture. Flagged rows (red) contain anomalous traffic matching the incident pattern — protocol, direction, and info field are all evidence.</div>
+      </div>
+      <div class="landing-iface-item">
+        <div class="landing-iface-label">Metrics / Logs</div>
+        <div class="landing-iface-desc">Per-device telemetry snapshot, link quality stats, and a running event log with timestamps you can use to reconstruct the incident timeline.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-cta">
+    <button class="landing-cta-btn" id="btn-get-started" onclick="proceedToLessons()">
+      Browse Lessons →
+    </button>
+    <span class="landing-cta-note">No account needed to explore in Teach Mode.</span>
+  </div>
+
+</div>
+
 <!-- ══════════════ LESSON SELECT ══════════════ -->
-<div id="screen-select">
+<div id="screen-select" class="hidden">
   <div class="select-hero">
     <div class="logo-icon"><div class="pulse-dot"></div></div>
     <div>

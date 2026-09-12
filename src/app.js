@@ -54,6 +54,19 @@ function closeAllModals() {
    'modal-hint','modal-diagnosis','modal-device'].forEach(closeModal);
 }
 
+// ─── Landing screen ───────────────────────────────────────────────────────────
+
+/**
+ * Called by the "Browse Lessons →" button on the landing screen.
+ * Marks the intro as seen for this session (sessionStorage only — reappears on
+ * a fresh tab/session, but not on every navigation within one session).
+ */
+export function proceedToLessons() {
+  sessionStorage.setItem('nw_intro_seen', '1');
+  document.getElementById('screen-landing').classList.add('hidden');
+  document.getElementById('screen-select').classList.remove('hidden');
+}
+
 // ─── Lesson select screen ─────────────────────────────────────────────────────
 
 function renderLessonSelect() {
@@ -681,6 +694,8 @@ function _setFieldError(elId, message) {
 Object.assign(window, {
   // Nav
   exitToLessons, switchTab,
+  // Landing
+  proceedToLessons,
   // Sim controls
   startSimulation, resetSimulation,
   // Mode
@@ -705,6 +720,15 @@ Object.assign(window, {
 // Delegated event listeners ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ── Initial screen routing ────────────────────────────────────────────────
+  // Show the landing screen on first visit in this session.
+  // If already seen (sessionStorage flag set), skip straight to lesson select.
+  if (sessionStorage.getItem('nw_intro_seen')) {
+    document.getElementById('screen-landing').classList.add('hidden');
+    document.getElementById('screen-select').classList.remove('hidden');
+  }
+  // (If not seen: screen-landing is visible by default, screen-select is hidden)
+
   renderLessonSelect();
 
   // Escape closes explain panel — only when the panel is actually visible (Req 3.6)
