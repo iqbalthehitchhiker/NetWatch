@@ -11,7 +11,7 @@
  * It never imports from auth.js, api.js, or app.js.
  */
 
-import { BASELINE, TOPOLOGIES, INCIDENTS } from './lessons.js';
+import { BASELINE, getSimulationConfig } from './lessons.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,8 +42,7 @@ export function computeHealth(n) {
 // ─── State factory ────────────────────────────────────────────────────────────
 
 export function createInitialState(lesson) {
-  const incident = INCIDENTS[lesson.incident];
-  const srcTopo  = TOPOLOGIES[lesson.topology];
+  const { topology: srcTopo, incident } = getSimulationConfig(lesson);
 
   const topo = {
     name:  srcTopo.name,

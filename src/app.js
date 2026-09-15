@@ -4,7 +4,7 @@
  * Owns: screen routing, modal logic, explain panel, sim bootstrap, event wiring.
  */
 
-import { LESSONS, DEVICE_TYPES } from './lessons.js';
+import { LESSONS, SKILLS, DEVICE_TYPES } from './lessons.js';
 import { EXPLAIN_CONTENT } from './explain-content.js';
 import { createInitialState, tick, findNode, pushLog } from './engine.js';
 import {
@@ -20,6 +20,10 @@ import { renderAlerts }  from './renderers/alerts.js';
 import { renderPackets } from './renderers/packets.js';
 import { initCharts, updateCharts } from './renderers/charts.js';
 import { renderLogs }    from './renderers/logs.js';
+import {
+  startSelfCheck, teardownSelfCheck, isSelfCheckActive,
+  selfCheckNext, selfCheckSkip,
+} from './self-check.js';
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
@@ -28,6 +32,12 @@ let simTimer       = null;
 let clockTimer     = null;
 let packetFilter   = 'all';
 let pendingLessonId = null;
+let _pendingSkill   = null;   // skill whose self-check should run when student clicks the button
+
+// ─── Teach-mode completion markers (in-memory, no backend) ───────────────────
+// Tracks which skill IDs have had their self-check completed this session.
+// Exported for test introspection.
+export const completedSkills = new Set();
 
 // ─── Explain Panel ────────────────────────────────────────────────────────────
 // EXPLAIN_CONTENT is imported from ./explain-content.js (pure data, no DOM dependency)
@@ -50,20 +60,64 @@ function openModal(id)  { document.getElementById(id).classList.remove('hidden')
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function closeAllModals() {
-  ['modal-mode-select','modal-login','modal-blocked','modal-admin-reset',
+  ['modal-login','modal-blocked','modal-admin-reset',
    'modal-hint','modal-diagnosis','modal-device'].forEach(closeModal);
 }
 
 // ─── Landing screen ───────────────────────────────────────────────────────────
 
 /**
- * Called by the "Browse Lessons →" button on the landing screen.
- * Marks the intro as seen for this session (sessionStorage only — reappears on
- * a fresh tab/session, but not on every navigation within one session).
+ * showLessonSelectScreen()
+ *
+ * The canonical function for navigating TO the lesson-select screen.
+ * Always shows #lesson-grid and hides #skill-grid, so no prior mode state
+ * can bleed into this entry point.
+ *
+ * Rule: every navigation action that should land on "lesson select" calls
+ * this function — never raw classList manipulation on #screen-select at
+ * call sites. proceedToTeach() is the ONLY exception, because it
+ * intentionally shows the skill grid instead.
+ */
+function showLessonSelectScreen() {
+  document.getElementById('lesson-grid').style.display = '';
+  document.getElementById('skill-grid').style.display  = 'none';
+  document.getElementById('screen-select').classList.remove('hidden');
+}
+
+/**
+ * showSkillSelectScreen()
+ *
+ * Mirror of showLessonSelectScreen() for the Teach path.
+ * Atomically shows #skill-grid, hides #lesson-grid, and unhides #screen-select.
+ * Called by exitSimulation() when the session mode is 'teach'.
+ */
+function showSkillSelectScreen() {
+  document.getElementById('skill-grid').style.display  = '';
+  document.getElementById('lesson-grid').style.display = 'none';
+  document.getElementById('screen-select').classList.remove('hidden');
+}
+
+/**
+ * proceedToLessons() — "Take a scenario" path from landing.
+ * Goes to lesson select (quiz grid). Mode is already decided: Quiz.
  */
 export function proceedToLessons() {
   sessionStorage.setItem('nw_intro_seen', '1');
   document.getElementById('screen-landing').classList.add('hidden');
+  showLessonSelectScreen();
+}
+
+/**
+ * proceedToTeach() — "Learn the tool" path from landing.
+ * Goes to skill select (teach grid). Mode is already decided: Teach.
+ * No login required.
+ */
+export function proceedToTeach() {
+  sessionStorage.setItem('nw_intro_seen', '1');
+  document.getElementById('screen-landing').classList.add('hidden');
+  // Show skill grid, hide lesson grid — teach path
+  document.getElementById('lesson-grid').style.display = 'none';
+  document.getElementById('skill-grid').style.display  = '';
   document.getElementById('screen-select').classList.remove('hidden');
 }
 
@@ -80,7 +134,7 @@ export function proceedToLessons() {
  * the same whether or not a prompt is shown.
  */
 export function goToLanding() {
-  // Stop simulation timers and clean up session state (same as exitToLessons)
+  // Stop simulation timers and clean up session state (same as exitSimulation)
   stopSimTimers();
   clearStudentSession();
   clearInstructorToken();
@@ -124,37 +178,60 @@ function renderLessonSelect() {
     </div>
   `).join('');
 
-  // Delegated click on the grid
+  // Delegated click — arriving here means Quiz mode (user took "Take a scenario" path).
+  // Go straight to login; no mode-select modal.
   grid.addEventListener('click', e => {
     const card = e.target.closest('.lesson-card[data-lesson-id]');
-    if (card) openModeSelector(card.dataset.lessonId);
+    if (!card) return;
+    pendingLessonId = card.dataset.lessonId;
+    openModal('modal-login');
   });
 }
 
-// ─── Mode Selector ────────────────────────────────────────────────────────────
+// ─── Skill select screen (Teach mode entry) ───────────────────────────────────
 
-function openModeSelector(lessonId) {
-  const lesson = LESSONS.find(l => l.id === lessonId);
-  if (!lesson) return;
-  pendingLessonId = lessonId;
-  document.getElementById('msel-lesson-title').textContent = lesson.title;
-  openModal('modal-mode-select');
-}
+function renderSkillSelect() {
+  const grid = document.getElementById('skill-grid');
+  grid.innerHTML = SKILLS.map(s => `
+    <div class="lesson-card" style="--accent:#06B6D4" data-skill-id="${s.id}">
+      ${completedSkills.has(s.id) ? '<span class="skill-card-done">✓ COMPLETE</span>' : ''}
+      <div class="lesson-card-title">${s.title}</div>
+      <div class="lesson-card-desc">${s.body}</div>
+      <div class="lesson-card-foot">
+        <div class="lesson-card-topo">${s.targetPanel ? 'Panel: ' + s.targetPanel : 'General'}</div>
+        <div class="lesson-start-btn">Practice →</div>
+      </div>
+      ${s.lessonRefs && s.lessonRefs.length
+        ? `<div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--font-mono);">Comes up in: ${s.lessonRefs.join(', ')}</div>`
+        : ''}
+    </div>
+  `).join('');
 
-export function cancelModeSelect() {
-  pendingLessonId = null;
-  closeModal('modal-mode-select');
-}
+  // Delegated click — launch simulation in Teach mode, then start self-check
+  grid.addEventListener('click', e => {
+    const card = e.target.closest('.lesson-card[data-skill-id]');
+    if (!card) return;
+    const skillId = card.dataset.skillId;
+    const skill   = SKILLS.find(s => s.id === skillId);
+    if (!skill) return;
 
-export function confirmMode(mode) {
-  closeModal('modal-mode-select');
-  if (mode === 'quiz') {
-    openModal('modal-login');
-  } else {
-    // Teach mode — no login needed
     setStudentSession(null, null, null, 'teach');
-    launchSimulation(pendingLessonId);
-  }
+    // Use the lesson whose incident best matches the skill's targetPanel.
+    // topology/alerts/packets → ddos_edge (branch_office, vivid link/alert/packet signals)
+    // charts → db_slowdown (chart signals — flat traffic, climbing CPU — are the key story)
+    const lessonIdMap = {
+      topology: 'ddos_edge',
+      charts:   'db_slowdown',
+      alerts:   'ddos_edge',
+      packets:  'ddos_edge',
+    };
+    const lessonId = lessonIdMap[skill.targetPanel] || LESSONS[0].id;
+    launchSimulation(lessonId);
+    // Self-check is now triggered by the student clicking "🎯 Self-Check"
+    // in the lesson bar, not automatically on simulation start.
+    // Store the current skill so openSelfCheck() can find it.
+    _pendingSkill = skill;
+  });
 }
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
@@ -198,7 +275,8 @@ export function backFromLogin() {
   document.getElementById('login-password').value = '';
   _setLoginErrors(null, null, null);
   closeModal('modal-login');
-  openModal('modal-mode-select');
+  // Return to Lesson Select (Quiz grid) — no mode modal exists any more.
+  showLessonSelectScreen();
 }
 
 // ─── Attempt Gate ─────────────────────────────────────────────────────────────
@@ -270,6 +348,20 @@ function launchSimulation(lessonId) {
     welcomeEl.classList.add('hidden');
   }
 
+  // Swap the Diagnose/Self-Check button based on mode.
+  // In teach mode: clicking it opens the self-check (not a graded diagnosis).
+  // In quiz mode:  clicking it opens the standard MCQ diagnosis modal.
+  const diagBtn = document.getElementById('btn-diagnose');
+  if (diagBtn) {
+    if (mode === 'teach') {
+      diagBtn.textContent = '🎯 Self-Check';
+      diagBtn.onclick     = openSelfCheck;
+    } else {
+      diagBtn.textContent = '🩺 Diagnose';
+      diagBtn.onclick     = openDiagnosis;
+    }
+  }
+
   // Lesson info
   document.getElementById('topbar-lesson-name').textContent = lesson.title;
   document.getElementById('lb-objective-text').textContent  = lesson.objective;
@@ -291,14 +383,37 @@ function launchSimulation(lessonId) {
   switchTab('overview');
   startClock();
   updateRunBadge();
+
+  // Attach explain-panel listeners for Teach mode.
+  // attachExplainListeners() is idempotent — safe to call on every teach launch.
+  if (getCurrentMode() === 'teach') {
+    attachExplainListeners();
+  }
 }
 
-export function exitToLessons() {
+/**
+ * exitSimulation()
+ *
+ * "Back" from a running (or stopped) simulation.
+ * Cleans up timers, session state, and topbar, then returns the student
+ * to the screen they came from:
+ *   - Teach mode → Skill select screen  (showSkillSelectScreen)
+ *   - Quiz mode (or any other/default)  → Lesson select screen (showLessonSelectScreen)
+ *
+ * Renamed from exitToLessons, which was misleading once Teach mode was added
+ * as a first-class entry path with its own select screen.
+ */
+export function exitSimulation() {
+  // Capture mode BEFORE clearStudentSession nulls it.
+  const mode = getCurrentMode();
+
+  teardownSelfCheck();   // cancel any in-progress self-check, detach listeners
   stopSimTimers();
   clearStudentSession();
-  simState     = null;
+  simState        = null;
   pendingLessonId = null;
-  packetFilter = 'all';
+  _pendingSkill   = null;
+  packetFilter    = 'all';
 
   document.body.classList.remove('quiz-mode');
   document.getElementById('topbar-mode-badge').classList.add('hidden');
@@ -307,7 +422,12 @@ export function exitToLessons() {
   closeExplainPanel();
   closeAllModals();
   document.getElementById('app').classList.remove('active');
-  document.getElementById('screen-select').classList.remove('hidden');
+
+  if (mode === 'teach') {
+    showSkillSelectScreen();
+  } else {
+    showLessonSelectScreen();
+  }
 }
 
 // ─── Simulation controls ──────────────────────────────────────────────────────
@@ -488,7 +608,25 @@ function _renderHint() {
   }
 }
 
-// ─── Diagnosis modal ──────────────────────────────────────────────────────────
+// ─── Self-Check (Teach mode) ──────────────────────────────────────────────────
+
+/**
+ * openSelfCheck()
+ * Called by the "🎯 Self-Check" button in the lesson bar (Teach mode only).
+ * Starts (or resumes from the beginning) the self-check for the skill that
+ * launched the current simulation.  No-op if no skill is pending.
+ */
+export function openSelfCheck() {
+  if (!_pendingSkill) return;
+  startSelfCheck(_pendingSkill, {
+    onComplete: (completedSkillId) => {
+      completedSkills.add(completedSkillId);
+      renderSkillSelect();   // refresh ✓ badge on skill grid
+    },
+  });
+}
+
+// ─── Diagnosis modal (Quiz mode) ──────────────────────────────────────────────
 
 export function openDiagnosis() {
   simState.diagSelected = null;
@@ -731,45 +869,111 @@ function _setFieldError(elId, message) {
 
 // Expose functions needed by inline HTML event attributes
 // (kept here so index.html has no inline scripts)
-Object.assign(window, {
-  // Nav
-  exitToLessons, switchTab,
-  // Landing
-  proceedToLessons, goToLanding,
-  // Sim controls
-  startSimulation, resetSimulation,
-  // Mode
-  cancelModeSelect, confirmMode,
-  // Login
-  submitLogin, backFromLogin,
-  // Diagnosis
-  openDiagnosis, pickDiagOption, submitDiagnosis,
-  // Hint
-  openHint, nextHint,
-  // Admin reset
-  openAdminReset, submitInstructorLogin, submitAdminReset,
-  // Explain panel
-  closeExplainPanel,
-  // Sandbox
-  toggleDrawer, setManualOverride, dismissAlertBanner,
-  setPacketFilter, clearLog, saveNotes, injectAlert,
-  // Modal close
-  closeModal,
-});
+// Export for test introspection — lets tests assert listener attachment state
+// without needing DOM access.
+export function isExplainListenersAttached() { return _explainListenersAttached; }
+export function resetExplainListenersFlag()  { _explainListenersAttached = false; }
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    // Nav
+    exitSimulation, switchTab,
+    // Landing
+    proceedToLessons, proceedToTeach, goToLanding,
+    // Sim controls
+    startSimulation, resetSimulation,
+    // Login
+    submitLogin, backFromLogin,
+    // Diagnosis (Quiz mode only)
+    openDiagnosis, pickDiagOption, submitDiagnosis,
+    // Hint
+    openHint, nextHint,
+    // Self-check (Teach mode only)
+    openSelfCheck, selfCheckNext, selfCheckSkip,
+    // Admin reset
+    openAdminReset, submitInstructorLogin, submitAdminReset,
+    // Explain panel
+    closeExplainPanel,
+    // Sandbox
+    toggleDrawer, setManualOverride, dismissAlertBanner,
+    setPacketFilter, clearLog, saveNotes, injectAlert,
+    // Modal close
+    closeModal,
+  });
+}
 
 // Delegated event listeners ─────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+// ─── Explain-panel listeners (Teach mode only) ────────────────────────────────
+// Extracted so they can be attached conditionally and only once per session.
+// The guard flag prevents double-attachment if a student goes Teach → back →
+// Teach again in the same page session.
+let _explainListenersAttached = false;
+
+function attachExplainListeners() {
+  if (_explainListenersAttached) return;
+  _explainListenersAttached = true;
+
+  // Stat bar
+  document.getElementById('stat-bar').addEventListener('click', e => {
+    const sc = e.target.closest('.sc[data-metric-key]');
+    if (sc) showExplainPanel('metric:' + sc.dataset.metricKey);
+  });
+
+  // Topology SVG — teach mode shows explain panel; otherwise opens device detail
+  document.getElementById('topo-svg').addEventListener('click', e => {
+    const g = e.target.closest('.topo-node[data-node-id]');
+    if (!g) return;
+    const nodeId = g.dataset.nodeId;
+    if (getCurrentMode() === 'teach') {
+      showExplainPanel(g.dataset.explainKey || ('device:' + (findNode(simState, nodeId)?.type || '')));
+    } else {
+      if (simState) openDeviceDetail(nodeId);
+    }
+  });
+
+  // Alert list
+  document.getElementById('alert-list').addEventListener('click', e => {
+    const item = e.target.closest('.alert-item[data-level]');
+    if (item) showExplainPanel('alert:' + item.dataset.level);
+  });
+
+  // Packet table
+  document.getElementById('packet-table-body').addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-proto]');
+    if (tr) showExplainPanel('proto:' + tr.dataset.proto);
+  });
+
+  // Chart panels (Overview tab)
+  document.getElementById('pane-overview').addEventListener('click', e => {
+    const panel = e.target.closest('.chart-panel[data-metric-key]');
+    if (panel) showExplainPanel('metric:' + panel.dataset.metricKey);
+  });
+
+  // Metrics tab rows
+  document.getElementById('pane-metrics').addEventListener('click', e => {
+    const row = e.target.closest('.metric-row[data-metric-key]');
+    if (row) showExplainPanel('metric:' + row.dataset.metricKey);
+  });
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
   // ── Initial screen routing ────────────────────────────────────────────────
   // Show the landing screen on first visit in this session.
   // If already seen (sessionStorage flag set), skip straight to lesson select.
   if (sessionStorage.getItem('nw_intro_seen')) {
     document.getElementById('screen-landing').classList.add('hidden');
-    document.getElementById('screen-select').classList.remove('hidden');
+    showLessonSelectScreen();  // always canonical: lesson-grid visible, skill-grid hidden
   }
   // (If not seen: screen-landing is visible by default, screen-select is hidden)
 
+  // Populate both grids up front so clicking either mode feels instant.
+  // renderLessonSelect targets #lesson-grid (Quiz path); renderSkillSelect
+  // targets #skill-grid (Teach path). proceedToLessons/proceedToTeach on the
+  // landing page determine which grid is shown.
   renderLessonSelect();
+  renderSkillSelect();
 
   // Escape closes explain panel — only when the panel is actually visible (Req 3.6)
   document.addEventListener('keydown', e => {
@@ -777,17 +981,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const panel = document.getElementById('explain-panel');
       if (panel && !panel.classList.contains('hidden')) closeExplainPanel();
     }
-  });
-
-  // Mode selector: Escape / click-outside cancels (Req 1.6)
-  document.getElementById('modal-mode-select').addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelModeSelect();
-  });
-
-  // Stat bar — explain panel
-  document.getElementById('stat-bar').addEventListener('click', e => {
-    const sc = e.target.closest('.sc[data-metric-key]');
-    if (sc) showExplainPanel('metric:' + sc.dataset.metricKey);
   });
 
   // Device grid — in teach mode show explain panel; otherwise open device detail
@@ -801,51 +994,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Device table — open device detail
+  // Device table — open device detail (mode-independent)
   document.getElementById('device-table-body').addEventListener('click', e => {
     const tr = e.target.closest('tr[data-node-id]');
     if (tr) openDeviceDetail(tr.dataset.nodeId);
   });
 
-  // Topology SVG — teach mode shows explain panel; quiz/no-mode opens device detail
-  document.getElementById('topo-svg').addEventListener('click', e => {
-    const g = e.target.closest('.topo-node[data-node-id]');
-    if (!g) return;
-    const nodeId = g.dataset.nodeId;
-    if (getCurrentMode() === 'teach') {
-      showExplainPanel(g.dataset.explainKey || ('device:' + (findNode(simState, nodeId)?.type || '')));
-    } else {
-      if (simState) openDeviceDetail(nodeId);
-    }
-  });
-
-  // Alert list — explain panel
-  document.getElementById('alert-list').addEventListener('click', e => {
-    const item = e.target.closest('.alert-item[data-level]');
-    if (item) showExplainPanel('alert:' + item.dataset.level);
-  });
-
-  // Packet table — explain panel
-  document.getElementById('packet-table-body').addEventListener('click', e => {
-    const tr = e.target.closest('tr[data-proto]');
-    if (tr) showExplainPanel('proto:' + tr.dataset.proto);
-  });
-
-  // Chart panels (Overview tab) — explain panel in teach mode
-  document.getElementById('pane-overview').addEventListener('click', e => {
-    const panel = e.target.closest('.chart-panel[data-metric-key]');
-    if (panel) showExplainPanel('metric:' + panel.dataset.metricKey);
-  });
-
-  // Metrics tab rows — explain panel in teach mode
-  document.getElementById('pane-metrics').addEventListener('click', e => {
-    const row = e.target.closest('.metric-row[data-metric-key]');
-    if (row) showExplainPanel('metric:' + row.dataset.metricKey);
-  });
-
-  // Diagnosis options — delegated
+  // Diagnosis options — delegated (Quiz mode; no-op in Teach because the
+  // submit button is hidden by CSS when mode !== quiz)
   document.getElementById('diag-options').addEventListener('click', e => {
     const opt = e.target.closest('.diag-option[data-id]');
     if (opt) pickDiagOption(opt.dataset.id);
   });
-});
+}); // end DOMContentLoaded
+} // end typeof document guard
+
