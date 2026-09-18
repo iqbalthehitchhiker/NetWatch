@@ -22,7 +22,8 @@ import { initCharts, updateCharts } from './renderers/charts.js';
 import { renderLogs }    from './renderers/logs.js';
 import {
   startSelfCheck, teardownSelfCheck, isSelfCheckActive,
-  selfCheckNext, selfCheckSkip,
+  selfCheckNext, selfCheckSkip, skipSelfCheck,
+  minimizeSelfCheck, reopenSelfCheck,
 } from './self-check.js';
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -889,7 +890,8 @@ if (typeof window !== 'undefined') {
     // Hint
     openHint, nextHint,
     // Self-check (Teach mode only)
-    openSelfCheck, selfCheckNext, selfCheckSkip,
+    openSelfCheck, selfCheckNext, selfCheckSkip, skipSelfCheck,
+    minimizeSelfCheck, reopenSelfCheck,
     // Admin reset
     openAdminReset, submitInstructorLogin, submitAdminReset,
     // Explain panel

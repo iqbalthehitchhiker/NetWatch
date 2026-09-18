@@ -17,6 +17,8 @@
  *   startSelfCheck(skill, callbacks)   — begin a 3-question sequence
  *   isSelfCheckActive()                — true while a sequence is running
  *   teardownSelfCheck()                — cancel / clean up (called on exitSimulation)
+ *   minimizeSelfCheck()                — hide modal without losing progress
+ *   reopenSelfCheck()                  — restore modal after minimizing
  *
  * Callbacks shape:
  *   { onComplete(skillId), onQuestionResult(skillId, questionId, correct) }
@@ -30,7 +32,8 @@
  *   #sc-reading-instruction   — instruction text for reading tier
  *   #sc-result                — feedback area (.diag-result)
  *   #sc-next-btn              — "Next Question →" / "Finish" button
- *   #sc-skip-btn              — "Skip" button
+ *   #sc-minimized-pill        — floating pill shown while modal is hidden
+ *   #sc-minimized-label       — text label inside the pill
  */
 
 // ─── Module state ─────────────────────────────────────────────────────────────
@@ -40,12 +43,14 @@ let _skill         = null;    // the SKILL object currently being checked
 let _questions     = [];      // ordered selfCheck questions for this skill
 let _idx           = 0;       // current question index (0-based)
 let _answered      = false;   // has the current question been answered?
+let _minimized     = false;   // true when modal is hidden but progress is preserved
 let _clickHandler  = null;    // the reading-tier document click listener (teardown ref)
 let _callbacks     = {};      // { onComplete, onQuestionResult }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function isSelfCheckActive() { return _active; }
+export function isSelfCheckActive()  { return _active; }
+export function isSelfCheckMinimized() { return _minimized; }
 
 /**
  * Start a self-check sequence for the given skill.
@@ -63,6 +68,7 @@ export function startSelfCheck(skill, callbacks = {}) {
   _questions = skill.selfCheck.slice();   // own copy, original tier order
   _idx       = 0;
   _answered  = false;
+  _minimized = false;
   _callbacks = callbacks;
   _active    = true;
 
@@ -71,20 +77,50 @@ export function startSelfCheck(skill, callbacks = {}) {
 }
 
 /**
- * Tear down the self-check: detach any listeners, close the modal, reset state.
- * Called by exitSimulation() and by the "Skip" button.
+ * Minimize: hide the modal overlay without resetting any progress state.
+ * The floating pill (#sc-minimized-pill) becomes visible so the student
+ * knows they can resume.  Called automatically when a reading-tier question
+ * is rendered, and available as a manual action via the ✕ button.
+ */
+export function minimizeSelfCheck() {
+  if (!_active) return;
+  _minimized = true;
+  const modal = _el('modal-selfcheck');
+  if (modal) modal.classList.add('hidden');
+  _updatePill();
+}
+
+/**
+ * Reopen the modal after minimizing.  State (_idx, _answered, _questions) is
+ * fully preserved — the student resumes exactly where they left off.
+ * Called by the pill's "Resume" button and automatically after a reading-tier
+ * answer is registered.
+ */
+export function reopenSelfCheck() {
+  if (!_active) return;
+  _minimized = false;
+  _openModal();
+  _updatePill();
+}
+
+/**
+ * Tear down the self-check: detach any listeners, close the modal, reset ALL
+ * state.  Called by exitSimulation() and by the explicit "Skip" text button.
+ * This is the only path that resets _idx / _skill / _callbacks.
  */
 export function teardownSelfCheck() {
   _detachReadingListener();
-  _active   = false;
-  _skill    = null;
+  _active    = false;
+  _minimized = false;
+  _skill     = null;
   _questions = [];
-  _idx      = 0;
-  _answered = false;
+  _idx       = 0;
+  _answered  = false;
   _callbacks = {};
 
   const modal = _el('modal-selfcheck');
   if (modal) modal.classList.add('hidden');
+  _updatePill();
 }
 
 // ─── Internal: rendering ──────────────────────────────────────────────────────
@@ -152,8 +188,13 @@ function _renderReadingTier(q) {
   if (optionsEl) { optionsEl.style.display = 'none'; optionsEl.innerHTML = ''; }
   if (instrEl)   { instrEl.style.display = ''; instrEl.textContent = q.prompt; }
 
-  // Attach the scoped click listener
+  // Attach the scoped click listener before minimizing so it's live as soon
+  // as the modal disappears.
   _attachReadingListener(q);
+
+  // Auto-minimize: hide the modal so the target element is reachable.
+  // The pill shows the student what to do and lets them reopen if needed.
+  minimizeSelfCheck();
 }
 
 // ─── Internal: event handling ─────────────────────────────────────────────────
@@ -194,8 +235,16 @@ function _attachReadingListener(q) {
     const matched = e.target.closest(q.targetSelector);
     if (!matched) return;
 
+    // Stop propagation so bubble-phase explain-panel delegation does not
+    // also fire for the same click (e.g. .alert-item and packet table rows
+    // are both explain-panel targets and reading-tier targets).
+    e.stopPropagation();
+
     _answered = true;
     _detachReadingListener();
+
+    // Reopen the self-check modal to show the result, then render feedback.
+    reopenSelfCheck();
     _showResult(true, q.explanation);
     _fireQuestionResult(q.id, true);
   };
@@ -232,23 +281,46 @@ function _fireQuestionResult(questionId, correct) {
 }
 
 function _finish() {
-  _active = false;
+  _active    = false;
+  _minimized = false;
   _detachReadingListener();
 
   const modal = _el('modal-selfcheck');
   if (modal) modal.classList.add('hidden');
+  _updatePill();
 
   if (typeof _callbacks.onComplete === 'function') {
     _callbacks.onComplete(_skill.id);
   }
 }
 
-// ─── Internal: modal open/close, next/skip wiring ────────────────────────────
+// ─── Internal: modal open/close helpers ──────────────────────────────────────
 
 function _openModal() {
   const modal = _el('modal-selfcheck');
   if (modal) modal.classList.remove('hidden');
 }
+
+/**
+ * Update the minimized pill visibility and label to match current state.
+ * The pill is shown only when _active && _minimized.
+ */
+function _updatePill() {
+  const pill = _el('sc-minimized-pill');
+  if (!pill) return;
+
+  if (_active && _minimized) {
+    const label = _el('sc-minimized-label');
+    if (label && _questions[_idx]) {
+      label.textContent = `Self-Check · Q${_idx + 1}/${_questions.length} · Click target to answer`;
+    }
+    pill.classList.remove('hidden');
+  } else {
+    pill.classList.add('hidden');
+  }
+}
+
+// ─── Public: wired to HTML buttons ───────────────────────────────────────────
 
 // Called by index.html's "Next Question →" / "Finish ✓" button.
 export function selfCheckNext() {
@@ -257,8 +329,20 @@ export function selfCheckNext() {
   _renderQuestion();
 }
 
-// Called by index.html's "Skip" button.
+/**
+ * selfCheckSkip() — wired to the ✕ (close) button in the modal header.
+ * Minimizes without losing progress so the student can resume.
+ * This is NOT a full teardown — use skipSelfCheck() for that.
+ */
 export function selfCheckSkip() {
+  minimizeSelfCheck();
+}
+
+/**
+ * skipSelfCheck() — wired to the "Skip self-check" text button.
+ * Full teardown: discards all progress and fires no callbacks.
+ */
+export function skipSelfCheck() {
   teardownSelfCheck();
 }
 

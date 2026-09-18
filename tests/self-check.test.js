@@ -10,6 +10,9 @@
  *  3. No POST / no auth involved — api.recordResult is never called.
  *  4. completedSkills Set updates when onComplete fires.
  *  5. teardownSelfCheck() clears active state and detaches listeners.
+ *  6. Progress persistence across minimize/reopen cycles.
+ *  7. skipSelfCheck() fully tears down; selfCheckSkip() only minimizes.
+ *  8. Auto-minimize on reading tier; auto-reopen after answer.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -99,7 +102,7 @@ describe('SKILLS selfCheck data shape', () => {
   });
 });
 
-// ─── 2-5. self-check.js module behaviour ─────────────────────────────────────
+// ─── 2-8. self-check.js module behaviour ─────────────────────────────────────
 //
 // self-check.js uses document.getElementById and document.addEventListener.
 // We provide a minimal DOM stub, then import the module dynamically after
@@ -138,8 +141,8 @@ function makeSelfCheckDom() {
     disabled: false,
     classList: {
       _hidden: false,
-      add(cls)    { if (cls === 'hidden') this._hidden = true; },
-      remove(cls) { if (cls === 'hidden') this._hidden = false; },
+      add(cls)      { if (cls === 'hidden') this._hidden = true; },
+      remove(cls)   { if (cls === 'hidden') this._hidden = false; },
       contains(cls) { return cls === 'hidden' ? this._hidden : false; },
     },
     querySelectorAll: vi.fn(() => []),
@@ -157,6 +160,8 @@ function makeSelfCheckDom() {
     'sc-reading-instruction': makeEl('sc-reading-instruction'),
     'sc-result':              makeEl('sc-result'),
     'sc-next-btn':            makeEl('sc-next-btn'),
+    'sc-minimized-pill':      makeEl('sc-minimized-pill'),
+    'sc-minimized-label':     makeEl('sc-minimized-label'),
   };
 
   return {
@@ -255,6 +260,236 @@ describe('self-check module behaviour', () => {
     selfCheckNext();
 
     expect(api.recordResult).not.toHaveBeenCalled();
+  });
+
+  // ─── 6. Progress persistence across minimize / reopen ──────────────────────
+
+  describe('progress persistence across minimize/reopen', () => {
+    it('minimizeSelfCheck() keeps active=true and preserves _idx', async () => {
+      const { startSelfCheck, selfCheckNext, minimizeSelfCheck, isSelfCheckActive, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckNext(); // advance to reading tier (idx=1)
+
+      minimizeSelfCheck();
+
+      // Still active, now minimized
+      expect(isSelfCheckActive()).toBe(true);
+      expect(isSelfCheckMinimized()).toBe(true);
+    });
+
+    it('reopenSelfCheck() restores active state without resetting question index', async () => {
+      const { startSelfCheck, selfCheckNext, minimizeSelfCheck, reopenSelfCheck,
+              isSelfCheckActive, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckNext(); // now at reading tier (idx=1)
+      minimizeSelfCheck();
+      reopenSelfCheck();
+
+      expect(isSelfCheckActive()).toBe(true);
+      expect(isSelfCheckMinimized()).toBe(false);
+    });
+
+    it('modal shows the same question after minimize → reopen (no reset to Q1)', async () => {
+      const { startSelfCheck, selfCheckNext, minimizeSelfCheck, reopenSelfCheck } =
+        await import('../src/self-check.js');
+
+      const skill = SKILLS[0];
+      startSelfCheck(skill, {});
+      selfCheckNext(); // recall → reading (idx=1)
+      selfCheckNext(); // reading → synthesis (idx=2)
+
+      // Record what the tier-badge says before minimizing
+      const badgeEl = global.document.getElementById('sc-tier-badge');
+      const textBefore = badgeEl.textContent; // "SYNTHESIS  3/3"
+
+      minimizeSelfCheck();
+      reopenSelfCheck();
+
+      // Badge should still say SYNTHESIS 3/3, not RECALL 1/3
+      expect(badgeEl.textContent).toBe(textBefore);
+      expect(badgeEl.textContent).toMatch(/SYNTHESIS/i);
+    });
+
+    it('multiple minimize/reopen cycles do not reset progress', async () => {
+      const { startSelfCheck, selfCheckNext, minimizeSelfCheck, reopenSelfCheck,
+              isSelfCheckActive } =
+        await import('../src/self-check.js');
+
+      const onComplete = vi.fn();
+      startSelfCheck(SKILLS[0], { onComplete });
+
+      selfCheckNext(); // → reading
+      minimizeSelfCheck();
+      reopenSelfCheck();
+      minimizeSelfCheck();
+      reopenSelfCheck();
+
+      selfCheckNext(); // → synthesis
+      minimizeSelfCheck();
+      reopenSelfCheck();
+
+      selfCheckNext(); // → finish
+
+      // onComplete must fire exactly once — no double-trigger from reopen cycles
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith(SKILLS[0].id);
+    });
+
+    it('onComplete does NOT fire after minimize → reopen alone (no skip)', async () => {
+      const { startSelfCheck, selfCheckNext, minimizeSelfCheck, reopenSelfCheck } =
+        await import('../src/self-check.js');
+
+      const onComplete = vi.fn();
+      startSelfCheck(SKILLS[0], { onComplete });
+      selfCheckNext(); // → reading
+      minimizeSelfCheck();
+      reopenSelfCheck();
+
+      // Not all questions advanced — completion must not have fired
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── 7. selfCheckSkip vs skipSelfCheck ────────────────────────────────────
+
+  describe('selfCheckSkip() vs skipSelfCheck()', () => {
+    it('selfCheckSkip() minimizes but keeps active=true', async () => {
+      const { startSelfCheck, selfCheckSkip, isSelfCheckActive, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckSkip(); // should minimize, NOT teardown
+
+      expect(isSelfCheckActive()).toBe(true);
+      expect(isSelfCheckMinimized()).toBe(true);
+    });
+
+    it('skipSelfCheck() fully tears down: active=false, minimized=false', async () => {
+      const { startSelfCheck, skipSelfCheck, isSelfCheckActive, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      skipSelfCheck();
+
+      expect(isSelfCheckActive()).toBe(false);
+      expect(isSelfCheckMinimized()).toBe(false);
+    });
+
+    it('skipSelfCheck() does NOT fire onComplete', async () => {
+      const { startSelfCheck, selfCheckNext, skipSelfCheck } =
+        await import('../src/self-check.js');
+
+      const onComplete = vi.fn();
+      startSelfCheck(SKILLS[0], { onComplete });
+      selfCheckNext();
+      skipSelfCheck(); // discard mid-run
+
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('teardownSelfCheck() also sets minimized=false', async () => {
+      const { startSelfCheck, minimizeSelfCheck, teardownSelfCheck, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      minimizeSelfCheck();
+      expect(isSelfCheckMinimized()).toBe(true);
+
+      teardownSelfCheck();
+      expect(isSelfCheckMinimized()).toBe(false);
+    });
+  });
+
+  // ─── 8. Reading-tier auto-minimize / auto-reopen ──────────────────────────
+
+  describe('reading-tier auto-minimize behaviour', () => {
+    it('modal is hidden (minimized) when rendering the reading-tier question', async () => {
+      const { startSelfCheck, selfCheckNext, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      expect(isSelfCheckMinimized()).toBe(false); // recall tier: not minimized
+
+      selfCheckNext(); // → reading tier: should auto-minimize
+      expect(isSelfCheckMinimized()).toBe(true);
+
+      const modal = global.document.getElementById('modal-selfcheck');
+      expect(modal.classList._hidden).toBe(true);
+    });
+
+    it('pill is visible while minimized and hidden otherwise', async () => {
+      const { startSelfCheck, selfCheckNext, reopenSelfCheck } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      const pill = global.document.getElementById('sc-minimized-pill');
+      expect(pill.classList._hidden).toBe(true); // recall: pill hidden
+
+      selfCheckNext(); // → reading: auto-minimize → pill shown
+      expect(pill.classList._hidden).toBe(false);
+
+      reopenSelfCheck(); // reopen → pill hidden again
+      expect(pill.classList._hidden).toBe(true);
+    });
+
+    it('reading-tier click handler fires reopenSelfCheck (modal re-shown) before showing result', async () => {
+      const { startSelfCheck, selfCheckNext, isSelfCheckMinimized } =
+        await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckNext(); // → reading tier, auto-minimized
+
+      expect(isSelfCheckMinimized()).toBe(true);
+
+      // Simulate a matching click by invoking the captured handler directly
+      const handler = capturedClickHandlers[0];
+      expect(handler).toBeDefined();
+
+      // Build a fake event whose target.closest() returns a truthy match
+      // for the reading question's targetSelector ('#link-isp-gw1')
+      const fakeTarget = { closest: (sel) => sel === '#link-isp-gw1' ? {} : null };
+      const fakeEvent  = {
+        target: fakeTarget,
+        stopPropagation: vi.fn(),
+      };
+      handler(fakeEvent);
+
+      // After a correct answer the modal should be reopened (no longer minimized)
+      expect(isSelfCheckMinimized()).toBe(false);
+    });
+
+    it('reading-tier click calls stopPropagation on a correct match', async () => {
+      const { startSelfCheck, selfCheckNext } = await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckNext(); // → reading tier
+
+      const handler = capturedClickHandlers[0];
+      const fakeTarget = { closest: (sel) => sel === '#link-isp-gw1' ? {} : null };
+      const stopPropagation = vi.fn();
+      handler({ target: fakeTarget, stopPropagation });
+
+      expect(stopPropagation).toHaveBeenCalled();
+    });
+
+    it('reading-tier click does NOT call stopPropagation when target does not match', async () => {
+      const { startSelfCheck, selfCheckNext } = await import('../src/self-check.js');
+
+      startSelfCheck(SKILLS[0], {});
+      selfCheckNext(); // → reading tier
+
+      const handler = capturedClickHandlers[0];
+      // closest() always returns null → no match
+      const fakeTarget = { closest: () => null };
+      const stopPropagation = vi.fn();
+      handler({ target: fakeTarget, stopPropagation });
+
+      expect(stopPropagation).not.toHaveBeenCalled();
+    });
   });
 });
 
