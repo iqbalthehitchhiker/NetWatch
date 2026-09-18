@@ -1151,126 +1151,344 @@ body {
 /* ─── LESSON SELECT SCREEN ─── */
 #screen-select { 
   min-height: 100vh; 
-  padding: 48px clamp(20px, 5vw, 60px) 80px; 
-  max-width: 1440px; 
-  margin: 0 auto; 
+  padding: 56px clamp(24px, 5vw, 80px) 96px; 
+  max-width: 1600px; 
+  margin: 0 auto;
+  position: relative;
 }
 
-.select-hero { 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between;
-  margin-bottom: 12px; 
+/* Subtle background gradient for depth */
+#screen-select::before {
+  content: '';
+  position: fixed;
+  top: 44px;
+  left: 0;
+  right: 0;
+  height: 400px;
+  background: radial-gradient(ellipse at top, var(--accent), transparent 70%);
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.select-hero-title { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 4px; 
+/* ─── LESSON SELECT: THREE-COLUMN LAYOUT ─── */
+.select-container {
+  display: grid;
+  grid-template-columns: 180px 1fr 180px;
+  gap: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+  align-items: start;
 }
 
-.select-hero-name { 
-  font-family: var(--font-mono); 
-  font-size: 20px; 
-  font-weight: 700; 
-  letter-spacing: -0.4px; 
-  color: var(--text);
+/* Center content area */
+.select-center {
+  position: relative;
+  z-index: 1;
 }
 
-.select-hero-sub { 
-  font-size: 12px; 
-  color: var(--muted); 
-  font-family: var(--font-mono);
-  font-weight: 500;
-}
-
-.select-tagline { 
-  color: var(--muted); 
-  font-size: 14px; 
-  margin: 16px 0 12px; 
-  max-width: 720px; 
-  line-height: 1.65;
-}
-.select-tagline b {
-  color: var(--text);
-  font-weight: 600;
-}
-
-/* Learning flow indicator */
-.select-loop { 
-  display: flex; 
-  flex-wrap: wrap; 
-  align-items: center;
-  gap: 8px; 
-  margin-bottom: 40px;
-  padding: 16px 20px;
-  background: var(--panel2);
+/* Home link - positioned in center column */
+.select-home-link {
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  max-width: fit-content;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 32px;
+  display: inline-block;
+}
+.select-home-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--cyan-dim);
 }
 
-.loop-step { 
-  font-size: 11px; 
-  font-family: var(--font-mono); 
-  font-weight: 600;
-  color: var(--accent); 
-  background: var(--cyan-dim); 
-  border: 1px solid var(--accent); 
-  padding: 4px 12px; 
-  border-radius: 3px;
-  white-space: nowrap;
+/* Centered introduction */
+.select-intro {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 48px;
 }
 
-.loop-arrow { 
-  color: var(--accent); 
-  font-size: 13px; 
-  align-self: center;
+.select-eyebrow {
+  font-size: 10px;
+  font-family: var(--font-mono);
   font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.select-title {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  color: var(--text);
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.select-description {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.select-description strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Learning workflow pipeline */
+.select-workflow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 56px;
+  padding: 24px 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.workflow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.workflow-num {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--cyan-dim);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--accent);
+}
+
+.workflow-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.workflow-arrow {
+  color: var(--border);
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 4px;
+}
+
+.select-lessons-title {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+/* Side monitoring elements */
+.select-side {
+  position: sticky;
+  top: 100px;
+}
+
+.side-module {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.side-module-title {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Left side: Network status */
+.side-status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.side-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.side-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.side-status-label {
+  color: var(--muted);
+  flex: 1;
+}
+
+.side-status-val {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.side-topo {
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+/* Right side: Monitoring feed */
+.side-metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.side-metric-label {
+  color: var(--muted);
+}
+
+.side-metric-val {
+  font-weight: 700;
+}
+
+.side-metric-sparkline {
+  margin-bottom: 16px;
+}
+
+.side-spark {
+  width: 100%;
+  height: 20px;
+}
+
+.side-packet-feed {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.side-packet-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.side-pkt-time {
+  opacity: 0.6;
+}
+
+.side-pkt-proto {
+  color: var(--purple);
+  font-weight: 600;
 }
 /* ─── LESSON/SKILL SELECTION GRID ─── */
 .lesson-grid { 
   display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-  gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 28px;
+  margin-bottom: 64px;
 }
 
 .lesson-card { 
   background: var(--panel); 
   border: 1px solid var(--border); 
-  border-radius: 8px; 
-  padding: 24px; 
+  border-radius: 12px; 
+  padding: 28px; 
   position: relative; 
   overflow: hidden; 
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  min-height: 380px;
 }
 
 .lesson-card:hover { 
-  border-color: var(--accent); 
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-color: var(--accent, #3b82f6); 
+  transform: translateY(-6px);
+  box-shadow: 
+    0 16px 40px rgba(0,0,0,0.2), 
+    0 0 0 1px var(--accent, #3b82f6),
+    0 0 24px color-mix(in srgb, var(--accent, #3b82f6) 30%, transparent);
 }
 
-/* Accent bar at top */
+/* Gradient overlay for visual depth - uses card's accent color */
+.lesson-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, var(--accent, #3b82f6), transparent 70%);
+  opacity: 0.05;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.lesson-card:hover::after {
+  opacity: 0.12;
+}
+
+/* Accent bar at top - thicker and more vibrant, uses card's accent */
 .lesson-card::before { 
   content: ''; 
   position: absolute; 
   top: 0; 
   left: 0; 
   right: 0; 
-  height: 3px; 
-  background: var(--accent); 
-  opacity: 0.6;
-  transition: opacity 0.2s;
+  height: 4px; 
+  background: linear-gradient(90deg, var(--accent, #3b82f6), transparent);
+  opacity: 0.9;
+  transition: opacity 0.3s, height 0.3s;
 }
 
 .lesson-card:hover::before { 
-  opacity: 1; 
+  opacity: 1;
+  height: 6px;
 }
 
 /* Card header - contains difficulty badge and lesson ID */
@@ -1278,7 +1496,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   gap: 8px;
 }
 
@@ -1286,87 +1504,124 @@ body {
 .lesson-diff { 
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 10px; 
   font-family: var(--font-mono); 
   font-weight: 700; 
-  letter-spacing: .08em; 
-  padding: 4px 10px; 
-  border-radius: 3px; 
+  letter-spacing: .1em; 
+  padding: 6px 14px; 
+  border-radius: 5px; 
   text-transform: uppercase; 
-  border: 1px solid;
+  border: 1.5px solid;
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 
 .diff-beginner  { 
-  background: var(--green-dim);  
+  background: linear-gradient(135deg, var(--green-dim), rgba(16,185,129,0.18));
   color: var(--healthy);  
   border-color: var(--healthy); 
 }
-.diff-beginner::before { content: '●'; margin-right: 2px; }
+.diff-beginner::before { content: '●'; margin-right: 2px; font-size: 12px; }
 
 .diff-intermediate { 
-  background: var(--amber-dim); 
+  background: linear-gradient(135deg, var(--amber-dim), rgba(245,158,11,0.18));
   color: var(--warning); 
   border-color: var(--warning); 
 }
-.diff-intermediate::before { content: '●●'; margin-right: 2px; letter-spacing: 2px; }
+.diff-intermediate::before { content: '●●'; margin-right: 2px; letter-spacing: 2px; font-size: 12px; }
 
 .diff-advanced  { 
-  background: var(--red-dim);    
+  background: linear-gradient(135deg, var(--red-dim), rgba(239,68,68,0.18));
   color: var(--critical); 
   border-color: var(--critical); 
 }
-.diff-advanced::before { content: '●●●'; margin-right: 2px; letter-spacing: 2px; }
+.diff-advanced::before { content: '●●●'; margin-right: 2px; letter-spacing: 2px; font-size: 12px; }
 
 /* Lesson ID indicator */
 .lesson-id {
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--muted);
   background: var(--panel2);
-  border: 1px solid var(--border);
-  padding: 3px 8px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
+  border: 1.5px solid var(--border);
+  padding: 5px 11px;
+  border-radius: 5px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 .lesson-card:hover .lesson-id {
   color: var(--accent);
   border-color: var(--accent);
+  background: var(--cyan-dim);
+  transform: scale(1.05);
 }
 
 /* Card title */
 .lesson-card-title { 
-  font-size: 16px; 
+  font-size: 21px; 
   font-weight: 700; 
-  margin-bottom: 8px; 
+  margin-bottom: 12px; 
   color: var(--text);
   line-height: 1.3;
+  letter-spacing: -0.4px;
 }
 
-/* Focus device - more prominent */
+/* Focus device - more prominent with icon, uses card accent */
 .lesson-card-focus { 
-  font-size: 11px; 
-  color: var(--accent); 
+  font-size: 12px; 
+  color: var(--accent, #3b82f6); 
   font-family: var(--font-mono); 
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .lesson-card-focus::before {
-  content: '▸ ';
-  color: var(--accent);
+  content: '◆';
+  color: var(--accent, #3b82f6);
+  font-size: 10px;
+}
+
+/* Visual preview area */
+.lesson-card-preview {
+  width: 100%;
+  height: 80px;
+  margin-bottom: 16px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.lesson-card-preview svg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.lesson-card:hover .lesson-card-preview {
+  border-color: var(--accent, #3b82f6);
+}
+
+.lesson-card:hover .lesson-card-preview svg {
+  opacity: 1;
 }
 
 /* Description */
 .lesson-card-desc { 
-  font-size: 13px; 
+  font-size: 13.5px; 
   color: var(--muted); 
-  line-height: 1.6; 
-  margin-bottom: 16px; 
-  min-height: 60px;
+  line-height: 1.7; 
+  margin-bottom: 20px; 
   flex: 1; /* Push footer to bottom */
 }
 
@@ -1376,82 +1631,126 @@ body {
   align-items: center; 
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 18px;
   border-top: 1px solid var(--border);
+  gap: 12px;
 }
 
 .lesson-card-topo { 
   font-size: 10px; 
   color: var(--muted); 
   font-family: var(--font-mono);
+  letter-spacing: 0.02em;
 }
 
-/* Start button - more prominent on hover */
+/* Start button - more prominent with gradient on hover, uses card accent */
 .lesson-start-btn { 
-  font-size: 12px; 
-  font-weight: 600; 
-  color: var(--accent); 
-  background: var(--cyan-dim); 
-  border: 1px solid var(--accent); 
-  padding: 6px 14px; 
-  border-radius: 4px; 
+  font-size: 13px; 
+  font-weight: 700; 
+  color: var(--accent, #3b82f6); 
+  background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
+  border: 1.5px solid var(--accent, #3b82f6); 
+  padding: 10px 20px; 
+  border-radius: 6px; 
   font-family: var(--font-mono);
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .lesson-card:hover .lesson-start-btn {
-  background: var(--accent);
-  color: var(--btn-on-accent);
-  transform: translateX(2px);
+  background: var(--accent, #3b82f6);
+  color: #ffffff;
+  transform: translateX(4px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent, #3b82f6) 45%, transparent);
 }
 .select-footnote { 
   margin-top: 48px; 
-  font-size: 11px; 
+  font-size: 12px; 
   color: var(--muted); 
-  line-height: 1.7; 
+  line-height: 1.8; 
   border-top: 1px solid var(--border); 
-  padding-top: 20px;
-  max-width: 720px;
+  padding-top: 24px;
+  text-align: center;
 }
 
 /* ─── RESPONSIVE: LESSON SELECT ─── */
-@media (max-width: 768px) {
-  #screen-select {
-    padding: 32px 16px 60px;
+@media (max-width: 1200px) {
+  .select-container {
+    grid-template-columns: 140px 1fr 140px;
+    gap: 24px;
   }
   
-  .select-hero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .side-module {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 968px) {
+  .select-container {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
   
-  .select-hero-name {
-    font-size: 18px;
-  }
-  
-  .select-tagline {
-    font-size: 13px;
-  }
-  
-  .select-loop {
-    padding: 12px 16px;
-    gap: 6px;
-  }
-  
-  .loop-step {
-    font-size: 10px;
-    padding: 3px 10px;
+  .select-side {
+    display: none;
   }
   
   .lesson-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 20px;
+  }
+  
+  .select-workflow {
+    flex-wrap: wrap;
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  #screen-select {
+    padding: 32px 20px 60px;
+  }
+  
+  #screen-select::before {
+    opacity: 0.02;
+  }
+  
+  .select-title {
+    font-size: 28px;
+  }
+  
+  .select-description {
+    font-size: 14px;
+  }
+  
+  .select-workflow {
+    padding: 16px 20px;
+    gap: 8px;
+  }
+  
+  .workflow-num {
+    width: 20px;
+    height: 20px;
+    font-size: 8px;
+  }
+  
+  .workflow-label {
+    font-size: 10px;
+  }
+  
+  .lesson-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
   
   .lesson-card {
-    padding: 20px;
+    padding: 24px;
+    min-height: auto;
+  }
+  
+  .lesson-card-title {
+    font-size: 18px;
   }
 }
 
@@ -1826,7 +2125,206 @@ body {
 .sc-option-letter { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
 .sc-reading-instruction { font-size: 12.5px; color: var(--cyan); background: var(--cyan-dim); border: 1px solid var(--accent); border-radius: 4px; padding: 12px 14px; line-height: 1.6; margin-bottom: 10px; font-family: var(--font-ui); }
 .sc-tier-badge { display: inline-block; font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 2px; background: var(--cyan-dim); color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px; }
-/* Skill completion badge - more prominent */
+/* ─── SKILL CARDS (Teach Mode) ─── */
+.skill-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+
+.skill-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-4px);
+  box-shadow: 
+    0 12px 32px rgba(0,0,0,0.16),
+    0 0 0 1px var(--accent),
+    0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Elegant top border accent */
+.skill-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.skill-card:hover::before {
+  opacity: 1;
+}
+
+/* Completion badge */
+.skill-card-done {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--healthy);
+  background: var(--green-dim);
+  border: 1.5px solid var(--healthy);
+  border-radius: 4px;
+  padding: 5px 10px;
+  letter-spacing: 0.08em;
+}
+
+/* Header with icon and panel tag */
+.skill-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.skill-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--cyan-dim);
+  border: 1.5px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.skill-card:hover .skill-icon {
+  background: var(--accent);
+  color: var(--btn-on-accent);
+  transform: scale(1.05);
+}
+
+.skill-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.skill-panel-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  background: var(--cyan-dim);
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  transition: all 0.2s;
+}
+
+.skill-card:hover .skill-panel-tag {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* Title */
+.skill-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  margin-bottom: 16px;
+}
+
+/* Description */
+.skill-card-desc {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+/* Related lessons */
+.skill-refs {
+  margin-bottom: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.skill-refs-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.skill-refs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-ref-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.skill-card:hover .skill-ref-tag {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--cyan-dim);
+}
+
+/* Footer */
+.skill-card-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.skill-practice-btn {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1.5px solid var(--accent);
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  letter-spacing: 0.02em;
+}
+
+.skill-card:hover .skill-practice-btn {
+  background: var(--accent);
+  color: var(--btn-on-accent);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Old styles for compatibility - will be phased out */
 .skill-card-done { 
   display: inline-flex;
   align-items: center;
@@ -1847,27 +2345,7 @@ body {
   font-size: 11px;
 }
 
-/* Skill references - related lessons */
-.skill-refs {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 10px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  line-height: 1.5;
-}
-.skill-refs-label {
-  display: block;
-  color: var(--muted);
-  margin-bottom: 4px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.skill-refs-list {
-  color: var(--accent);
-}
+
 .hint-box { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
 .hint-box b { color: var(--warning); }
 

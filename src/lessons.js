@@ -599,7 +599,7 @@ export const SKILLS = [
   {
     id: 'read_topology',
     title: 'Reading the Topology Map',
-    body: 'Each node circle is outlined and tinted with a health colour: green (healthy), amber (warning or degraded), red (critical), and grey (offline). A text label below the node name — WARN, DEGRADED, CRIT — duplicates the colour so health state is never conveyed by colour alone. Links between nodes change colour by latency and packet loss: grey is normal; amber appears when latency exceeds 50 ms or loss exceeds 1.5%; red and thicker when latency exceeds 200 ms or loss exceeds 5%. In Teach mode, clicking any non-external node opens the Explain panel for that device type.',
+    body: 'Nodes use color to show health: green for healthy, amber for warning, red for critical, and gray when offline. Text labels reinforce the color so nothing depends on color alone. Links between nodes change color based on latency and packet loss-gray is normal, amber appears above 50ms latency or 1.5% loss, and red indicates severe degradation above 200ms or 5% loss.',
     targetPanel: 'topology',
     lessonRefs: [
       'DDoS at the Edge',
@@ -655,7 +655,7 @@ export const SKILLS = [
   {
     id: 'read_charts',
     title: 'Reading the Chart Widgets',
-    body: 'The Overview tab shows three small sparklines — Traffic (cyan), CPU (amber), and Latency (purple) — each plotting the last 30 simulation ticks (one per second). Below them, the History chart overlays Traffic and CPU over a longer 24-point window; its labelled x-axis lets you see when a metric started moving. The current value is displayed as a live number next to each sparkline (Mbps, %, or ms). A flat line means nothing has changed; any slope is the first signal to investigate.',
+    body: 'Three sparklines on the Overview tab track Traffic, CPU, and Latency over the last 30 seconds. The History chart below overlays Traffic and CPU on a longer timeline with labeled time markers. Current values appear next to each chart. A flat line means stability; any slope signals change worth investigating.',
     targetPanel: 'charts',
     lessonRefs: [
       'DDoS at the Edge',
@@ -711,7 +711,7 @@ export const SKILLS = [
   {
     id: 'read_alerts',
     title: 'Interpreting Alerts',
-    body: 'Alerts appear in the Alerts tab, newest first. Each entry shows a timestamp, a severity badge (CRITICAL in red, WARNING in amber, INFO in blue), the affected device label, and a plain-English detail line. CRITICAL fires when a metric crosses a hard threshold — CPU above 90%, switch traffic above 700 Mbps, or GPU temperature above 88°C. WARNING fires at intermediate thresholds or when a secondary device starts to show impact from the primary fault. In Teach mode, clicking an alert row opens the Explain panel for that severity level.',
+    body: 'Alerts appear chronologically with timestamps and severity badges. Critical alerts fire when hard thresholds are crossed-CPU above 90%, switch traffic exceeding 700 Mbps, or GPU temperature above 88C. Warning alerts indicate approaching thresholds or downstream effects from another device\'s problem. The sequence and timing of alerts help identify root causes.',
     targetPanel: 'alerts',
     lessonRefs: [
       'DDoS at the Edge',
@@ -767,7 +767,7 @@ export const SKILLS = [
   {
     id: 'read_packets',
     title: 'Reading Packet Evidence',
-    body: 'The Packets tab shows the last 60 captured frames, each with timestamp, source IP, destination, protocol tag, byte length, and an Info field. Rows highlighted in red are flagged as anomalous by the simulation engine — many flagged rows in a short window directly fingerprint the active incident (e.g. repeated SYN packets from many external IPs during a DDoS, or slow-query frames during a database overload). Use the filter buttons (All / Flagged / TCP / UDP / …) to isolate the signal. In Teach mode, clicking any row opens the Explain panel for that protocol.',
+    body: 'The packet table shows captured frames with timestamps, source and destination IPs, protocols, and details. Red-highlighted rows mark anomalous traffic matching the active incident, repeated SYN packets during DDoS attacks, slow-query frames during database issues, or broadcast storms. Filter buttons help isolate the relevant evidence from baseline noise.',
     targetPanel: 'packets',
     lessonRefs: [
       'DDoS at the Edge',

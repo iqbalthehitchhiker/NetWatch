@@ -4,7 +4,7 @@
  * Owns: screen routing, modal logic, explain panel, sim bootstrap, event wiring.
  */
 
-import { LESSONS, SKILLS, DEVICE_TYPES } from './lessons.js';
+import { LESSONS, SKILLS, DEVICE_TYPES, TOPOLOGIES } from './lessons.js';
 import { EXPLAIN_CONTENT } from './explain-content.js';
 import { createInitialState, tick, findNode, pushLog } from './engine.js';
 import {
@@ -389,6 +389,136 @@ export function goToLanding() {
 
 // ─── Lesson select screen ─────────────────────────────────────────────────────
 
+// ─── Visual preview SVG generator for lesson cards ────────────────────────────
+
+function generateLessonPreviewSVG(lessonId) {
+  const svgs = {
+    ddos_edge: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- DDoS: Traffic flood visualization -->
+      <defs>
+        <linearGradient id="ddos-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--critical)" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="var(--critical)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Traffic bars increasing -->
+      <rect x="10" y="50" width="8" height="15" fill="var(--healthy)" opacity="0.6"/>
+      <rect x="25" y="45" width="8" height="20" fill="var(--healthy)" opacity="0.7"/>
+      <rect x="40" y="38" width="8" height="27" fill="var(--warning)" opacity="0.8"/>
+      <rect x="55" y="28" width="8" height="37" fill="var(--warning)"/>
+      <rect x="70" y="15" width="8" height="50" fill="var(--critical)"/>
+      <rect x="85" y="8" width="8" height="57" fill="var(--critical)"/>
+      <rect x="100" y="5" width="8" height="60" fill="var(--critical)"/>
+      <!-- Network node under attack -->
+      <circle cx="160" cy="40" r="12" fill="var(--panel2)" stroke="var(--critical)" stroke-width="2"/>
+      <text x="160" y="45" text-anchor="middle" font-family="monospace" font-size="10" fill="var(--critical)" font-weight="700">GW</text>
+      <!-- Attack arrows -->
+      <path d="M 120 20 L 148 35" stroke="var(--critical)" stroke-width="1.5" opacity="0.7"/>
+      <path d="M 120 35 L 148 38" stroke="var(--critical)" stroke-width="1.5" opacity="0.8"/>
+      <path d="M 120 50 L 148 42" stroke="var(--critical)" stroke-width="1.5"/>
+    </svg>`,
+    
+    db_slowdown: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- Database slowdown: Latency spike + CPU -->
+      <!-- Latency chart climbing -->
+      <polyline points="10,60 30,58 50,55 70,48 90,35 110,20 130,12 150,8 170,6" 
+        fill="none" stroke="var(--critical)" stroke-width="2"/>
+      <polyline points="10,60 30,58 50,55 70,48 90,35 110,20 130,12 150,8 170,6 170,65 10,65" 
+        fill="url(#db-grad)" opacity="0.3"/>
+      <defs>
+        <linearGradient id="db-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--critical)" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="var(--critical)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Database icon -->
+      <rect x="175" y="25" width="20" height="8" rx="1" fill="var(--panel2)" stroke="var(--critical)" stroke-width="1.5"/>
+      <rect x="175" y="35" width="20" height="8" rx="1" fill="var(--panel2)" stroke="var(--critical)" stroke-width="1.5"/>
+      <rect x="175" y="45" width="20" height="8" rx="1" fill="var(--panel2)" stroke="var(--warning)" stroke-width="1.5"/>
+    </svg>`,
+    
+    gpu_thermal: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- GPU thermal: Temperature gauge + GPU node -->
+      <!-- Temperature bars -->
+      <rect x="10" y="50" width="12" height="25" fill="var(--healthy)" opacity="0.6"/>
+      <rect x="28" y="45" width="12" height="30" fill="var(--healthy)" opacity="0.7"/>
+      <rect x="46" y="38" width="12" height="37" fill="var(--warning)" opacity="0.8"/>
+      <rect x="64" y="28" width="12" height="47" fill="var(--warning)"/>
+      <rect x="82" y="15" width="12" height="60" fill="var(--critical)"/>
+      <rect x="100" y="8" width="12" height="67" fill="var(--critical)"/>
+      <!-- GPU chip icon -->
+      <rect x="135" y="25" width="30" height="30" rx="2" fill="var(--panel2)" stroke="var(--critical)" stroke-width="2"/>
+      <rect x="140" y="30" width="6" height="6" fill="var(--critical)" opacity="0.6"/>
+      <rect x="149" y="30" width="6" height="6" fill="var(--critical)" opacity="0.6"/>
+      <rect x="158" y="30" width="6" height="6" fill="var(--critical)" opacity="0.6"/>
+      <rect x="140" y="39" width="6" height="6" fill="var(--warning)" opacity="0.6"/>
+      <rect x="149" y="39" width="6" height="6" fill="var(--warning)" opacity="0.6"/>
+      <rect x="158" y="39" width="6" height="6" fill="var(--warning)" opacity="0.6"/>
+      <rect x="140" y="48" width="6" height="6" fill="var(--warning)" opacity="0.4"/>
+      <rect x="149" y="48" width="6" height="6" fill="var(--warning)" opacity="0.4"/>
+      <rect x="158" y="48" width="6" height="6" fill="var(--warning)" opacity="0.4"/>
+    </svg>`,
+    
+    internal_overload: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- Internal connection flood -->
+      <!-- Gateway node -->
+      <circle cx="50" cy="40" r="14" fill="var(--panel2)" stroke="var(--critical)" stroke-width="2"/>
+      <text x="50" y="45" text-anchor="middle" font-family="monospace" font-size="10" fill="var(--critical)" font-weight="700">GW</text>
+      <!-- Internal device -->
+      <rect x="150" y="30" width="24" height="20" rx="2" fill="var(--panel2)" stroke="var(--warning)" stroke-width="1.5"/>
+      <text x="162" y="43" text-anchor="middle" font-family="monospace" font-size="8" fill="var(--warning)" font-weight="700">PC</text>
+      <!-- Connection flood lines -->
+      <path d="M 64 35 Q 107 20 150 35" stroke="var(--critical)" stroke-width="1" opacity="0.6" fill="none"/>
+      <path d="M 64 37 Q 107 25 150 37" stroke="var(--critical)" stroke-width="1" opacity="0.7" fill="none"/>
+      <path d="M 64 40 Q 107 30 150 40" stroke="var(--critical)" stroke-width="1.5" opacity="0.8" fill="none"/>
+      <path d="M 64 43 Q 107 35 150 43" stroke="var(--critical)" stroke-width="1.5" opacity="0.9" fill="none"/>
+      <path d="M 64 45 Q 107 40 150 45" stroke="var(--critical)" stroke-width="1.5" fill="none"/>
+    </svg>`,
+    
+    web_leak: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- Memory leak: Growing memory usage -->
+      <!-- Memory bar climbing -->
+      <rect x="20" y="55" width="15" height="20" fill="var(--healthy)" opacity="0.5"/>
+      <rect x="40" y="48" width="15" height="27" fill="var(--healthy)" opacity="0.6"/>
+      <rect x="60" y="40" width="15" height="35" fill="var(--warning)" opacity="0.7"/>
+      <rect x="80" y="30" width="15" height="45" fill="var(--warning)" opacity="0.8"/>
+      <rect x="100" y="18" width="15" height="57" fill="var(--critical)" opacity="0.9"/>
+      <rect x="120" y="8" width="15" height="67" fill="var(--critical)"/>
+      <!-- Server icon -->
+      <rect x="155" y="25" width="30" height="30" rx="2" fill="var(--panel2)" stroke="var(--critical)" stroke-width="2"/>
+      <line x1="158" y1="32" x2="182" y2="32" stroke="var(--critical)" stroke-width="1" opacity="0.6"/>
+      <line x1="158" y1="40" x2="182" y2="40" stroke="var(--critical)" stroke-width="1" opacity="0.6"/>
+      <line x1="158" y1="48" x2="182" y2="48" stroke="var(--critical)" stroke-width="1" opacity="0.6"/>
+    </svg>`,
+    
+    loop_storm: `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <!-- Loop/broadcast storm -->
+      <!-- Switch node -->
+      <rect x="85" y="30" width="30" height="20" rx="2" fill="var(--panel2)" stroke="var(--critical)" stroke-width="2"/>
+      <text x="100" y="43" text-anchor="middle" font-family="monospace" font-size="9" fill="var(--critical)" font-weight="700">SW</text>
+      <!-- Loop arrows creating circle -->
+      <path d="M 70 30 Q 50 15 70 10 Q 90 5 100 15" stroke="var(--critical)" stroke-width="2" fill="none" opacity="0.8" marker-end="url(#arrow)"/>
+      <path d="M 130 30 Q 150 15 130 10 Q 110 5 100 15" stroke="var(--critical)" stroke-width="2" fill="none" opacity="0.8"/>
+      <path d="M 70 50 Q 50 65 70 70 Q 90 75 100 65" stroke="var(--critical)" stroke-width="2" fill="none" opacity="0.8"/>
+      <path d="M 130 50 Q 150 65 130 70 Q 110 75 100 65" stroke="var(--critical)" stroke-width="2" fill="none" opacity="0.8" marker-end="url(#arrow2)"/>
+      <!-- Broadcast wave effect -->
+      <circle cx="100" cy="40" r="45" fill="none" stroke="var(--critical)" stroke-width="1" opacity="0.2"/>
+      <circle cx="100" cy="40" r="35" fill="none" stroke="var(--critical)" stroke-width="1" opacity="0.3"/>
+      <circle cx="100" cy="40" r="25" fill="none" stroke="var(--critical)" stroke-width="1" opacity="0.4"/>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="var(--critical)"/>
+        </marker>
+        <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="var(--critical)"/>
+        </marker>
+      </defs>
+    </svg>`,
+  };
+  
+  return svgs[lessonId] || svgs.ddos_edge;
+}
+
 function renderLessonSelect() {
   const grid = document.getElementById('lesson-grid');
   grid.innerHTML = LESSONS.map(l => `
@@ -399,9 +529,10 @@ function renderLessonSelect() {
       </div>
       <div class="lesson-card-title">${l.title}</div>
       <div class="lesson-card-focus">Focus device: ${l.focus}</div>
+      <div class="lesson-card-preview">${generateLessonPreviewSVG(l.id)}</div>
       <div class="lesson-card-desc">${l.description}</div>
       <div class="lesson-card-foot">
-        <div class="lesson-card-topo">—</div>
+        <div class="lesson-card-topo">${TOPOLOGIES[l.topology].name}</div>
         <div class="lesson-start-btn">Start Lesson →</div>
       </div>
     </div>
@@ -419,29 +550,71 @@ function renderLessonSelect() {
 
 // ─── Skill select screen (Teach mode entry) ───────────────────────────────────
 
+// Icon mapping for each skill panel type
+function getSkillIcon(targetPanel) {
+  const icons = {
+    topology: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="6" cy="17" r="3" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="18" cy="17" r="3" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="12" y1="8" x2="7.5" y2="14.5" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="12" y1="8" x2="16.5" y2="14.5" stroke="currentColor" stroke-width="1.5"/>
+    </svg>`,
+    charts: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="3,18 7,12 11,15 15,8 19,11 23,5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      <line x1="3" y1="21" x2="23" y2="21" stroke="currentColor" stroke-width="1.5"/>
+    </svg>`,
+    alerts: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="12" cy="17" r="0.5" fill="currentColor"/>
+    </svg>`,
+    packets: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="7" y1="14" x2="13" y2="14" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="7" y1="17" x2="10" y2="17" stroke="currentColor" stroke-width="1.5"/>
+    </svg>`,
+  };
+  return icons[targetPanel] || icons.topology;
+}
+
 function renderSkillSelect() {
   const grid = document.getElementById('skill-grid');
-  grid.innerHTML = SKILLS.map(s => `
-    <div class="lesson-card" style="--accent:#06B6D4" data-skill-id="${s.id}">
-      ${completedSkills.has(s.id) ? '<span class="skill-card-done">COMPLETE</span>' : ''}
-      <div class="lesson-card-title">${s.title}</div>
-      <div class="lesson-card-desc">${s.body}</div>
-      <div class="lesson-card-foot">
-        <div class="lesson-card-topo">${s.targetPanel ? 'Panel: ' + s.targetPanel : 'General'}</div>
-        <div class="lesson-start-btn">Practice →</div>
+  grid.innerHTML = SKILLS.map(s => {
+    const lessonRefTags = s.lessonRefs && s.lessonRefs.length
+      ? s.lessonRefs.map(ref => `<span class="skill-ref-tag">${ref}</span>`).join('')
+      : '';
+    
+    return `
+      <div class="skill-card" data-skill-id="${s.id}">
+        ${completedSkills.has(s.id) ? '<span class="skill-card-done">✓ COMPLETE</span>' : ''}
+        
+        <div class="skill-card-header">
+          <div class="skill-icon">${getSkillIcon(s.targetPanel)}</div>
+          <div class="skill-panel-tag">${s.targetPanel}</div>
+        </div>
+        
+        <h3 class="skill-card-title">${s.title}</h3>
+        <p class="skill-card-desc">${s.body}</p>
+        
+        ${lessonRefTags
+          ? `<div class="skill-refs">
+               <div class="skill-refs-label">Used in</div>
+               <div class="skill-refs-list">${lessonRefTags}</div>
+             </div>`
+          : ''}
+        
+        <div class="skill-card-footer">
+          <button class="skill-practice-btn">Practice →</button>
+        </div>
       </div>
-      ${s.lessonRefs && s.lessonRefs.length
-        ? `<div class="skill-refs">
-             <span class="skill-refs-label">Appears in:</span>
-             <span class="skill-refs-list">${s.lessonRefs.join(' • ')}</span>
-           </div>`
-        : ''}
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   // Delegated click — launch simulation in Teach mode, then start self-check
   grid.addEventListener('click', e => {
-    const card = e.target.closest('.lesson-card[data-skill-id]');
+    const card = e.target.closest('.skill-card[data-skill-id]');
     if (!card) return;
     const skillId = card.dataset.skillId;
     const skill   = SKILLS.find(s => s.id === skillId);

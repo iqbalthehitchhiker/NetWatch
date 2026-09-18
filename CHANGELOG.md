@@ -113,3 +113,118 @@ NetWatch follows [Semantic Versioning](https://semver.org/):
 
 Current: **2.0.0** (two-tier architecture)  
 Next: **2.1.0** (UI/UX enhancements complete)
+
+
+### Enhanced - Lesson Selection Page Redesign (2024)
+
+**Design Philosophy:** Centered, hierarchical introduction with lesson cards as the visual focus, framed by subtle ambient monitoring elements.
+
+#### Layout Transformation
+- Three-column grid: side monitoring elements (180px) + centered content (fluid) + monitoring feed (180px)
+- Centered introduction section with clear hierarchy (eyebrow → title → description → workflow)
+- Visual workflow pipeline with numbered steps replacing simple text buttons
+- Responsive: side elements hide on narrow screens, grid adapts to single column
+
+#### Enhanced Lesson Cards
+- Increased card height (380px) for better presence
+- Added scenario-specific visual previews (80px SVG graphics per lesson)
+- Larger title typography (21px) with improved hierarchy
+- Enhanced hover effects: 6px lift + stronger glow + color transitions
+- Display actual topology name in footer (replaced placeholder)
+- Visual previews use semantic monitoring colors (red/amber/green/purple)
+
+#### Visual Previews by Scenario
+- **DDoS at the Edge:** Traffic bars + gateway node under attack
+- **Database Slowdown:** Latency spike chart + database icon
+- **GPU Thermal:** Temperature bars + GPU chip icon
+- **Internal Overload:** Connection flood lines
+- **Memory Leak:** Growing memory bars + server icon
+- **Loop Storm:** Broadcast arrows + switch with wave effects
+
+#### Side Monitoring Elements
+- **Left:** Network status display with device/link/alert counters + miniature topology SVG
+- **Right:** Monitoring feed with metric sparklines (latency/CPU/packet loss) + packet feed
+- Sticky positioning for persistent context
+- Muted colors — never compete with lesson cards
+- Ambient, non-functional (placeholder values)
+
+#### Color Enhancement
+- More semantic use of monitoring palette throughout
+- Cyan = active/telemetry, Green = healthy, Amber = warning, Red = critical, Purple = packets
+- Color-coded difficulty badges with dot indicators (● ●● ●●●)
+- Enhanced visual contrast for better hierarchy
+
+#### Files Modified
+- `index.html` — Restructured lesson select HTML with three-column grid
+- `public/styles.css` — Added ~400 lines of layout/card/side element styles
+- `src/app.js` — Added `generateLessonPreviewSVG()` function, enhanced `renderLessonSelect()`
+- Imported `TOPOLOGIES` from lessons.js for displaying topology names
+
+#### Documentation Added
+- `LESSON_SELECT_REDESIGN.md` — Complete redesign documentation with before/after comparisons
+
+
+### Enhanced - Skill/Practice Card Redesign (2024)
+
+**Design Philosophy:** Elegant, refined cards that balance the lesson cards with clearer writing and sophisticated visual design.
+
+#### Content Improvements
+- **Rewritten descriptions:** More natural, conversational language; removed verbose AI-generated style
+- **Concise explanations:** Focused on essential information without over-explaining
+- **Better readability:** Shorter sentences, clearer structure, improved flow
+
+#### Visual Redesign
+- **Icon-based headers:** Each skill type (topology/charts/alerts/packets) has a custom SVG icon
+- **Panel tags:** Prominent, colored badges showing which panel the skill targets
+- **Elegant spacing:** More generous padding (32px) and improved vertical rhythm
+- **Refined hover states:** Subtle 4px lift with sophisticated shadow and glow
+- **Completion badges:** Repositioned to top-right corner with checkmark indicator
+
+#### Card Structure
+```
+┌─ [accent line] ─────────────────────────────┐
+│                        [✓ COMPLETE] (if done)│
+│  [Icon]  [Panel Tag]                        │
+│                                              │
+│  Skill Title                                 │
+│                                              │
+│  Clear, concise description text...          │
+│                                              │
+│  ─────────────────────────────────────────  │
+│  Used in                                     │
+│  [Lesson] [Lesson] [Lesson]                 │
+│  ─────────────────────────────────────────  │
+│  [Practice →]                                │
+└──────────────────────────────────────────────┘
+```
+
+#### Typography & Color
+- Icon and panel tag use cyan accent for consistency
+- Title: 20px, same weight as lesson cards
+- Description: 13.5px with 1.8 line-height for readability
+- Related lesson tags: Individual pills instead of bullet list
+- Monospace fonts for technical elements (panel tags, buttons)
+
+#### Content Changes (Condensed Writing)
+
+**Before (Topology):**
+"Each node circle is outlined and tinted with a health colour: green (healthy), amber (warning or degraded), red (critical), and grey (offline). A text label below the node name — WARN, DEGRADED, CRIT — duplicates the colour so health state is never conveyed by colour alone. Links between nodes change colour by latency and packet loss: grey is normal; amber appears when latency exceeds 50 ms or loss exceeds 1.5%; red and thicker when latency exceeds 200 ms or loss exceeds 5%. In Teach mode, clicking any non-external node opens the Explain panel for that device type."
+
+**After (Topology):**
+"Nodes use color to show health: green for healthy, amber for warning, red for critical, and gray when offline. Text labels reinforce the color so nothing depends on color alone. Links between nodes change color based on latency and packet loss—gray is normal, amber appears above 50ms latency or 1.5% loss, and red indicates severe degradation above 200ms or 5% loss."
+
+Similar condensation applied to all four skill descriptions (Charts, Alerts, Packets).
+
+#### Files Modified
+- `src/lessons.js` — Rewrote all SKILLS body text (4 skills × ~60% shorter)
+- `src/app.js` — Added `getSkillIcon()` function, redesigned `renderSkillSelect()` with new card structure
+- `public/styles.css` — Added ~200 lines of new skill card styles with icon/header/footer components
+
+#### Design Goals Achieved
+✓ More natural, human writing style  
+✓ Clearer information hierarchy  
+✓ Elegant visual design matching lesson cards  
+✓ Icon-based quick identification  
+✓ Better use of space and typography  
+✓ Refined hover interactions  
+✓ Professional, classy aesthetic  

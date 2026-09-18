@@ -251,13 +251,13 @@
             <div class="lp-fork-branch lp-fork-teach">
               <span class="lp-fork-badge lp-fork-badge-teach">Teach</span>
               <span class="lp-fork-label">Understand</span>
-              <p class="lp-fork-desc">Explanations are available. Learn what each signal means. Self-check confirms comprehension — no scoring.</p>
+              <p class="lp-fork-desc">Explanations are available. Learn what each signal means. Self-check confirms comprehension, no scoring.</p>
             </div>
             <div class="lp-fork-divider" aria-hidden="true"></div>
             <div class="lp-fork-branch lp-fork-quiz">
               <span class="lp-fork-badge lp-fork-badge-quiz">Quiz</span>
               <span class="lp-fork-label">Diagnose</span>
-              <p class="lp-fork-desc">Explanations hidden. Identify the root cause yourself and submit — scored, attempt-limited.</p>
+              <p class="lp-fork-desc">Explanations hidden. Identify the root cause yourself and submit, scored, attempt-limited.</p>
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@
           </div>
           <div class="lp-evidence-text">
             <h3 class="lp-evidence-label">Packets</h3>
-            <p class="lp-evidence-desc">Inspect simulated captures. Flagged rows highlight anomalous traffic — protocol, direction, and info fields are all clues.</p>
+            <p class="lp-evidence-desc">Inspect simulated captures. Flagged rows highlight anomalous traffic, protocol, direction, and info fields are all clues.</p>
           </div>
         </div>
         <div class="lp-evidence-item" role="listitem">
@@ -340,7 +340,7 @@
           </div>
           <div class="lp-evidence-text">
             <h3 class="lp-evidence-label">Logs</h3>
-            <p class="lp-evidence-desc">Timestamped device events let you reconstruct what happened in what order — and where it started.</p>
+            <p class="lp-evidence-desc">Timestamped device events let you reconstruct what happened in what order and where it started.</p>
           </div>
         </div>
       </div>
@@ -362,8 +362,8 @@
           <ul class="lp-mode-list" role="list">
             <li>Click any device, metric, alert, or packet row to open a plain-language explanation</li>
             <li>Understand what each signal means and what it indicates about network health</li>
-            <li>Self-check questions confirm comprehension — ungraded, no attempt limit</li>
-            <li>No root-cause diagnosis required — the payoff is understanding</li>
+            <li>Self-check questions confirm comprehension, ungraded, no attempt limit</li>
+            <li>No root-cause diagnosis required, the payoff is understanding</li>
             <li>No login needed</li>
           </ul>
           <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Explore the tool →</button>
@@ -381,10 +381,10 @@
           <h3 class="lp-mode-title" id="quiz-heading">Diagnose without the training wheels.</h3>
           <p class="lp-mode-tagline">Explanations hidden. Investigate the evidence, identify the root cause.</p>
           <ul class="lp-mode-list" role="list">
-            <li>Explanations are hidden — no Explain Panel, no guided hints</li>
+            <li>Explanations are hidden, no Explain Panel, no guided hints</li>
             <li>Investigate topology, metrics, alerts, packets, and logs yourself</li>
             <li>Submit a root-cause diagnosis from the multiple-choice options</li>
-            <li>Attempt-limited per scenario — results are recorded server-side</li>
+            <li>Attempt-limited per scenario, results are recorded server-side</li>
             <li>Requires student login</li>
           </ul>
           <button class="lp-mode-cta lp-mode-cta-quiz" onclick="proceedToLessons()">Start a scenario →</button>
@@ -448,7 +448,7 @@
   <!-- ── FOOTER ── -->
   <footer class="lp-footer" role="contentinfo">
     <div class="lp-footer-inner">
-      <span class="lp-footer-brand">NetWatch</span>
+      <span class="lp-footer-brand">NetWatch by IQBAL</span>
       <span class="lp-footer-note">All topologies and packet data are simulated for educational purposes. Nothing here touches a real network.</span>
       <button class="lp-footer-admin btn btn-ghost" onclick="openAdminReset()">Admin Reset</button>
     </div>
@@ -458,33 +458,137 @@
 
 <!-- ══════════════ LESSON SELECT ══════════════ -->
 <div id="screen-select" class="hidden">
-  <div class="select-hero" style="justify-content:space-between;align-items:flex-start;">
-    <div class="select-hero-title">
-      <div class="select-hero-name">Select a scenario</div>
-      <div class="select-hero-sub">Network Diagnosis Trainer</div>
+  <div class="select-container">
+    <!-- Left monitoring element -->
+    <div class="select-side select-side-left">
+      <div class="side-module">
+        <div class="side-module-title">NETWORK STATUS</div>
+        <div class="side-status-grid">
+          <div class="side-status-item">
+            <div class="side-status-dot" style="background:var(--healthy)"></div>
+            <span class="side-status-label">Devices</span>
+            <span class="side-status-val">—</span>
+          </div>
+          <div class="side-status-item">
+            <div class="side-status-dot" style="background:var(--accent)"></div>
+            <span class="side-status-label">Links</span>
+            <span class="side-status-val">—</span>
+          </div>
+          <div class="side-status-item">
+            <div class="side-status-dot" style="background:var(--muted)"></div>
+            <span class="side-status-label">Alerts</span>
+            <span class="side-status-val">0</span>
+          </div>
+        </div>
+        <svg class="side-topo" viewBox="0 0 120 100" aria-hidden="true">
+          <line x1="60" y1="20" x2="30" y2="50" stroke="var(--border)" stroke-width="1"/>
+          <line x1="60" y1="20" x2="90" y2="50" stroke="var(--border)" stroke-width="1"/>
+          <line x1="30" y1="50" x2="60" y2="80" stroke="var(--border)" stroke-width="1"/>
+          <line x1="90" y1="50" x2="60" y2="80" stroke="var(--border)" stroke-width="1"/>
+          <circle cx="60" cy="20" r="6" fill="var(--panel)" stroke="var(--accent)" stroke-width="1.5"/>
+          <circle cx="30" cy="50" r="5" fill="var(--panel)" stroke="var(--healthy)" stroke-width="1.5"/>
+          <circle cx="90" cy="50" r="5" fill="var(--panel)" stroke="var(--healthy)" stroke-width="1.5"/>
+          <circle cx="60" cy="80" r="5" fill="var(--panel)" stroke="var(--healthy)" stroke-width="1.5"/>
+        </svg>
+      </div>
     </div>
-    <button class="btn btn-ghost" onclick="goToLanding()" style="font-size:11px;margin-top:4px;" aria-label="Return to home screen">← Home</button>
-  </div>
-  <div class="select-tagline">
-    NetWatch teaches you to <b>monitor, analyze and diagnose</b> a network, not to build or configure one.
-    Every lesson loads a predefined network, plays out a scripted incident, and asks you to find the root
-    cause using only the evidence a monitoring engineer would actually have: telemetry, topology state and packet captures.
-  </div>
-  <div class="select-loop">
-    <span class="loop-step">Select scenario</span><span class="loop-arrow">→</span>
-    <span class="loop-step">Observe network</span><span class="loop-arrow">→</span>
-    <span class="loop-step">Detect anomaly</span><span class="loop-arrow">→</span>
-    <span class="loop-step">Investigate evidence</span><span class="loop-arrow">→</span>
-    <span class="loop-step">Diagnose</span>
-  </div>
 
-  <div class="lesson-grid" id="lesson-grid"></div>
-  <div class="lesson-grid" id="skill-grid" style="display:none"></div>
+    <!-- Center content -->
+    <div class="select-center">
+      <button class="select-home-link" onclick="goToLanding()" aria-label="Return to home screen">← Home</button>
+      
+      <div class="select-intro">
+        <div class="select-eyebrow">SELECT A SCENARIO</div>
+        <h1 class="select-title">Network Diagnosis Trainer</h1>
+        <p class="select-description">
+          NetWatch teaches you to <strong>monitor, analyze and diagnose</strong> a network, not to build or configure one.
+          Every lesson loads a predefined network, plays out a scripted incident, and asks you to find the root
+          cause using only the evidence a monitoring engineer would actually have: telemetry, topology state and packet captures.
+        </p>
+      </div>
 
-  <div class="select-footnote">
-    All topologies below are predefined — NetWatch is a monitoring simulator, not a topology editor. All telemetry
-    and packet data are simulated/mock for educational purposes; nothing here touches a real network.
-    <br><button class="btn btn-ghost" onclick="openAdminReset()" style="font-size:11px;margin-top:10px;">Admin Reset</button>
+      <div class="select-workflow">
+        <div class="workflow-step">
+          <div class="workflow-num">01</div>
+          <div class="workflow-label">Select</div>
+        </div>
+        <div class="workflow-arrow">→</div>
+        <div class="workflow-step">
+          <div class="workflow-num">02</div>
+          <div class="workflow-label">Observe</div>
+        </div>
+        <div class="workflow-arrow">→</div>
+        <div class="workflow-step">
+          <div class="workflow-num">03</div>
+          <div class="workflow-label">Detect</div>
+        </div>
+        <div class="workflow-arrow">→</div>
+        <div class="workflow-step">
+          <div class="workflow-num">04</div>
+          <div class="workflow-label">Investigate</div>
+        </div>
+        <div class="workflow-arrow">→</div>
+        <div class="workflow-step">
+          <div class="workflow-num">05</div>
+          <div class="workflow-label">Diagnose</div>
+        </div>
+      </div>
+
+      <div class="select-lessons-title">Available Scenarios</div>
+      <div class="lesson-grid" id="lesson-grid"></div>
+      <div class="lesson-grid" id="skill-grid" style="display:none"></div>
+
+      <div class="select-footnote">
+        All topologies below are predefined — NetWatch is a monitoring simulator, not a topology editor. All telemetry
+        and packet data are simulated/mock for educational purposes; nothing here touches a real network.
+        <br><button class="btn btn-ghost" onclick="openAdminReset()" style="font-size:11px;margin-top:10px;">Admin Reset</button>
+      </div>
+    </div>
+
+    <!-- Right monitoring element -->
+    <div class="select-side select-side-right">
+      <div class="side-module">
+        <div class="side-module-title">MONITORING FEED</div>
+        <div class="side-metric-row">
+          <span class="side-metric-label">Latency</span>
+          <span class="side-metric-val" style="color:var(--accent)">—</span>
+        </div>
+        <div class="side-metric-sparkline">
+          <svg viewBox="0 0 80 20" class="side-spark">
+            <polyline points="0,15 10,14 20,13 30,12 40,10 50,11 60,12 70,13 80,14" 
+              fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="side-metric-row">
+          <span class="side-metric-label">CPU</span>
+          <span class="side-metric-val" style="color:var(--warning)">—</span>
+        </div>
+        <div class="side-metric-sparkline">
+          <svg viewBox="0 0 80 20" class="side-spark">
+            <polyline points="0,16 10,15 20,14 30,15 40,14 50,13 60,14 70,15 80,16" 
+              fill="none" stroke="var(--warning)" stroke-width="1" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="side-metric-row">
+          <span class="side-metric-label">Pkt Loss</span>
+          <span class="side-metric-val" style="color:var(--healthy)">—</span>
+        </div>
+        <div class="side-packet-feed">
+          <div class="side-packet-line" style="opacity:0.3">
+            <span class="side-pkt-time">00:00</span>
+            <span class="side-pkt-proto">TCP</span>
+          </div>
+          <div class="side-packet-line" style="opacity:0.4">
+            <span class="side-pkt-time">00:01</span>
+            <span class="side-pkt-proto">UDP</span>
+          </div>
+          <div class="side-packet-line" style="opacity:0.5">
+            <span class="side-pkt-time">00:02</span>
+            <span class="side-pkt-proto">ICMP</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
