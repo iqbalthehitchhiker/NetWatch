@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NetWatch — Network Monitoring Trainer</title>
+<script>
+  // Apply theme BEFORE first paint to avoid flash of wrong theme.
+  // Default: light. Respect localStorage preference from prior visit.
+  (function() {
+    var saved = typeof localStorage !== 'undefined' && localStorage.getItem('nw_theme');
+    var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+    document.documentElement.className = 'theme-' + theme;
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,23 +23,58 @@
 
 <body>
 
+<!-- ══════════════ GLOBAL PERSISTENT NAV ══════════════
+     Always visible. Content slots toggled by updateGlobalNav() in app.js.
+     Uses existing handleLogoClick(), handleBackNav(), toggleTheme() — no new logic.
+  ══════════════════════════════════════════════════════ -->
+<nav id="global-nav" role="navigation" aria-label="NetWatch navigation">
+  <div class="gnav-inner">
+
+    <!-- LEFT: logo (always) -->
+    <button class="gnav-logo" onclick="handleLogoClick()" aria-label="NetWatch home">
+      <div class="gnav-logo-dot" aria-hidden="true"><div class="pulse-dot"></div></div>
+      <span class="gnav-logo-name">NetWatch</span>
+    </button>
+
+    <!-- MIDDLE: sim-only context (mode badge + score slot) -->
+    <div class="gnav-sim-ctx hidden" id="gnav-sim-ctx" aria-live="polite">
+      <!-- Mode indicator: Teach Mode / Quiz Mode -->
+      <span class="gnav-mode-badge gnav-mode-teach hidden" id="gnav-mode-teach"
+            aria-label="Current mode: Teach Mode">Teach Mode</span>
+      <span class="gnav-mode-badge gnav-mode-quiz  hidden" id="gnav-mode-quiz"
+            aria-label="Current mode: Quiz Mode">Quiz Mode</span>
+      <!-- Score slot: one of these is shown depending on mode -->
+      <span class="gnav-score hidden" id="gnav-score-teach"
+            aria-label="Self-check tally">—</span>
+      <span class="gnav-score gnav-score-quiz hidden" id="gnav-score-quiz"
+            aria-label="Quiz attempt score">—</span>
+    </div>
+
+    <!-- RIGHT: theme toggle (always) -->
+    <div class="gnav-right">
+      <button class="theme-toggle" onclick="toggleTheme()"
+              id="theme-toggle-global" aria-label="Toggle light/dark theme">
+        <span class="theme-toggle-icon" aria-hidden="true"></span>
+        <span id="theme-label-global">Dark</span>
+      </button>
+    </div>
+
+  </div>
+</nav>
+
 <!-- ══════════════ LANDING / INTRO ══════════════ -->
 <div id="screen-landing">
 
-  <!-- ── NAV ── -->
-  <header class="lp-nav" role="banner">
-    <div class="lp-nav-inner">
-      <div class="lp-nav-brand">
-        <div class="lp-nav-dot" aria-hidden="true"><div class="pulse-dot"></div></div>
-        <span class="lp-nav-name">NetWatch</span>
-      </div>
+  <!-- ── NAV ── (landing-page section links only — logo/theme are in #global-nav) -->
+  <div class="lp-section-nav">
+    <div class="lp-section-nav-inner">
       <nav class="lp-nav-links" aria-label="Page sections">
         <a href="#lp-loop"     class="lp-nav-link">How it works</a>
         <a href="#lp-evidence" class="lp-nav-link">Evidence</a>
         <a href="#lp-modes"    class="lp-nav-link">Modes</a>
       </nav>
     </div>
-  </header>
+  </div>
 
   <!-- ── HERO ── -->
   <section class="lp-hero" aria-labelledby="hero-headline">
@@ -415,17 +459,14 @@
 <!-- ══════════════ LESSON SELECT ══════════════ -->
 <div id="screen-select" class="hidden">
   <div class="select-hero" style="justify-content:space-between;align-items:flex-start;">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div class="logo-icon"><div class="pulse-dot"></div></div>
-      <div>
-        <div class="select-hero-name">NetWatch</div>
-        <div class="select-hero-sub">Network Monitoring Trainer</div>
-      </div>
+    <div class="select-hero-title">
+      <div class="select-hero-name">Select a scenario</div>
+      <div class="select-hero-sub">Network Diagnosis Trainer</div>
     </div>
     <button class="btn btn-ghost" onclick="goToLanding()" style="font-size:11px;margin-top:4px;" aria-label="Return to home screen">← Home</button>
   </div>
   <div class="select-tagline">
-    NetWatch teaches you to <b>monitor, analyze and diagnose</b> a network — not to build or configure one.
+    NetWatch teaches you to <b>monitor, analyze and diagnose</b> a network, not to build or configure one.
     Every lesson loads a predefined network, plays out a scripted incident, and asks you to find the root
     cause using only the evidence a monitoring engineer would actually have: telemetry, topology state and packet captures.
   </div>
@@ -450,29 +491,36 @@
 <!-- ══════════════ MAIN APP ══════════════ -->
 <div id="app">
   <div class="topbar">
-    <div class="topbar-logo" onclick="goToLanding()" style="cursor:pointer" title="Return to home">
-      <div class="topbar-logo-icon"><div class="pulse-dot" style="width:6px;height:6px;"></div></div>
-      <span class="topbar-name">NetWatch</span>
-    </div>
-    <div class="topbar-div"></div>
+    <!-- Sim-specific: mode badge, lesson name, spacer, clock, Back -->
     <div id="topbar-mode-badge" class="mode-badge hidden"></div>
-    <div id="topbar-welcome" class="topbar-lesson-title hidden"></div>
     <div class="topbar-div" id="topbar-div-mode" style="display:none"></div>
+    <div id="topbar-welcome" class="topbar-lesson-title hidden"></div>
     <div class="topbar-lesson-title">Lesson: <b id="topbar-lesson-name">—</b></div>
     <div class="topbar-spacer"></div>
     <div class="topbar-right">
+      <!-- Self-check minimized pill — inline beside clock when a reading-tier question is active -->
+      <div id="sc-minimized-pill" class="sc-minimized-pill hidden" role="status" aria-live="polite">
+        <span id="sc-minimized-label" class="sc-minimized-label">Self-Check · Click target to answer</span>
+        <button class="sc-minimized-resume" onclick="reopenSelfCheck()" aria-label="Resume self-check">Resume ↑</button>
+        <button class="sc-minimized-discard" onclick="skipSelfCheck()" aria-label="Discard self-check">Discard</button>
+      </div>
       <div class="topbar-time font-mono" id="clock">00:00:00</div>
-      <button class="btn btn-ghost" onclick="exitSimulation()">← Back</button>
+      <button class="btn btn-ghost" onclick="handleBackNav()">← Back</button>
     </div>
   </div>
 
   <div id="lesson-bar">
     <div class="lb-run-badge" id="lb-run-badge"><div class="lb-run-dot"></div><span id="lb-run-text">Sim Stopped</span></div>
     <div class="lb-objective"><b>Objective:</b> <span id="lb-objective-text">—</span></div>
-    <button class="btn btn-primary" id="btn-start-sim" onclick="startSimulation()">▶ Start Simulation</button>
-    <button class="btn" id="btn-reset-sim" onclick="resetSimulation()">↺ Reset</button>
-    <button class="btn" onclick="openHint()">💡 Hint</button>
-    <button class="btn btn-primary" id="btn-diagnose" onclick="openDiagnosis()">🩺 Diagnose</button>
+    <!-- Right-aligned control cluster -->
+    <div class="lb-controls">
+      <button class="btn btn-primary" id="btn-start-sim" onclick="startSimulation()">▶ Start Simulation</button>
+      <button class="btn" id="btn-reset-sim" onclick="resetSimulation()">↺ Reset</button>
+      <button class="btn" onclick="openHint()">💡 Hint</button>
+      <div id="sc-tally" class="sc-tally hidden" aria-live="polite" aria-label="Self-check score tally"></div>
+      <button id="btn-sc-resume" class="lb-resume hidden" onclick="reopenSelfCheck()" title="Resume in-progress self-check">↩ Resume</button>
+      <button class="btn btn-primary" id="btn-diagnose" onclick="openDiagnosis()">🩺 Diagnose</button>
+    </div>
   </div>
 
   <div id="alert-banner" class="hidden">
@@ -650,11 +698,12 @@
 <button class="settings-toggle" onclick="toggleDrawer()" title="Manual Simulation Controls (Sandbox)">⚙</button>
 
 <div class="settings-drawer" id="settings-drawer">
-  <div>
+  <div class="drawer-header">
     <div class="drawer-title">Sandbox Controls</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
-      Optional manual overrides on top of the running lesson script. Everything here stays simulated — no real connections are made.
-    </div>
+    <button class="drawer-close" onclick="toggleDrawer()" aria-label="Close sandbox controls">✕</button>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+    Optional manual overrides on top of the running lesson script. Everything here stays simulated — no real connections are made.
   </div>
   <div class="drawer-row">
     <div class="drawer-label">Focus Device Load Override (%) <span id="d-override-val" style="font-family:var(--font-mono);color:var(--cyan)">0</span></div>
@@ -695,12 +744,7 @@
   </div>
 </div>
 
-<!-- Self-Check minimized pill — shown when modal is hidden during a reading-tier question -->
-<div id="sc-minimized-pill" class="sc-minimized-pill hidden" role="status" aria-live="polite">
-  <span id="sc-minimized-label" class="sc-minimized-label">Self-Check · Click target to answer</span>
-  <button class="sc-minimized-resume" onclick="reopenSelfCheck()" aria-label="Resume self-check">Resume ↑</button>
-  <button class="sc-minimized-discard" onclick="skipSelfCheck()" aria-label="Discard self-check">Discard</button>
-</div>
+<!-- Self-Check minimized pill — now lives inside .topbar-right (see above) -->
 
 <!-- Hint Modal -->
 <div class="modal-overlay hidden" id="modal-hint">
@@ -736,6 +780,18 @@
     <div class="modal-title" id="dd-title">Device</div>
     <div class="modal-sub" id="dd-sub">—</div>
     <div id="dd-rows"></div>
+  </div>
+</div>
+
+<!-- Exit Confirmation Modal -->
+<div id="modal-exit-confirm" class="modal-overlay hidden" role="alertdialog" aria-modal="true" aria-labelledby="exit-confirm-title">
+  <div class="modal-card" style="max-width:400px">
+    <div class="modal-title" id="exit-confirm-title">Leave this simulation?</div>
+    <div class="modal-sub" id="exit-confirm-body">Your progress in this simulation will not be saved. Any unsaved diagnosis or notes will be lost.</div>
+    <div class="exit-confirm-actions">
+      <button class="btn btn-primary" id="exit-confirm-ok" onclick="confirmExit()">Leave</button>
+      <button class="btn btn-ghost"                        onclick="cancelExit()">Stay</button>
+    </div>
   </div>
 </div>
 

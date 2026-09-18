@@ -7,33 +7,69 @@
 import { DEVICE_TYPES } from '../lessons.js';
 
 export const HEALTH_COLOR = {
-  healthy:  '#4a9e6e',
-  warning:  '#c8893a',
-  degraded: '#c8893a',
-  critical: '#c85a4a',
-  offline:  '#8891a0',
+  healthy:  '#10b981',  // Modern emerald
+  warning:  '#f59e0b',  // Vibrant amber
+  degraded: '#f59e0b',  // Same as warning
+  critical: '#ef4444',  // True red
+  offline:  '#9ca3af',  // Muted gray
 };
 
 export function renderStatBar(state) {
   const nodes   = state.topo.nodes.filter(n => !n.isExternal);
   const healthy = nodes.filter(n => n.health === 'healthy').length;
 
+  // Devices card
+  const devicesCard = document.querySelector('#stat-bar .sc[data-metric-key="devices_healthy"]');
   document.getElementById('card-devices').textContent     = `${healthy}/${nodes.length}`;
   document.getElementById('card-devices-sub').textContent = healthy === nodes.length ? 'All nominal' : 'Investigate degraded devices';
+  
+  // Add Linux-style priority class
+  if (devicesCard) {
+    devicesCard.classList.remove('stat-critical', 'stat-warning', 'stat-healthy');
+    if (healthy < nodes.length / 2) devicesCard.classList.add('stat-critical');
+    else if (healthy < nodes.length) devicesCard.classList.add('stat-warning');
+    else devicesCard.classList.add('stat-healthy');
+  }
 
+  // Alerts card
+  const alertsCard = document.querySelector('#stat-bar .sc[data-metric-key="alerts"]');
   const crit = state.alerts.filter(a => a.level === 'critical').length;
   const warn = state.alerts.filter(a => a.level === 'warning').length;
   document.getElementById('card-alerts').textContent    = state.alerts.length;
   document.getElementById('alert-sev-label').textContent = state.alerts.length ? `${crit} Crit / ${warn} Warn` : 'None';
+  
+  if (alertsCard) {
+    alertsCard.classList.remove('stat-critical', 'stat-warning', 'stat-healthy');
+    if (crit > 0) alertsCard.classList.add('stat-critical');
+    else if (warn > 0) alertsCard.classList.add('stat-warning');
+  }
 
+  // Latency card
+  const latencyCard = document.querySelector('#stat-bar .sc[data-metric-key="latency_avg"]');
   const avgLat = state.topo.links.reduce((a, l) => a + l.cur.latency, 0) / state.topo.links.length;
   document.getElementById('card-latency').textContent  = `${avgLat.toFixed(0)} ms`;
   document.getElementById('latency-trend').textContent = avgLat > 100 ? 'Elevated' : 'Stable';
+  
+  if (latencyCard) {
+    latencyCard.classList.remove('stat-critical', 'stat-warning', 'stat-healthy');
+    if (avgLat > 200) latencyCard.classList.add('stat-critical');
+    else if (avgLat > 100) latencyCard.classList.add('stat-warning');
+  }
 
+  // CPU card
+  const cpuCard = document.querySelector('#stat-bar .sc[data-metric-key="cpu_avg"]');
   const avgCpu = state.series.cpu.length ? state.series.cpu[state.series.cpu.length - 1] : 0;
   document.getElementById('card-cpu').textContent  = `${avgCpu.toFixed(0)}%`;
   document.getElementById('cpu-trend').textContent = avgCpu > 70 ? 'High' : 'Stable';
+  
+  if (cpuCard) {
+    cpuCard.classList.remove('stat-critical', 'stat-warning', 'stat-healthy');
+    if (avgCpu > 85) cpuCard.classList.add('stat-critical');
+    else if (avgCpu > 70) cpuCard.classList.add('stat-warning');
+  }
 
+  // Packet loss card
+  const pktlossCard = document.querySelector('#stat-bar .sc[data-metric-key="pktloss"]');
   const avgLoss = state.topo.links.reduce((a, l) => a + l.cur.loss, 0) / state.topo.links.length;
   const lossEl  = document.getElementById('card-pktloss');
   lossEl.textContent  = `${avgLoss.toFixed(2)}%`;
@@ -41,6 +77,12 @@ export function renderStatBar(state) {
   const lossTrend = document.getElementById('pktloss-trend');
   lossTrend.textContent = avgLoss > 3 ? 'Above SLA' : 'Within SLA';
   lossTrend.style.color = avgLoss > 3 ? 'var(--red)' : 'var(--green)';
+  
+  if (pktlossCard) {
+    pktlossCard.classList.remove('stat-critical', 'stat-warning', 'stat-healthy');
+    if (avgLoss > 5) pktlossCard.classList.add('stat-critical');
+    else if (avgLoss > 3) pktlossCard.classList.add('stat-warning');
+  }
 
   const m = Math.floor(state.elapsed / 60), s = state.elapsed % 60;
   document.getElementById('card-simtime').textContent          = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;

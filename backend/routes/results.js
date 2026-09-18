@@ -8,7 +8,7 @@
 
 import { Router } from 'express';
 import { requireStudent, requireInstructor } from '../middleware/auth.js';
-import { insertResult, getResults, getAllResults } from '../db.js';
+import { insertResult, getResults, getAllResults, getBestScore } from '../db.js';
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.get('/all', requireInstructor, (_req, res) => {
 });
 
 router.post('/', requireStudent, (req, res) => {
-  const { lessonId, outcome } = req.body || {};
+  const { lessonId, outcome, score, hints_used, wrong_answers } = req.body || {};
   const npm = req.user.sub;
 
   if (!lessonId) {
@@ -29,8 +29,14 @@ router.post('/', requireStudent, (req, res) => {
     return res.status(400).json({ error: 'outcome must be "correct" or "incorrect"' });
   }
 
-  const { id, recordedAt } = insertResult(npm, lessonId, outcome);
-  return res.status(201).json({ id, recordedAt });
+  // Validate optional scoring fields — default to 0 if absent/invalid
+  const safeScore        = (Number.isInteger(score)        && score        >= 0) ? score        : 0;
+  const safeHints        = (Number.isInteger(hints_used)   && hints_used   >= 0) ? hints_used   : 0;
+  const safeWrong        = (Number.isInteger(wrong_answers) && wrong_answers >= 0) ? wrong_answers : 0;
+
+  const { id, recordedAt } = insertResult(npm, lessonId, outcome, safeScore, safeHints, safeWrong);
+  const bestScore = getBestScore(npm, lessonId);
+  return res.status(201).json({ id, recordedAt, score: safeScore, bestScore });
 });
 
 router.get('/', requireStudent, (req, res) => {
@@ -45,8 +51,9 @@ router.get('/', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'You may only view your own results' });
   }
 
-  const results = getResults(studentId, lessonId);
-  return res.json({ results });
+  const results   = getResults(studentId, lessonId);
+  const bestScore = getBestScore(studentId, lessonId);
+  return res.json({ results, bestScore });
 });
 
 export default router;

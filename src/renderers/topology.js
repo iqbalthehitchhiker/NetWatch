@@ -65,10 +65,10 @@ export function renderTopologyColors(state) {
   state.topo.links.forEach(link => {
     const el = document.getElementById(`link-${link.a}-${link.b}`);
     if (!el) return;
-    let color = '#363c4a', width = 1.5;
-    if (link.cur.loss > 5 || link.cur.latency > 200)        { color = '#c85a4a'; width = 3; }
-    else if (link.cur.loss > 1.5 || link.cur.latency > 100) { color = '#c8893a'; width = 2.5; }
-    else if (link.cur.latency > 50)                          { color = '#c8893a'; width = 2; }
+    let color = '#374151', width = 1.5;  // Default border color
+    if (link.cur.loss > 5 || link.cur.latency > 200)        { color = '#ef4444'; width = 3; }    // Critical - red
+    else if (link.cur.loss > 1.5 || link.cur.latency > 100) { color = '#f59e0b'; width = 2.5; }  // Warning - amber
+    else if (link.cur.latency > 50)                          { color = '#f59e0b'; width = 2; }    // Warning - amber
     el.setAttribute('stroke', color);
     el.setAttribute('stroke-width', width);
   });

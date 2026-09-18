@@ -44,12 +44,21 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS Result_Records (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    npm         TEXT NOT NULL,
-    lesson_id   TEXT NOT NULL,
-    outcome     TEXT NOT NULL CHECK(outcome IN ('correct','incorrect')),
-    recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    npm          TEXT NOT NULL,
+    lesson_id    TEXT NOT NULL,
+    outcome      TEXT NOT NULL CHECK(outcome IN ('correct','incorrect')),
+    score        INTEGER NOT NULL DEFAULT 0,
+    hints_used   INTEGER NOT NULL DEFAULT 0,
+    wrong_answers INTEGER NOT NULL DEFAULT 0,
+    recorded_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
   );
+
+  -- Add scoring columns to existing databases that were created before this
+  -- migration.  ALTER TABLE ... ADD COLUMN is idempotent in SQLite when the
+  -- column does not exist; we swallow the error if it does.
+  -- (SQLite does not support IF NOT EXISTS on ADD COLUMN before 3.37.0)
+  
 
   CREATE TABLE IF NOT EXISTS Attempt_Counter_Backups (
     npm         TEXT NOT NULL,
@@ -58,6 +67,17 @@ db.exec(`
     reset_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
   );
 `);
+
+// ─── Schema migration: add scoring columns to pre-existing databases ───────────
+// ALTER TABLE ADD COLUMN throws if the column already exists (SQLite < 3.37.0).
+// We catch those errors silently — the CREATE TABLE above handles new databases.
+for (const col of [
+  'ALTER TABLE Result_Records ADD COLUMN score         INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE Result_Records ADD COLUMN hints_used    INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE Result_Records ADD COLUMN wrong_answers INTEGER NOT NULL DEFAULT 0',
+]) {
+  try { db.exec(col); } catch (_) { /* column already exists — safe to ignore */ }
+}
 
 // ─── Query helpers ─────────────────────────────────────────────────────────────
 
@@ -112,25 +132,43 @@ export function resetAttempt(npm, lessonId) {
 
 /**
  * Insert a new Result_Record row (append-only — never updates existing rows).
+ * @param {string}  npm
+ * @param {string}  lessonId
+ * @param {string}  outcome       'correct' | 'incorrect'
+ * @param {number}  [score=0]     Computed score for this attempt (0–100)
+ * @param {number}  [hintsUsed=0] Number of hints opened during the attempt
+ * @param {number}  [wrongAnswers=0] Number of wrong diagnosis submissions before this one
  * @returns {{ id: number, recordedAt: string }}
  */
-export function insertResult(npm, lessonId, outcome) {
+export function insertResult(npm, lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0) {
   const stmt = db.prepare(
-    'INSERT INTO Result_Records (npm, lesson_id, outcome) VALUES (?, ?, ?)'
+    'INSERT INTO Result_Records (npm, lesson_id, outcome, score, hints_used, wrong_answers) VALUES (?, ?, ?, ?, ?, ?)'
   );
-  const info = stmt.run(npm, lessonId, outcome);
+  const info = stmt.run(npm, lessonId, outcome, score, hintsUsed, wrongAnswers);
   const row  = db.prepare('SELECT * FROM Result_Records WHERE id = ?').get(info.lastInsertRowid);
   return { id: row.id, recordedAt: row.recorded_at };
 }
 
-/** @returns {object[]} */
+/** @returns {object[]} All attempt rows for this student+lesson, oldest first */
 export function getResults(npm, lessonId) {
   return db.prepare(
     'SELECT * FROM Result_Records WHERE npm = ? AND lesson_id = ? ORDER BY recorded_at ASC'
   ).all(npm, lessonId);
 }
 
-/** @returns {object[]} */
+/**
+ * Return the best (highest) score achieved by a student on a lesson across
+ * all their attempts.  Returns 0 if no attempts exist.
+ * @returns {number}
+ */
+export function getBestScore(npm, lessonId) {
+  const row = db.prepare(
+    'SELECT COALESCE(MAX(score), 0) AS best FROM Result_Records WHERE npm = ? AND lesson_id = ?'
+  ).get(npm, lessonId);
+  return row ? row.best : 0;
+}
+
+/** @returns {object[]} All rows across all students, newest first (instructor view) */
 export function getAllResults() {
   return db.prepare(
     'SELECT * FROM Result_Records ORDER BY recorded_at DESC'

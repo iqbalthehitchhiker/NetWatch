@@ -14,6 +14,7 @@ import {
 } from './auth.js';
 import * as api from './api.js';
 import { validateLoginForm, formatWelcomeName, validateAdminResetForm } from './utils.js';
+import { computeScore, SC_CORRECT, SC_WRONG } from './scoring.js';
 import { renderStatBar, renderDeviceGrid }  from './renderers/overview.js';
 import { renderTopologySVG, renderTopologyColors } from './renderers/topology.js';
 import { renderAlerts }  from './renderers/alerts.js';
@@ -24,6 +25,7 @@ import {
   startSelfCheck, teardownSelfCheck, isSelfCheckActive,
   selfCheckNext, selfCheckSkip, skipSelfCheck,
   minimizeSelfCheck, reopenSelfCheck,
+  getSelfCheckProgress,
 } from './self-check.js';
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -39,6 +41,228 @@ let _pendingSkill   = null;   // skill whose self-check should run when student 
 // Tracks which skill IDs have had their self-check completed this session.
 // Exported for test introspection.
 export const completedSkills = new Set();
+
+// ─── Theme toggle ─────────────────────────────────────────────────────────────
+
+const THEME_KEY = 'nw_theme';
+
+/**
+ * Apply a theme class to <html> and persist the choice.
+ * Called on startup (from DOMContentLoaded) and on user toggle.
+ *
+ * @param {'light'|'dark'} theme
+ */
+export function applyTheme(theme) {
+  const root = document.documentElement;
+  root.classList.remove('theme-light', 'theme-dark');
+  root.classList.add('theme-' + theme);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(THEME_KEY, theme);
+  }
+  _updateThemeLabels(theme);
+}
+
+export function toggleTheme() {
+  const current = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function _updateThemeLabels(theme) {
+  const label = theme === 'dark' ? 'Light' : 'Dark';   // label = what clicking will switch TO
+  ['theme-label-global', 'theme-label-landing', 'theme-label-app'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+// ─── Exit confirmation gate ───────────────────────────────────────────────────
+
+// One pending callback — set before opening the confirm modal, consumed by confirmExit().
+let _exitCallback = null;
+
+/**
+ * Show the exit confirmation modal if a simulation is currently loaded,
+ * otherwise call the callback immediately (nothing to lose).
+ *
+ * @param {Function} callback  — the navigation action to perform if confirmed
+ */
+function _guardedExit(callback) {
+  if (!simState) {
+    // Not inside a simulation — proceed without asking.
+    callback();
+    return;
+  }
+  _exitCallback = callback;
+  openModal('modal-exit-confirm');
+}
+
+/** Called by the "Leave" button in the exit confirmation modal. */
+export function confirmExit() {
+  closeModal('modal-exit-confirm');
+  const cb = _exitCallback;
+  _exitCallback = null;
+  if (cb) cb();
+}
+
+/** Called by the "Stay" button — just close the modal, no navigation. */
+export function cancelExit() {
+  _exitCallback = null;
+  closeModal('modal-exit-confirm');
+}
+
+/**
+ * handleLogoClick() — replaces the raw goToLanding() call on the topbar logo.
+ * Adds the exit confirmation gate when inside a simulation.
+ */
+export function handleLogoClick() {
+  _guardedExit(goToLanding);
+}
+
+/**
+ * handleBackNav() — replaces the raw exitSimulation() call on the ← Back button.
+ * Adds the exit confirmation gate when inside a simulation.
+ */
+export function handleBackNav() {
+  _guardedExit(exitSimulation);
+}
+
+// ─── Self-check resume indicator ──────────────────────────────────────────────
+
+/**
+ * Show or hide the #btn-sc-resume button in the lesson bar.
+ * Visible only in Teach mode when an in-progress self-check run exists that
+ * is past question 1 (i.e. there is meaningful progress worth resuming).
+ * Called from: launchSimulation(), selfCheckNext() (via exported hook),
+ *              teardownSelfCheck(), startSelfCheck().
+ */
+export function updateSelfCheckResumeBtn() {
+  const btn = document.getElementById('btn-sc-resume');
+  if (!btn) return;
+  const prog = getSelfCheckProgress();
+  // Show resume only in teach mode and when past Q1.
+  const inTeach = typeof getCurrentMode === 'function' && getCurrentMode() === 'teach';
+  if (inTeach && prog.active && prog.idx >= 1) {
+    btn.classList.remove('hidden');
+    btn.title = `Resume Self-Check — Q${prog.idx + 1}/${prog.total}`;
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+// ─── Teach-mode self-check tally (Part B) ────────────────────────────────────
+// Ephemeral in-memory score counter for the active self-check run.
+// Resets whenever startSelfCheck fires (i.e. a fresh run begins).
+// NEVER sent to any backend endpoint. NEVER shown outside the active
+// Teach-mode self-check UI.
+
+let _scTally = 0;   // running point total for current self-check run
+
+/**
+ * Reset the tally to 0 and hide the display.
+ * Called at the start of every fresh self-check run.
+ */
+export function resetScTally() {
+  _scTally = 0;
+  _renderScTally();
+}
+
+/**
+ * Apply a delta to the tally and re-render.
+ * @param {number} delta  — positive (correct) or negative (wrong)
+ */
+export function adjustScTally(delta) {
+  _scTally += delta;
+  _renderScTally();
+}
+
+/** Read-only accessor for tests. */
+export function getScTally() { return _scTally; }
+
+function _renderScTally() {
+  const el = document.getElementById('sc-tally');
+  if (!el) return;
+
+  const prog = getSelfCheckProgress();
+  if (!prog.active) {
+    el.classList.add('hidden');
+    el.classList.remove('tally-positive', 'tally-negative', 'tally-zero');
+    return;
+  }
+
+  el.classList.remove('hidden');
+  el.classList.remove('tally-positive', 'tally-negative', 'tally-zero');
+  if      (_scTally > 0) el.classList.add('tally-positive');
+  else if (_scTally < 0) el.classList.add('tally-negative');
+  else                   el.classList.add('tally-zero');
+
+  const sign = _scTally > 0 ? '+' : '';
+  el.textContent = `SC ${sign}${_scTally} pts`;
+
+  // Mirror to global nav Teach score slot
+  updateGlobalNav();
+}
+
+// ─── Global Nav update ────────────────────────────────────────────────────────
+
+/**
+ * updateGlobalNav()
+ *
+ * Single function that keeps the persistent #global-nav in sync with app state.
+ * Reads ONLY from existing canonical sources — no duplicate state flags:
+ *   • simState        — null = not in a simulation
+ *   • getCurrentMode() — 'teach' | 'quiz' | null
+ *   • getScTally()    — ephemeral Teach tally
+ *   • simState.hintsUsed / simState.wrongAnswers — for live Quiz score
+ *
+ * Call sites:
+ *   launchSimulation(), exitSimulation(), goToLanding(),
+ *   adjustScTally(), _renderScTally(), openSelfCheck() callbacks
+ *
+ * Never called from engine.js or self-check.js — those remain DOM-free.
+ */
+export function updateGlobalNav() {
+  const inSim = simState !== null;
+  const mode  = getCurrentMode();   // 'teach' | 'quiz' | null
+
+  // ── sim context group (mode badge + score) ──────────────────────────────
+  const ctx = document.getElementById('gnav-sim-ctx');
+  if (ctx) {
+    if (inSim) ctx.classList.remove('hidden');
+    else       ctx.classList.add('hidden');
+  }
+
+  // ── mode badges ──────────────────────────────────────────────────────────
+  const teachBadge = document.getElementById('gnav-mode-teach');
+  const quizBadge  = document.getElementById('gnav-mode-quiz');
+  if (teachBadge) teachBadge.classList.toggle('hidden', !(inSim && mode === 'teach'));
+  if (quizBadge)  quizBadge.classList.toggle('hidden',  !(inSim && mode === 'quiz'));
+
+  // ── score slots ───────────────────────────────────────────────────────────
+  const teachScore = document.getElementById('gnav-score-teach');
+  const quizScore  = document.getElementById('gnav-score-quiz');
+
+  if (teachScore) {
+    const prog = getSelfCheckProgress();
+    if (inSim && mode === 'teach' && prog.active) {
+      const sign = _scTally > 0 ? '+' : '';
+      teachScore.textContent = `SC ${sign}${_scTally} pts`;
+      teachScore.classList.remove('hidden');
+    } else {
+      teachScore.classList.add('hidden');
+    }
+  }
+
+  if (quizScore) {
+    if (inSim && mode === 'quiz' && simState) {
+      const { SCORE_BASE, HINT_PENALTY, WRONG_PENALTY } = { SCORE_BASE: 100, HINT_PENALTY: 10, WRONG_PENALTY: 20 };
+      const live = Math.max(0, SCORE_BASE - simState.hintsUsed * HINT_PENALTY - simState.wrongAnswers * WRONG_PENALTY);
+      quizScore.textContent = `Score: ${live} / 100`;
+      quizScore.classList.remove('hidden');
+    } else {
+      quizScore.classList.add('hidden');
+    }
+  }
+}
 
 // ─── Explain Panel ────────────────────────────────────────────────────────────
 // EXPLAIN_CONTENT is imported from ./explain-content.js (pure data, no DOM dependency)
@@ -153,6 +377,7 @@ export function goToLanding() {
   // Hide everything else, show landing
   document.getElementById('app').classList.remove('active');
   document.getElementById('screen-select').classList.add('hidden');
+  updateGlobalNav();   // simState null, mode null — nav shows logo+theme only
 
   // Clear the "seen" flag so the landing screen renders fully again
   sessionStorage.removeItem('nw_intro_seen');
@@ -168,7 +393,10 @@ function renderLessonSelect() {
   const grid = document.getElementById('lesson-grid');
   grid.innerHTML = LESSONS.map(l => `
     <div class="lesson-card" style="--accent:${l.accent}" data-lesson-id="${l.id}">
-      <span class="lesson-diff diff-${l.difficulty.toLowerCase()}">${l.difficulty}</span>
+      <div class="lesson-card-header">
+        <span class="lesson-diff diff-${l.difficulty.toLowerCase()}">${l.difficulty}</span>
+        <span class="lesson-id">${l.id}</span>
+      </div>
       <div class="lesson-card-title">${l.title}</div>
       <div class="lesson-card-focus">Focus device: ${l.focus}</div>
       <div class="lesson-card-desc">${l.description}</div>
@@ -195,7 +423,7 @@ function renderSkillSelect() {
   const grid = document.getElementById('skill-grid');
   grid.innerHTML = SKILLS.map(s => `
     <div class="lesson-card" style="--accent:#06B6D4" data-skill-id="${s.id}">
-      ${completedSkills.has(s.id) ? '<span class="skill-card-done">✓ COMPLETE</span>' : ''}
+      ${completedSkills.has(s.id) ? '<span class="skill-card-done">COMPLETE</span>' : ''}
       <div class="lesson-card-title">${s.title}</div>
       <div class="lesson-card-desc">${s.body}</div>
       <div class="lesson-card-foot">
@@ -203,7 +431,10 @@ function renderSkillSelect() {
         <div class="lesson-start-btn">Practice →</div>
       </div>
       ${s.lessonRefs && s.lessonRefs.length
-        ? `<div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--font-mono);">Comes up in: ${s.lessonRefs.join(', ')}</div>`
+        ? `<div class="skill-refs">
+             <span class="skill-refs-label">Appears in:</span>
+             <span class="skill-refs-list">${s.lessonRefs.join(' • ')}</span>
+           </div>`
         : ''}
     </div>
   `).join('');
@@ -302,14 +533,15 @@ async function _showBlockedScreen(lessonId) {
   document.getElementById('blocked-identity').textContent =
     `Name: ${name || '—'}  ·  NPM: ${npm || '—'}`;
 
-  // Show prior correct result if any
+  // Show prior best score and correct result if any
   let bestHtml = '';
   if (npm) {
     const r = await api.getResults(npm, lessonId);
     if (r.ok) {
       const correct = r.results.find(e => e.outcome === 'correct');
       if (correct) {
-        bestHtml = `<div style="margin-top:10px;font-size:12px;color:var(--green)">✔ Best result: Correct — recorded at ${correct.recorded_at}</div>`;
+        const scoreLabel = r.bestScore > 0 ? ` · Best score: ${r.bestScore} / 100` : '';
+        bestHtml = `<div style="margin-top:10px;font-size:12px;color:var(--green)">✔ Best result: Correct — recorded at ${correct.recorded_at}${scoreLabel}</div>`;
       }
     }
   }
@@ -384,6 +616,8 @@ function launchSimulation(lessonId) {
   switchTab('overview');
   startClock();
   updateRunBadge();
+  updateSelfCheckResumeBtn();   // clear resume indicator at launch (fresh state)
+  updateGlobalNav();            // show mode badge + score slot in global nav
 
   // Attach explain-panel listeners for Teach mode.
   // attachExplainListeners() is idempotent — safe to call on every teach launch.
@@ -409,6 +643,9 @@ export function exitSimulation() {
   const mode = getCurrentMode();
 
   teardownSelfCheck();   // cancel any in-progress self-check, detach listeners
+  updateSelfCheckResumeBtn();   // clear resume button after teardown
+  resetScTally();               // clear tally display
+  updateGlobalNav();            // hide mode/score from nav (simState still non-null here — cleared below)
   stopSimTimers();
   clearStudentSession();
   simState        = null;
@@ -423,6 +660,7 @@ export function exitSimulation() {
   closeExplainPanel();
   closeAllModals();
   document.getElementById('app').classList.remove('active');
+  updateGlobalNav();   // simState is now null — hides mode/score from nav
 
   if (mode === 'teach') {
     showSkillSelectScreen();
@@ -492,6 +730,54 @@ function renderAll() {
   renderMetrics();
   renderPackets(simState, packetFilter);
   renderLogs(simState);
+  updateTabAttention();  // Add Linux-style attention indicators
+}
+
+/**
+ * updateTabAttention() — Add visual priority indicators to tabs based on state
+ * Linux system monitor aesthetic: tabs with critical data get blinking [!] prefix
+ */
+function updateTabAttention() {
+  if (!simState) return;
+
+  // Count critical alerts and warnings
+  const critAlerts = simState.alerts.filter(a => a.level === 'critical').length;
+  const warnAlerts = simState.alerts.filter(a => a.level === 'warning').length;
+  
+  // Count critical/degraded nodes
+  const critNodes = simState.topo.nodes.filter(n => n.health === 'critical' || n.health === 'offline').length;
+  const warnNodes = simState.topo.nodes.filter(n => n.health === 'warning' || n.health === 'degraded').length;
+
+  // Alerts tab — critical if any crit alerts exist
+  const alertsTab = document.getElementById('tab-alerts');
+  if (alertsTab) {
+    alertsTab.classList.remove('attention');
+    if (critAlerts > 0) alertsTab.classList.add('attention');
+  }
+
+  // Topology tab — attention if any critical nodes
+  const topoTab = document.getElementById('tab-topology');
+  if (topoTab) {
+    topoTab.classList.remove('attention');
+    if (critNodes > 0) topoTab.classList.add('attention');
+  }
+
+  // Devices tab — attention if multiple degraded devices
+  const devicesTab = document.getElementById('tab-devices');
+  if (devicesTab) {
+    devicesTab.classList.remove('attention');
+    if (critNodes > 1 || (critNodes === 1 && warnNodes > 2)) {
+      devicesTab.classList.add('attention');
+    }
+  }
+
+  // Packets tab — attention if anomalous packets exist
+  const flaggedPackets = simState.packets.filter(p => p.flagged).length;
+  const packetsTab = document.getElementById('tab-packets');
+  if (packetsTab) {
+    packetsTab.classList.remove('attention');
+    if (flaggedPackets > 5) packetsTab.classList.add('attention');
+  }
 }
 
 function switchTab(tab) {
@@ -507,7 +793,7 @@ function renderDeviceTable() {
   const body = document.getElementById('device-table-body');
   body.innerHTML = simState.topo.nodes.filter(n => !n.isExternal).map(n => {
     const type  = DEVICE_TYPES[n.type];
-    const color = { healthy:'#4a9e6e', warning:'#c8893a', degraded:'#c8893a', critical:'#c85a4a', offline:'#8891a0' }[n.health || 'healthy'];
+    const color = { healthy:'#10b981', warning:'#f59e0b', degraded:'#f59e0b', critical:'#ef4444', offline:'#9ca3af' }[n.health || 'healthy'];
     const extra = n.type === 'aicompute' ? `GPU ${n.cur.gpu.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`
       : n.type === 'switch' ? `Traffic ${n.cur.traffic.toFixed(0)} Mbps · ${n.cur.temp.toFixed(0)}°C`
       : `Disk ${n.cur.disk.toFixed(0)}% · ${n.cur.temp.toFixed(0)}°C`;
@@ -585,16 +871,22 @@ function openDeviceDetail(id) {
 // ─── Hint modal ───────────────────────────────────────────────────────────────
 
 export function openHint() {
+  if (simState) simState.hintsUsed++;  // count every hint open as one hint used
   simState.hintIndex = 0;
   _renderHint();
   openModal('modal-hint');
+  updateGlobalNav();   // refresh Quiz score in nav (hintsUsed changed)
 }
 
 export function nextHint() {
   // Req 1.7: in Quiz Mode only first hint is allowed
   if (getCurrentMode() === 'quiz') return;
-  if (simState.hintIndex < simState.lesson.hints.length - 1) simState.hintIndex++;
+  if (simState.hintIndex < simState.lesson.hints.length - 1) {
+    simState.hintIndex++;
+    simState.hintsUsed++;   // each Next Hint press is another hint used
+  }
   _renderHint();
+  updateGlobalNav();   // refresh Quiz score in nav
 }
 
 function _renderHint() {
@@ -617,14 +909,39 @@ function _renderHint() {
  * Starts (or resumes from the beginning) the self-check for the skill that
  * launched the current simulation.  No-op if no skill is pending.
  */
+/**
+ * openSelfCheck()
+ * Called by the "🎯 Self-Check" button (Teach mode only).
+ *
+ * If a run is already in progress, this reopens the modal without resetting
+ * progress (the Resume button in the lesson bar now also calls reopenSelfCheck
+ * directly, but this guards the Self-Check button too).
+ * Only starts a fresh run when no run is currently active.
+ */
 export function openSelfCheck() {
   if (!_pendingSkill) return;
+
+  // If a run is already active, just reopen the modal — don't reset.
+  if (isSelfCheckActive()) {
+    reopenSelfCheck();
+    return;
+  }
+
+  // No active run — start fresh.
+  resetScTally();
   startSelfCheck(_pendingSkill, {
     onComplete: (completedSkillId) => {
       completedSkills.add(completedSkillId);
-      renderSkillSelect();   // refresh ✓ badge on skill grid
+      updateSelfCheckResumeBtn();
+      _renderScTally();
+      renderSkillSelect();
+    },
+    onQuestionResult: (_skillId, _qId, correct) => {
+      adjustScTally(correct ? SC_CORRECT : SC_WRONG);
+      updateSelfCheckResumeBtn();
     },
   });
+  updateSelfCheckResumeBtn();
 }
 
 // ─── Diagnosis modal (Quiz mode) ──────────────────────────────────────────────
@@ -666,9 +983,11 @@ export async function submitDiagnosis() {
     document.getElementById('diag-submit-btn').disabled = true;
     pushLog(simState, 'ok', 'Diagnosis correct — lesson objective met.');
   } else {
+    simState.wrongAnswers++;   // track wrong submissions for scoring
     resultEl.className = 'diag-result show no';
     resultEl.textContent = 'Not quite — that doesn\'t match the evidence. Re-check the dashboard, topology and packet evidence, or open a hint.';
     pushLog(simState, 'warn', 'Diagnosis attempt incorrect — investigation continues.');
+    updateGlobalNav();   // refresh Quiz score in nav (wrongAnswers changed)
   }
 
   const mode = getCurrentMode();
@@ -676,6 +995,9 @@ export async function submitDiagnosis() {
   const name = getStudentName();
 
   if (mode === 'quiz' && npm) {
+    // Compute score for this attempt
+    const score = computeScore(simState.hintsUsed, simState.wrongAnswers);
+
     // Show student identity in result
     const identityDiv = document.createElement('div');
     identityDiv.style.cssText = 'margin-top:10px;font-size:11px;font-family:var(--font-mono);';
@@ -683,11 +1005,19 @@ export async function submitDiagnosis() {
     identityDiv.textContent   = `Student: ${name || '—'} · NPM: ${npm}`;
     resultEl.appendChild(identityDiv);
 
-    await recordQuizResult(simState.lesson.id, outcome);
+    // Show score for this attempt (always, correct or not)
+    const scoreDiv = document.createElement('div');
+    scoreDiv.id = 'diag-score-display';
+    scoreDiv.style.cssText = 'margin-top:8px;font-size:12px;font-family:var(--font-mono);font-weight:700;';
+    scoreDiv.style.color   = opt.correct ? 'var(--green)' : 'var(--amber)';
+    scoreDiv.textContent   = `Score this attempt: ${score} / 100`;
+    resultEl.appendChild(scoreDiv);
+
+    await recordQuizResult(simState.lesson.id, outcome, score,
+      simState.hintsUsed, simState.wrongAnswers, resultEl);
   } else if (mode === 'teach') {
     // Teach mode: show full explanation automatically and record anonymous progress
     recordTeachProgress(simState.lesson.id, opt.correct);
-    // Teach mode: reveal all remaining hints automatically (the explanation IS shown)
   }
 
   renderLogs(simState);
@@ -696,15 +1026,29 @@ export async function submitDiagnosis() {
 // ─── Result recording ─────────────────────────────────────────────────────────
 
 // Feature: teach-quiz-mode, Property 10: Result records are append-only (enforced server-side)
-async function recordQuizResult(lessonId, outcome) {
+async function recordQuizResult(lessonId, outcome, score, hintsUsed, wrongAnswers, resultEl) {
   if (getCurrentMode() !== 'quiz' || !getStudentNPM()) return;
-  const res = await api.recordResult(lessonId, outcome);
+  const res = await api.recordResult(lessonId, outcome, score, hintsUsed, wrongAnswers);
   if (!res.ok) {
-    // Show inline error inside Diagnosis Modal (Req 7.3)
+    // Show inline error inside Diagnosis Modal
     const errDiv = document.createElement('div');
     errDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--red);';
     errDiv.textContent   = `⚠ Result could not be saved: ${res.error}`;
-    document.getElementById('diag-result').appendChild(errDiv);
+    if (resultEl) resultEl.appendChild(errDiv);
+    return;
+  }
+  // Show best score across all attempts if we got it back from the server
+  if (res.bestScore !== undefined && resultEl) {
+    const bestDiv = document.createElement('div');
+    bestDiv.style.cssText = 'margin-top:4px;font-size:11px;font-family:var(--font-mono);color:var(--muted);';
+    bestDiv.textContent   = `Your best: ${res.bestScore} / 100`;
+    // Insert after score display if it exists, else append
+    const scoreEl = resultEl.querySelector('#diag-score-display');
+    if (scoreEl && scoreEl.nextSibling) {
+      resultEl.insertBefore(bestDiv, scoreEl.nextSibling);
+    } else {
+      resultEl.appendChild(bestDiv);
+    }
   }
 }
 
@@ -901,6 +1245,14 @@ if (typeof window !== 'undefined') {
     setPacketFilter, clearLog, saveNotes, injectAlert,
     // Modal close
     closeModal,
+    // Theme
+    toggleTheme,
+    // Exit confirmation gate
+    handleLogoClick, handleBackNav, confirmExit, cancelExit,
+    // Scoring tally (exposed for test introspection only — not used from HTML)
+    getScTally, resetScTally, adjustScTally,
+    // Global nav update (exposed for test introspection)
+    updateGlobalNav,
   });
 }
 
@@ -961,14 +1313,23 @@ function attachExplainListeners() {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
+  // ── Theme initialisation ────────────────────────────────────────────────
+  // The inline <script> in <head> already set the class to prevent flash.
+  // Re-apply here to sync the toggle button labels and ensure the class
+  // matches localStorage (handles edge case where the inline script ran
+  // before localStorage was readable, or a stale sessionStorage value).
+  const savedTheme = (typeof localStorage !== 'undefined' && localStorage.getItem(THEME_KEY)) || 'light';
+  applyTheme(savedTheme);
+
+  // Initialise global nav to "no simulation" state (just logo + theme toggle)
+  updateGlobalNav();
+
   // ── Initial screen routing ────────────────────────────────────────────────
-  // Show the landing screen on first visit in this session.
-  // If already seen (sessionStorage flag set), skip straight to lesson select.
-  if (sessionStorage.getItem('nw_intro_seen')) {
-    document.getElementById('screen-landing').classList.add('hidden');
-    showLessonSelectScreen();  // always canonical: lesson-grid visible, skill-grid hidden
-  }
-  // (If not seen: screen-landing is visible by default, screen-select is hidden)
+  // Always show the landing screen on fresh page load.
+  // Clear any stale sessionStorage flag to ensure clean state after server restarts.
+  sessionStorage.removeItem('nw_intro_seen');
+  document.getElementById('screen-landing').classList.remove('hidden');
+  document.getElementById('screen-select').classList.add('hidden');
 
   // Populate both grids up front so clicking either mode feels instant.
   // renderLessonSelect targets #lesson-grid (Quiz path); renderSkillSelect

@@ -16,6 +16,7 @@
  * Public API (all functions exported):
  *   startSelfCheck(skill, callbacks)   — begin a 3-question sequence
  *   isSelfCheckActive()                — true while a sequence is running
+ *   getSelfCheckProgress()             — { active, idx, total } snapshot
  *   teardownSelfCheck()                — cancel / clean up (called on exitSimulation)
  *   minimizeSelfCheck()                — hide modal without losing progress
  *   reopenSelfCheck()                  — restore modal after minimizing
@@ -51,6 +52,20 @@ let _callbacks     = {};      // { onComplete, onQuestionResult }
 
 export function isSelfCheckActive()  { return _active; }
 export function isSelfCheckMinimized() { return _minimized; }
+
+/**
+ * Return the current self-check progress snapshot for external callers
+ * (e.g. to decide whether to show a Resume button).
+ *
+ * @returns {{ active: boolean, idx: number, total: number }}
+ */
+export function getSelfCheckProgress() {
+  return {
+    active: _active,
+    idx:    _idx,
+    total:  _questions.length,
+  };
+}
 
 /**
  * Start a self-check sequence for the given skill.

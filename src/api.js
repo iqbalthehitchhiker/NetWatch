@@ -81,31 +81,49 @@ export async function startAttempt(lessonId) {
 
 /**
  * Record a diagnosis result. Retries once on failure (500 ms delay).
- * @returns {{ ok: true, id, recordedAt } | { ok: false, error }}
+ * @param {string}  lessonId
+ * @param {string}  outcome        'correct' | 'incorrect'
+ * @param {number}  [score=0]      Computed score for this attempt
+ * @param {number}  [hintsUsed=0]  Hints opened during this attempt
+ * @param {number}  [wrongAnswers=0] Wrong submissions before this one
+ * @returns {{ ok: true, id, recordedAt, score, bestScore } | { ok: false, error }}
  */
-export async function recordResult(lessonId, outcome) {
+export async function recordResult(lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0) {
   const token = getSessionToken();
-  const attempt = async () => post('/api/results', { lessonId, outcome }, token);
+  const body  = { lessonId, outcome, score, hints_used: hintsUsed, wrong_answers: wrongAnswers };
+  const attempt = async () => post('/api/results', body, token);
 
   const first = await attempt();
-  if (first.ok) return { ok: true, id: first.data.id, recordedAt: first.data.recordedAt };
+  if (first.ok) return {
+    ok: true,
+    id: first.data.id,
+    recordedAt: first.data.recordedAt,
+    score: first.data.score,
+    bestScore: first.data.bestScore,
+  };
 
   // Single retry after 500 ms
   await new Promise(r => setTimeout(r, 500));
   const second = await attempt();
-  if (second.ok) return { ok: true, id: second.data.id, recordedAt: second.data.recordedAt };
+  if (second.ok) return {
+    ok: true,
+    id: second.data.id,
+    recordedAt: second.data.recordedAt,
+    score: second.data.score,
+    bestScore: second.data.bestScore,
+  };
 
   return { ok: false, error: second.data.error || 'Result could not be saved' };
 }
 
 /**
  * Fetch results for a specific student + lesson.
- * @returns {{ ok: true, results: [] } | { ok: false, error }}
+ * @returns {{ ok: true, results: [], bestScore: number } | { ok: false, error }}
  */
 export async function getResults(npm, lessonId) {
   const token = getSessionToken();
   const { ok, status, data } = await get(`/api/results?studentId=${encodeURIComponent(npm)}&lessonId=${encodeURIComponent(lessonId)}`, token);
-  if (ok) return { ok: true, results: data.results || [] };
+  if (ok) return { ok: true, results: data.results || [], bestScore: data.bestScore ?? 0 };
   return { ok: false, status, error: data.error || 'Could not fetch results' };
 }
 

@@ -526,3 +526,91 @@ Dependency order: project scaffolding → backend foundation → frontend module
   ]
 }
 ```
+
+
+---
+
+## Phase 2: UI/UX Enhancements
+
+- [x] 20. Implement Linux-style visual hierarchy and attention indicators
+  - [x] 20.1 Add nav tab attention indicators with blinking `[!]` prefix
+    - CSS: Add `.nav-tab.attention::before` with `content: '[!]'`, positioned left, blinking animation (1.2s cycle)
+    - JS: Implement `updateTabAttention()` in `app.js` (called from `renderAll()`)
+    - Logic: Alerts tab gets `[!]` if critical alerts exist; Topology tab if critical nodes; Devices tab if multiple degraded; Packets tab if >5 flagged packets
+    - _Design Goal: Terminal monitoring aesthetic (htop, btop style)_
+
+  - [x] 20.2 Add stat bar priority indicators with colored borders and triangles
+    - CSS: Add `.stat-critical`, `.stat-warning`, `.stat-healthy` classes with colored top borders (2px)
+    - Add blinking triangle `▲` indicator in top-right corner for critical/warning states
+    - JS: Enhance `renderStatBar()` in `src/renderers/overview.js` to add priority classes based on thresholds
+    - Thresholds: Devices <50% healthy = critical; Alerts any crit = critical; Latency >200ms = critical; CPU >85% = critical; Packet loss >5% = critical
+    - _Design Goal: Immediate visual feedback on threshold violations_
+
+  - [x] 20.3 Add panel priority borders with box-drawing characters
+    - CSS: Add `.panel.priority-critical` with 3px red left border + blinking block character `▐`
+    - Add `.panel.priority-warning` with 2px amber left border + dimmed block character
+    - Add subtle pulsing glow animation for critical panels (2s cycle)
+    - _Design Goal: Linux terminal box-drawing aesthetic_
+
+  - [x] 20.4 Add section header indicators with dynamic prefixes
+    - CSS: Add `::before` pseudo-elements to `.section-title` with box-drawing characters
+    - Normal state: `┌─` (thin corner)
+    - Critical state: `├▶` (branch + arrow, blinking red)
+    - Warning state: `├▶` (branch + arrow, amber)
+    - _Design Goal: Terminal UI hierarchy indicators_
+
+  - [x] 20.5 Enhance alert items with terminal-style formatting
+    - CSS: Add blinking block character `▌` on left edge for critical/warning alerts
+    - Wrap timestamps in brackets: `[00:23]` instead of plain text
+    - Add slide-in hover effect (2px translateX)
+    - Add colored dim backgrounds for critical/warning items
+    - JS: Update `renderAlerts()` in `src/renderers/alerts.js` to add `.priority-critical`/`.priority-warning` classes to panel container
+    - Add `.has-alert`/`.has-warning` classes to section header based on alert levels
+    - _Design Goal: Consistent terminal aesthetic across all alert UI_
+
+  - [x] 20.6 Create documentation for Linux-style design system
+    - Create `DESIGN_UPDATE_LINUX_STYLE.md` with technical implementation details
+    - Create `LINUX_STYLE_VISUAL_GUIDE.md` with ASCII art visual reference and character usage guide
+    - Create `LINUX_STYLE_CUSTOMIZATION.md` with easy customization tweaks and pre-made themes
+    - _Purpose: Allow future designers to understand and modify the system_
+
+  - [x] 20.7 Verify all tests pass after visual hierarchy changes
+    - Run `npm test` — all 414 tests must pass
+    - No breaking changes to HTML IDs, class names, or JavaScript APIs
+    - CSS classes are additive only (never removed existing styles)
+    - Graceful degradation: if elements missing, no errors thrown
+    - _Validation: Zero regressions in existing functionality_
+
+---
+
+## Design Philosophy Notes
+
+**Visual Hierarchy (Task 20)**  
+Inspired by Linux system monitoring tools (`htop`, `btop`, terminal multiplexers). Design principles:
+- **Information density** — more signals in less space
+- **Functional aesthetics** — every decoration conveys status
+- **Motion = urgency** — blinking attracts attention to critical states
+- **Terminal heritage** — monospace fonts, box-drawing characters, ASCII art
+- **Redundant encoding** — color + shape + position + animation for accessibility
+
+**Character Reference:**
+- `[!]` — Tab attention prefix (blinking)
+- `▲` — Stat card warning triangle (blinking)
+- `▐` — Right half block (panel edge, blinking)
+- `▌` — Left half block (alert item edge)
+- `┌` — Top-left corner (normal section)
+- `├` — Left T-junction (alert section)
+- `▶` — Right arrow (attention)
+
+**Color Semantics:**
+- Red borders/indicators — critical thresholds exceeded
+- Amber borders/indicators — warning thresholds exceeded
+- Green borders — healthy state
+- Cyan outlines — needs attention (not critical)
+
+**Animation Types:**
+- Blink (1.2-1.5s) — brackets, triangles, block characters, section prefixes
+- Pulse (2s) — critical panel glow
+- Slide (0.2s) — hover effects
+
+All visual indicators supplement text labels and meet WCAG AA contrast ratios for accessibility.
