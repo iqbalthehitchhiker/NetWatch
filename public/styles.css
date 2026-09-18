@@ -166,14 +166,6 @@
   
   /* Fonts inherit */
 }
-  --nav-backdrop:  rgba(244,246,249,0.92);
-  --tl-crit-text:  #8a1c0c;             /* readable on light bg */
-  --muted2:   #5c6880;
-  --gray:     #5c6880;
-  --purple:   #1a6e9e;
-  --orange:   #a05e10;
-  /* fonts inherit from dark :root — only color tokens are redefined */
-}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: var(--bg);
