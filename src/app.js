@@ -223,6 +223,36 @@ function _renderScTally() {
 export function updateGlobalNav() {
   const inSim = simState !== null;
   const mode  = getCurrentMode();   // 'teach' | 'quiz' | null
+  const isLanding = !inSim && document.getElementById('screen-landing') && 
+                    !document.getElementById('screen-landing').classList.contains('hidden');
+
+  // ── auth slot (landing page only) ────────────────────────────────────
+  const authSlot = document.getElementById('gnav-auth-slot');
+  const loginBtn = document.getElementById('gnav-login-btn');
+  const profile = document.getElementById('gnav-profile');
+  const profileName = document.getElementById('gnav-profile-name');
+
+  if (authSlot) {
+    if (isLanding) {
+      authSlot.classList.remove('hidden');
+      // Check if student is logged in
+      const token = getSessionToken();
+      const name = getStudentName();
+      if (token && name) {
+        // Logged in: show profile
+        loginBtn.classList.add('hidden');
+        profile.classList.remove('hidden');
+        profileName.textContent = name;
+      } else {
+        // Not logged in: show login button
+        loginBtn.classList.remove('hidden');
+        profile.classList.add('hidden');
+      }
+    } else {
+      // Not on landing page: hide auth slot entirely
+      authSlot.classList.add('hidden');
+    }
+  }
 
   // ── sim context group (mode badge + score) ──────────────────────────────
   const ctx = document.getElementById('gnav-sim-ctx');
@@ -641,6 +671,27 @@ function renderSkillSelect() {
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
 
+/**
+ * openLandingLogin()
+ * Opens the login modal from the landing page. After successful login,
+ * the student is taken to Lesson Selection (Quiz path), not back to landing.
+ * No lesson is pending, so pendingLessonId remains null.
+ */
+export function openLandingLogin() {
+  pendingLessonId = null;  // No pending lesson — direct login from landing
+  openModal('modal-login');
+}
+
+/**
+ * logoutStudent()
+ * Log out the current student and refresh the navbar display.
+ * Student remains on landing page.
+ */
+export function logoutStudent() {
+  clearStudentSession();
+  updateGlobalNav();
+}
+
 export function submitLogin() {
   const npm      = document.getElementById('login-npm').value.trim();
   const password = document.getElementById('login-password').value;
@@ -660,7 +711,15 @@ export function submitLogin() {
     if (res.ok) {
       setStudentSession(res.token, res.name, npm, 'quiz');
       closeModal('modal-login');
-      _startAttemptGate(pendingLessonId);
+      
+      // If pendingLessonId exists, start attempt gate for that lesson.
+      // Otherwise, just go to Lesson Selection (direct login from landing).
+      if (pendingLessonId) {
+        _startAttemptGate(pendingLessonId);
+      } else {
+        document.getElementById('screen-landing').classList.add('hidden');
+        showLessonSelectScreen();
+      }
     } else if (res.status === 401) {
       _setLoginErrors(null, null, 'Invalid NPM or password');
     } else {
@@ -680,8 +739,16 @@ export function backFromLogin() {
   document.getElementById('login-password').value = '';
   _setLoginErrors(null, null, null);
   closeModal('modal-login');
-  // Return to Lesson Select (Quiz grid) — no mode modal exists any more.
+  
+  // ALWAYS return to Lesson Selection, never to Landing.
+  // If student came from Landing (no pendingLessonId), they expressed intent
+  // to engage with lessons by clicking login, so Lesson Selection is the
+  // appropriate destination.
+  // If student came from Lesson Selection (with pendingLessonId), return there.
+  document.getElementById('screen-landing').classList.add('hidden');
   showLessonSelectScreen();
+  
+  pendingLessonId = null;  // Clear pending state
 }
 
 // ─── Attempt Gate ─────────────────────────────────────────────────────────────
@@ -1237,7 +1304,11 @@ function recordTeachProgress(lessonId, correct) {
 
 // ─── Admin Reset ──────────────────────────────────────────────────────────────
 
+// Track what action to perform after instructor authentication
+let _pendingInstructorAction = null; // 'manage-students' | 'admin-reset' | null
+
 export function openAdminReset() {
+  _pendingInstructorAction = 'admin-reset';
   // Clear form fields
   ['ar-npm','ar-lesson'].forEach(id => { document.getElementById(id).value = ''; });
   ['ar-instructor-username','ar-instructor-password'].forEach(id => {
@@ -1249,6 +1320,10 @@ export function openAdminReset() {
   });
   document.getElementById('ar-success').classList.add('hidden');
   document.getElementById('ar-success').innerHTML = '';
+
+  // Set modal title/subtitle for admin reset
+  document.getElementById('ar-modal-title').textContent = 'Admin Reset — Attempt Counter';
+  document.getElementById('ar-modal-sub').textContent = 'Resets a student\'s attempt counter for one lesson. Does not touch recorded results.';
 
   // Show appropriate sub-form
   if (getInstructorToken()) {
@@ -1284,7 +1359,14 @@ export function submitInstructorLogin() {
     if (res.ok) {
       setInstructorToken(res.token);
       _setFieldError('ar-instructor-err', null);
-      _showArResetForm();
+      
+      // Handle pending action
+      if (_pendingInstructorAction === 'manage-students') {
+        _navigateToManageStudents();
+      } else {
+        // Default: show admin reset form
+        _showArResetForm();
+      }
     } else if (res.status === 401) {
       _setFieldError('ar-instructor-err', 'Invalid credentials');
     } else {
@@ -1383,6 +1465,372 @@ function _setFieldError(elId, message) {
   }
 }
 
+// ─── Manage Students (Instructor Only) ────────────────────────────────────────
+
+/**
+ * Show the Manage Students screen with instructor login check.
+ */
+export function openManageStudents() {
+  _pendingInstructorAction = 'manage-students';
+  
+  // Check if instructor is logged in, if not show login modal first
+  if (!getInstructorToken()) {
+    // Set modal title/subtitle for manage students access
+    document.getElementById('ar-modal-title').textContent = 'Instructor Access';
+    document.getElementById('ar-modal-sub').textContent = 'Please sign in with your instructor credentials to access student management.';
+    
+    // Clear form
+    ['ar-instructor-username','ar-instructor-password'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    _setFieldError('ar-instructor-err', null);
+    
+    _showArInstructorForm();
+    openModal('modal-admin-reset');
+    return;
+  }
+
+  // Already authenticated - go straight to manage students
+  _navigateToManageStudents();
+}
+
+function _navigateToManageStudents() {
+  closeModal('modal-admin-reset');
+  
+  // Hide all other screens
+  document.getElementById('screen-landing').classList.add('hidden');
+  document.getElementById('screen-select').classList.add('hidden');
+  document.getElementById('app').classList.remove('active');
+  
+  // Show manage students screen
+  document.getElementById('screen-manage-students').classList.remove('hidden');
+  
+  // Populate lesson reference (only once)
+  _populateLessonReference();
+  
+  // Load student list
+  refreshStudentList();
+}
+
+/**
+ * Populate the lesson reference panel with all available lessons.
+ * Called once when opening Manage Students screen.
+ */
+function _populateLessonReference() {
+  const grid = document.getElementById('lesson-ref-grid');
+  if (!grid || grid.dataset.populated === 'true') return;
+  
+  grid.innerHTML = LESSONS.map(lesson => `
+    <div class="lesson-ref-card" onclick="copyLessonId('${lesson.id}')" title="Click to copy lesson ID">
+      <div class="lesson-ref-id">
+        <span>${lesson.id}</span>
+        <span class="lesson-ref-difficulty diff-${lesson.difficulty.toLowerCase()}">${lesson.difficulty}</span>
+      </div>
+      <div class="lesson-ref-title-text">${lesson.title}</div>
+      <div class="lesson-ref-desc">${lesson.description}</div>
+      <div class="lesson-ref-copy-hint">💾 Click to copy ID</div>
+    </div>
+  `).join('');
+  
+  grid.dataset.populated = 'true';
+}
+
+/**
+ * Toggle the lesson reference panel visibility.
+ */
+export function toggleLessonReference() {
+  const panel = document.getElementById('lesson-reference-panel');
+  const btn = document.getElementById('btn-toggle-lessons');
+  
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    if (btn) btn.textContent = '✕ Close Reference';
+  } else {
+    panel.classList.add('hidden');
+    if (btn) btn.textContent = '📋 Quick Reference';
+  }
+}
+
+/**
+ * Copy lesson ID to clipboard and show feedback.
+ */
+export function copyLessonId(lessonId) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(lessonId).then(() => {
+      // Visual feedback - find the clicked card
+      const cards = document.querySelectorAll('.lesson-ref-card');
+      cards.forEach(card => {
+        if (card.textContent.includes(lessonId)) {
+          const originalBg = card.style.background;
+          card.style.background = 'var(--cyan-dim)';
+          card.style.borderColor = 'var(--accent)';
+          setTimeout(() => {
+            card.style.background = originalBg;
+            card.style.borderColor = '';
+          }, 300);
+        }
+      });
+    });
+  } else {
+    // Fallback
+    const el = document.createElement('textarea');
+    el.value = lessonId;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+}
+
+/**
+ * Parse bulk student input (Name-NPM format, one per line).
+ * Returns { valid: [...], invalid: [...] }
+ */
+function parseBulkStudentInput(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const valid = [];
+  const invalid = [];
+
+  lines.forEach((line, idx) => {
+    // Expected format: Name-NPM (single dash separator)
+    const dashIndex = line.lastIndexOf('-');
+    if (dashIndex === -1) {
+      invalid.push({ line: idx + 1, text: line, error: 'Missing dash separator' });
+      return;
+    }
+
+    const name = line.substring(0, dashIndex).trim();
+    const npm = line.substring(dashIndex + 1).trim();
+
+    if (!npm) {
+      invalid.push({ line: idx + 1, text: line, error: 'NPM is empty' });
+      return;
+    }
+
+    valid.push({ name: name || npm, npm });
+  });
+
+  return { valid, invalid };
+}
+
+/**
+ * Submit bulk student creation form.
+ */
+export async function submitBulkStudents() {
+  const textarea = document.getElementById('bulk-student-input');
+  const input = textarea.value.trim();
+
+  if (!input) {
+    document.getElementById('bulk-validation-errors').textContent = 'Please paste at least one student entry.';
+    document.getElementById('bulk-validation-errors').style.display = 'block';
+    return;
+  }
+
+  // Parse input
+  const { valid, invalid } = parseBulkStudentInput(input);
+
+  // Show validation errors for malformed lines
+  if (invalid.length > 0) {
+    const errorMsg = invalid.map(e => `Line ${e.line}: ${e.error} — "${e.text}"`).join('\n');
+    document.getElementById('bulk-validation-errors').textContent = errorMsg;
+    document.getElementById('bulk-validation-errors').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('bulk-validation-errors').style.display = 'none';
+
+  // Submit to backend
+  const btn = document.getElementById('btn-bulk-submit');
+  btn.disabled = true;
+  btn.textContent = 'Adding students…';
+
+  const res = await api.bulkCreateStudents(valid);
+
+  btn.disabled = false;
+  btn.textContent = 'Add Students';
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      alert('Instructor authentication required. Please log in again.');
+      clearInstructorToken();
+      openManageStudents(); // Re-trigger login flow
+      return;
+    }
+    alert(`Error: ${res.error || 'Bulk creation failed'}`);
+    return;
+  }
+
+  // Display results
+  displayBulkResults(res.results);
+  
+  // Clear textarea
+  textarea.value = '';
+  
+  // Refresh student list
+  refreshStudentList();
+}
+
+/**
+ * Display bulk creation results in a formatted table.
+ */
+function displayBulkResults(results) {
+  const container = document.getElementById('bulk-results');
+  
+  const created = results.filter(r => r.status === 'created');
+  const duplicates = results.filter(r => r.status === 'duplicate');
+  const invalids = results.filter(r => r.status === 'invalid');
+
+  let html = '<div style="margin-top:24px">';
+
+  // Created students - show passwords ONCE
+  if (created.length > 0) {
+    html += '<div style="background:var(--green-dim);border:1px solid var(--healthy);border-radius:6px;padding:20px;margin-bottom:16px">';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--healthy);margin-bottom:12px;font-family:var(--font-mono)">✓ Created ' + created.length + ' student(s)</div>';
+    html += '<div style="font-size:12px;color:var(--text);margin-bottom:12px;line-height:1.6">⚠ <strong>Save these passwords now</strong> — they will not be shown again.</div>';
+    html += '<table class="device-table" style="width:100%"><thead><tr><th>NPM</th><th>Name</th><th>Password</th><th></th></tr></thead><tbody>';
+    
+    created.forEach(s => {
+      html += `<tr>
+        <td style="font-family:var(--font-mono);color:var(--accent)">${s.npm}</td>
+        <td>${s.name}</td>
+        <td style="font-family:var(--font-mono);font-weight:700;color:var(--text);background:var(--panel2);padding:8px;border-radius:4px">${s.password}</td>
+        <td><button class="btn btn-ghost" onclick="copyToClipboard('${s.password}')" style="font-size:10px;padding:4px 8px">Copy</button></td>
+      </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+  }
+
+  // Duplicates
+  if (duplicates.length > 0) {
+    html += '<div style="background:var(--amber-dim);border:1px solid var(--warning);border-radius:6px;padding:16px;margin-bottom:16px">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--warning);margin-bottom:8px;font-family:var(--font-mono)">⚠ ' + duplicates.length + ' duplicate(s) skipped</div>';
+    html += '<div style="font-size:11px;color:var(--text);font-family:var(--font-mono)">';
+    duplicates.forEach(d => {
+      html += `<div style="padding:4px 0">${d.npm} — ${d.name} (already exists)</div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // Invalid entries
+  if (invalids.length > 0) {
+    html += '<div style="background:var(--red-dim);border:1px solid var(--critical);border-radius:6px;padding:16px">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--critical);margin-bottom:8px;font-family:var(--font-mono)">✕ ' + invalids.length + ' invalid entr(ies)</div>';
+    html += '<div style="font-size:11px;color:var(--text);font-family:var(--font-mono)">';
+    invalids.forEach(i => {
+      html += `<div style="padding:4px 0">${i.npm} — ${i.error}</div>`;
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+/**
+ * Copy text to clipboard.
+ */
+export function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      // Visual feedback
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }).catch(() => {
+      alert('Failed to copy to clipboard');
+    });
+  } else {
+    // Fallback for older browsers
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    alert('Copied to clipboard');
+  }
+}
+
+/**
+ * Refresh and display the student list.
+ */
+export async function refreshStudentList() {
+  const loading = document.getElementById('student-list-loading');
+  const container = document.getElementById('student-list-container');
+  const tbody = document.getElementById('student-list-tbody');
+  const empty = document.getElementById('student-list-empty');
+
+  loading.style.display = 'block';
+  container.style.display = 'none';
+
+  const res = await api.getAllStudents();
+
+  loading.style.display = 'none';
+
+  if (!res.ok) {
+    if (res.status === 403) {
+      alert('Instructor authentication required. Please log in again.');
+      clearInstructorToken();
+      goToLanding();
+      return;
+    }
+    alert(`Error loading students: ${res.error || 'Unknown error'}`);
+    return;
+  }
+
+  const students = res.students;
+
+  if (students.length === 0) {
+    empty.style.display = 'block';
+    container.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  // Populate table
+  tbody.innerHTML = students.map(s => `
+    <tr>
+      <td style="font-family:var(--font-mono);color:var(--accent)">${s.npm}</td>
+      <td>${s.name}</td>
+      <td style="font-family:var(--font-mono);text-align:center">${s.attemptsUsed}</td>
+      <td style="font-family:var(--font-mono);text-align:center;color:${s.bestScore > 0 ? 'var(--healthy)' : 'var(--muted)'}">${s.bestScore}</td>
+      <td>
+        <button class="btn btn-ghost" onclick="resetStudentAttempts('${s.npm}')" style="font-size:11px;padding:5px 10px">
+          Reset Attempts
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  container.style.display = 'block';
+}
+
+/**
+ * Reset all attempts for a student (prompts for lesson ID).
+ */
+export async function resetStudentAttempts(npm) {
+  const lessonId = prompt(`Enter lesson ID to reset attempts for NPM ${npm}:`);
+  if (!lessonId) return;
+
+  const confirmed = confirm(`Reset attempt counter for ${npm} on lesson ${lessonId}?`);
+  if (!confirmed) return;
+
+  const res = await api.adminReset(npm, lessonId.trim());
+
+  if (res.ok) {
+    alert(`✓ Attempt counter reset for ${npm} on lesson ${lessonId}\nPrevious count: ${res.priorCount}`);
+    refreshStudentList();
+  } else {
+    alert(`Error: ${res.error || 'Reset failed'}`);
+  }
+}
+
 // ─── Global event wiring ──────────────────────────────────────────────────────
 
 // Expose functions needed by inline HTML event attributes
@@ -1397,7 +1845,7 @@ if (typeof window !== 'undefined') {
     // Nav
     exitSimulation, switchTab,
     // Landing
-    proceedToLessons, proceedToTeach, goToLanding,
+    proceedToLessons, proceedToTeach, goToLanding, openLandingLogin, logoutStudent,
     // Sim controls
     startSimulation, resetSimulation,
     // Login
@@ -1411,6 +1859,9 @@ if (typeof window !== 'undefined') {
     minimizeSelfCheck, reopenSelfCheck,
     // Admin reset
     openAdminReset, submitInstructorLogin, submitAdminReset,
+    // Manage Students
+    openManageStudents, submitBulkStudents, refreshStudentList, resetStudentAttempts, copyToClipboard,
+    toggleLessonReference, copyLessonId,
     // Explain panel
     closeExplainPanel,
     // Sandbox

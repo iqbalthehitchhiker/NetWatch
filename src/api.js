@@ -151,3 +151,28 @@ export async function adminReset(npm, lessonId) {
   if (status === 404) return { ok: false, status: 404, error: 'Lesson ID not recognised' };
   return { ok: false, status, error: data.error || 'Reset could not be completed' };
 }
+
+/**
+ * Bulk create students (instructor only).
+ * @param {Array<{name: string, npm: string}>} students
+ * @returns {{ ok: true, results: [] } | { ok: false, status, error }}
+ */
+export async function bulkCreateStudents(students) {
+  const token = getInstructorToken();
+  const { ok, status, data } = await post('/api/admin/students/bulk', { students }, token);
+  if (ok) return { ok: true, results: data.results || [] };
+  if (status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
+  return { ok: false, status, error: data.error || 'Bulk creation failed' };
+}
+
+/**
+ * Get all students with stats (instructor only).
+ * @returns {{ ok: true, students: [] } | { ok: false, status, error }}
+ */
+export async function getAllStudents() {
+  const token = getInstructorToken();
+  const { ok, status, data } = await get('/api/admin/students', token);
+  if (ok) return { ok: true, students: data.students || [] };
+  if (status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
+  return { ok: false, status, error: data.error || 'Could not fetch students' };
+}

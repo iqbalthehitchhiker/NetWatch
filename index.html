@@ -50,8 +50,23 @@
             aria-label="Quiz attempt score">—</span>
     </div>
 
-    <!-- RIGHT: theme toggle (always) -->
+    <!-- RIGHT: auth + theme toggle (always) -->
     <div class="gnav-right">
+      <!-- Auth slot: shown only on landing, toggles between login button and profile -->
+      <div id="gnav-auth-slot" class="gnav-auth-slot hidden">
+        <!-- Not logged in: login button -->
+        <button class="gnav-login-btn" id="gnav-login-btn" onclick="openLandingLogin()" aria-label="Student login">
+          Log in
+        </button>
+        <!-- Logged in: profile display -->
+        <div class="gnav-profile hidden" id="gnav-profile">
+          <span class="gnav-profile-name" id="gnav-profile-name">—</span>
+          <button class="gnav-logout-btn" id="gnav-logout-btn" onclick="logoutStudent()" aria-label="Log out">
+            Log out
+          </button>
+        </div>
+      </div>
+      
       <button class="theme-toggle" onclick="toggleTheme()"
               id="theme-toggle-global" aria-label="Toggle light/dark theme">
         <span class="theme-toggle-icon" aria-hidden="true"></span>
@@ -86,13 +101,13 @@
         <p class="lp-subhead">Watch a simulated network failure unfold, follow the evidence, and learn to diagnose problems using the same signals engineers rely on.</p>
         <div class="lp-hero-cta">
           <button class="lp-btn-primary" onclick="proceedToLessons()" id="btn-take-scenario">
-            Start a scenario <span aria-hidden="true">→</span>
+            Take a Scenario <span aria-hidden="true">→</span>
           </button>
           <button class="lp-btn-ghost" onclick="proceedToTeach()" id="btn-learn-tool">
-            Explore the tool
+            Learn how it works
           </button>
         </div>
-        <p class="lp-hero-note">Quiz Mode requires a student login &nbsp;·&nbsp; Teach Mode is open, no login needed</p>
+        <p class="lp-hero-note">Quiz Mode requires login · Teach Mode is open to all</p>
       </div>
 
       <!-- Dashboard mock-up -->
@@ -366,7 +381,7 @@
             <li>No root-cause diagnosis required, the payoff is understanding</li>
             <li>No login needed</li>
           </ul>
-          <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Explore the tool →</button>
+          <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Learn how it works →</button>
         </article>
 
         <div class="lp-modes-divider" aria-hidden="true">
@@ -387,7 +402,7 @@
             <li>Attempt-limited per scenario, results are recorded server-side</li>
             <li>Requires student login</li>
           </ul>
-          <button class="lp-mode-cta lp-mode-cta-quiz" onclick="proceedToLessons()">Start a scenario →</button>
+          <button class="lp-mode-cta lp-mode-cta-quiz" onclick="proceedToLessons()">Take a Scenario →</button>
         </article>
 
       </div>
@@ -439,8 +454,8 @@
       <h2 class="lp-final-heading" id="final-cta-heading">Ready to investigate an incident?</h2>
       <p class="lp-final-sub">Stop reading about network failures.<br>Learn to diagnose them.</p>
       <div class="lp-final-cta">
-        <button class="lp-btn-primary lp-btn-lg" onclick="proceedToLessons()">Start a scenario →</button>
-        <button class="lp-btn-ghost  lp-btn-lg" onclick="proceedToTeach()">Explore Teach Mode</button>
+        <button class="lp-btn-primary lp-btn-lg" onclick="proceedToLessons()">Take a Scenario →</button>
+        <button class="lp-btn-ghost  lp-btn-lg" onclick="proceedToTeach()">Learn how it works</button>
       </div>
     </div>
   </section>
@@ -450,7 +465,7 @@
     <div class="lp-footer-inner">
       <span class="lp-footer-brand">NetWatch by IQBAL</span>
       <span class="lp-footer-note">All topologies and packet data are simulated for educational purposes. Nothing here touches a real network.</span>
-      <button class="lp-footer-admin btn btn-ghost" onclick="openAdminReset()">Admin Reset</button>
+      <button class="lp-footer-admin btn btn-ghost" onclick="openManageStudents()">Admin</button>
     </div>
   </footer>
 
@@ -827,6 +842,98 @@
   </div>
 </div>
 
+<!-- ══════════════ MANAGE STUDENTS (INSTRUCTOR) ══════════════ -->
+<div id="screen-manage-students" class="hidden" style="min-height:100vh;padding:60px clamp(24px,5vw,80px);background:var(--bg)">
+  <div style="max-width:1200px;margin:0 auto">
+    <button class="btn btn-ghost" onclick="goToLanding()" style="margin-bottom:32px">← Home</button>
+    
+    <div style="margin-bottom:48px">
+      <h1 style="font-size:32px;font-weight:700;color:var(--text);margin-bottom:12px">Manage Students</h1>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6">Bulk-add students and manage attempt counters.</p>
+      <div style="display:flex;gap:12px;margin-top:16px;align-items:center">
+        <button class="btn btn-ghost" onclick="openAdminReset()" style="font-size:12px">
+          Reset Attempt Counter (by NPM + Lesson)
+        </button>
+        <button class="btn btn-ghost" onclick="toggleLessonReference()" id="btn-toggle-lessons" style="font-size:12px">
+          📋 Quick Reference
+        </button>
+      </div>
+    </div>
+
+    <!-- Lesson Reference Panel (Collapsible) -->
+    <div id="lesson-reference-panel" class="lesson-ref-panel hidden" style="margin-bottom:32px">
+      <div class="lesson-ref-header">
+        <div class="lesson-ref-title">📚 Available Lessons — Quick Reference</div>
+        <button class="lesson-ref-close" onclick="toggleLessonReference()">✕</button>
+      </div>
+      <div class="lesson-ref-grid" id="lesson-ref-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Bulk Add Section -->
+    <div class="panel" style="padding:28px;margin-bottom:32px">
+      <div class="section-header">
+        <h2 class="section-title">Bulk Add Students</h2>
+      </div>
+      
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Paste student entries below, one per line in the format: <code style="font-family:var(--font-mono);color:var(--accent);background:var(--cyan-dim);padding:2px 6px;border-radius:3px">Name-NPM</code>
+        <br>Example: <code style="font-family:var(--font-mono);color:var(--accent);background:var(--cyan-dim);padding:2px 6px;border-radius:3px">John Doe-2106012345</code>
+      </p>
+
+      <textarea 
+        id="bulk-student-input" 
+        placeholder="John Doe-2106012345&#10;Jane Smith-2106067890"
+        style="width:100%;min-height:140px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;color:var(--text);font-family:var(--font-mono);font-size:12px;resize:vertical;margin-bottom:12px"
+      ></textarea>
+      
+      <div id="bulk-validation-errors" style="display:none;font-size:12px;color:var(--critical);font-family:var(--font-mono);margin-bottom:12px;background:var(--red-dim);padding:10px;border-radius:4px;border:1px solid var(--critical)"></div>
+      
+      <button class="btn btn-primary" onclick="submitBulkStudents()" id="btn-bulk-submit">
+        Add Students
+      </button>
+      
+      <!-- Results display -->
+      <div id="bulk-results" style="display:none;margin-top:24px"></div>
+    </div>
+
+    <!-- Student List Section -->
+    <div class="panel" style="padding:28px">
+      <div class="section-header" style="margin-bottom:20px">
+        <h2 class="section-title">Student List</h2>
+        <button class="btn btn-ghost" onclick="refreshStudentList()" style="font-size:11px">
+          ↻ Refresh
+        </button>
+      </div>
+      
+      <div id="student-list-loading" style="text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:13px">
+        Loading students...
+      </div>
+      
+      <div id="student-list-container" style="display:none">
+        <table class="device-table" style="width:100%">
+          <thead>
+            <tr>
+              <th>NPM</th>
+              <th>Name</th>
+              <th>Total Attempts</th>
+              <th>Best Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="student-list-tbody">
+          </tbody>
+        </table>
+        
+        <div id="student-list-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:13px">
+          No students found. Add students using the form above.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ MODALS ══════════════ -->
 <!-- Self-Check Modal -->
 <div class="modal-overlay hidden" id="modal-selfcheck" style="z-index:600">
@@ -941,12 +1048,12 @@
   </div>
 </div>
 
-<!-- Admin Reset Modal -->
+<!-- Admin/Instructor Access Modal -->
 <div id="modal-admin-reset" class="modal-overlay hidden">
   <div class="modal-card" style="max-width:420px">
     <button class="modal-close" onclick="closeModal('modal-admin-reset')">✕</button>
-    <div class="modal-title">Admin Reset — Attempt Counter</div>
-    <div class="modal-sub">Resets a student's attempt counter for one lesson. Does not touch recorded results.</div>
+    <div class="modal-title" id="ar-modal-title">Instructor Access</div>
+    <div class="modal-sub" id="ar-modal-sub">Please sign in with your instructor credentials.</div>
     <div id="ar-success" class="hidden"></div>
 
     <!-- Instructor login sub-form -->
