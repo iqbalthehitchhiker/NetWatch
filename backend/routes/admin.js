@@ -130,35 +130,140 @@ router.post('/students/bulk', requireInstructor, async (req, res) => {
 });
 
 /**
+ * DELETE /api/admin/students
+ * Delete selected students and their dependent data.
+ * 
+ * Expects: { npms: ['npm1', 'npm2', ...] }
+ * 
+ * Deletes in correct order:
+ * 1. Attempt_Counter_Backups (references npm)
+ * 2. Result_Records (references npm)
+ * 3. Attempt_Counters (references npm)
+ * 4. Student_Accounts (primary table)
+ * 
+ * No explicit foreign keys exist in the schema, so we must delete manually in dependency order.
+ */
+router.delete('/students', requireInstructor, (req, res) => {
+  const { npms } = req.body || {};
+
+  if (!Array.isArray(npms) || npms.length === 0) {
+    return res.status(400).json({ error: 'npms array is required and must not be empty' });
+  }
+
+  // Validate all NPMs exist and gather their info for confirmation response
+  const students = [];
+  for (const npm of npms) {
+    const student = db.prepare('SELECT npm, name FROM Student_Accounts WHERE npm = ?').get(npm);
+    if (!student) {
+      return res.status(404).json({ error: `Student not found: ${npm}` });
+    }
+    students.push(student);
+  }
+
+  // Count dependent records per student for reporting
+  const deletionSummary = students.map(student => {
+    const resultsCount = db.prepare('SELECT COUNT(*) as count FROM Result_Records WHERE npm = ?').get(student.npm).count;
+    const attemptsCount = db.prepare('SELECT COUNT(*) as count FROM Attempt_Counters WHERE npm = ?').get(student.npm).count;
+    const backupsCount = db.prepare('SELECT COUNT(*) as count FROM Attempt_Counter_Backups WHERE npm = ?').get(student.npm).count;
+    
+    return {
+      npm: student.npm,
+      name: student.name,
+      resultsDeleted: resultsCount,
+      attemptsDeleted: attemptsCount,
+      backupsDeleted: backupsCount
+    };
+  });
+
+  // Delete in correct dependency order
+  const placeholders = npms.map(() => '?').join(',');
+  
+  try {
+    // Delete dependent records first
+    db.prepare(`DELETE FROM Attempt_Counter_Backups WHERE npm IN (${placeholders})`).run(...npms);
+    db.prepare(`DELETE FROM Result_Records WHERE npm IN (${placeholders})`).run(...npms);
+    db.prepare(`DELETE FROM Attempt_Counters WHERE npm IN (${placeholders})`).run(...npms);
+    
+    // Finally delete the student accounts
+    const result = db.prepare(`DELETE FROM Student_Accounts WHERE npm IN (${placeholders})`).run(...npms);
+
+    return res.json({ 
+      message: `Deleted ${result.changes} student(s)`,
+      deleted: deletionSummary
+    });
+  } catch (err) {
+    console.error('Delete students error:', err);
+    return res.status(500).json({ error: 'Failed to delete students: ' + err.message });
+  }
+});
+
+/**
  * GET /api/admin/students
- * List all students with attempts used and best score per lesson.
+ * List all students with per-lesson attempts and best scores.
+ * 
+ * Returns per-lesson breakdown for each student:
+ * - lessonId: the lesson identifier
+ * - attemptsUsed: attempt count for this lesson (0 if never attempted)
+ * - bestScore: highest score achieved for this lesson (0 if never attempted)
+ * 
+ * Only lessons that have been attempted are included in the breakdown array.
+ * Lessons never attempted are omitted (not shown as zero).
  */
 router.get('/students', requireInstructor, (req, res) => {
   // Get all students
   const students = db.prepare('SELECT npm, name, created_at FROM Student_Accounts ORDER BY created_at DESC').all();
 
-  // For each student, calculate total attempts across all lessons and best overall score
+  // For each student, get per-lesson breakdown
   const enriched = students.map(student => {
-    // Total attempts across all lessons
-    const attemptsRow = db.prepare(`
-      SELECT COALESCE(SUM(count), 0) as total
+    // Get all lessons this student has attempted (from Attempt_Counters)
+    const attemptedLessons = db.prepare(`
+      SELECT lesson_id, count
       FROM Attempt_Counters
       WHERE npm = ?
-    `).get(student.npm);
+    `).all(student.npm);
 
-    // Best score across all lessons (if scoring is implemented)
-    const bestScoreRow = db.prepare(`
-      SELECT COALESCE(MAX(score), 0) as best
+    // Build a map of lessonId -> { attemptsUsed, bestScore }
+    const lessonMap = new Map();
+    
+    attemptedLessons.forEach(row => {
+      lessonMap.set(row.lesson_id, {
+        lessonId: row.lesson_id,
+        attemptsUsed: row.count,
+        bestScore: 0
+      });
+    });
+
+    // Get best scores per lesson from Result_Records
+    const lessonScores = db.prepare(`
+      SELECT lesson_id, MAX(score) as best_score
       FROM Result_Records
       WHERE npm = ?
-    `).get(student.npm);
+      GROUP BY lesson_id
+    `).all(student.npm);
+
+    lessonScores.forEach(row => {
+      if (lessonMap.has(row.lesson_id)) {
+        lessonMap.get(row.lesson_id).bestScore = row.best_score;
+      } else {
+        // Has results but no attempt counter (shouldn't happen, but handle it)
+        lessonMap.set(row.lesson_id, {
+          lessonId: row.lesson_id,
+          attemptsUsed: 0,
+          bestScore: row.best_score
+        });
+      }
+    });
+
+    // Convert map to array, sorted by lessonId for consistent display
+    const lessonBreakdown = Array.from(lessonMap.values()).sort((a, b) => 
+      a.lessonId.localeCompare(b.lessonId)
+    );
 
     return {
       npm: student.npm,
       name: student.name,
-      attemptsUsed: attemptsRow ? attemptsRow.total : 0,
-      bestScore: bestScoreRow ? bestScoreRow.best : 0,
-      createdAt: student.created_at
+      createdAt: student.created_at,
+      lessonBreakdown  // Array of { lessonId, attemptsUsed, bestScore }
     };
   });
 

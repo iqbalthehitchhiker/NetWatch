@@ -915,16 +915,31 @@
         <table class="device-table" style="width:100%">
           <thead>
             <tr>
+              <th style="width:40px">
+                <input type="checkbox" id="select-all-students" onchange="toggleSelectAllStudents()" style="cursor:pointer" aria-label="Select all students" />
+              </th>
               <th>NPM</th>
               <th>Name</th>
               <th>Total Attempts</th>
-              <th>Best Score</th>
+              <th>Summary</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="student-list-tbody">
           </tbody>
         </table>
+        
+        <div id="bulk-delete-actions" style="margin-top:16px;display:none;padding:12px;background:var(--bg-accent);border:1px solid var(--border);border-radius:6px">
+          <div style="display:flex;gap:12px;align-items:center">
+            <span id="selected-count" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">0 selected</span>
+            <button class="btn" onclick="deleteSelectedStudents()" style="background:var(--error);color:white;font-size:12px;padding:6px 12px">
+              Delete Selected
+            </button>
+            <button class="btn btn-ghost" onclick="clearStudentSelection()" style="font-size:12px;padding:6px 12px">
+              Clear Selection
+            </button>
+          </div>
+        </div>
         
         <div id="student-list-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:13px">
           No students found. Add students using the form above.

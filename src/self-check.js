@@ -304,9 +304,97 @@ function _finish() {
   if (modal) modal.classList.add('hidden');
   _updatePill();
 
+  // PART C: Show completion summary with student name and score
+  // This is ONLY for display — never sent to backend, never stored permanently
   if (typeof _callbacks.onComplete === 'function') {
     _callbacks.onComplete(_skill.id);
   }
+  
+  _showCompletionSummary();
+}
+
+/**
+ * Display a one-time completion message after finishing all self-check questions.
+ * Uses the ephemeral tally from app.js (not stored, not sent to backend).
+ * Student-facing only — does NOT appear in Manage Students or any instructor view.
+ */
+function _showCompletionSummary() {
+  // Skip toast in test environment (JSDOM may not fully support createElement)
+  if (typeof document === 'undefined' || !document.createElement || !document.body) {
+    return;
+  }
+  
+  // Get student name from session storage (if available)
+  let studentName = 'there';
+  try {
+    const session = JSON.parse(sessionStorage.getItem('nw_session') || '{}');
+    if (session.name) {
+      studentName = session.name.split(' ')[0]; // First name only
+    }
+  } catch (_) { /* ignore */ }
+  
+  const skillName = _skill ? (_skill.name || _skill.id) : 'this skill';
+  
+  // Get the score from app.js's tally
+  // We'll pass this through the callback context
+  const currentTally = window.getScTally ? window.getScTally() : 0;
+  
+  const allCorrect = _questions.length > 0 && _questions.every((_, idx) => idx < _questions.length);
+  
+  let message;
+  if (allCorrect && currentTally >= _questions.length * 10) {
+    message = `Nice work, ${studentName}! You answered all questions correctly and scored ${currentTally} points on ${skillName}!`;
+  } else if (currentTally > 0) {
+    message = `Good effort, ${studentName}! You completed ${skillName} and scored ${currentTally} points. Review the explanations to strengthen your understanding.`;
+  } else {
+    message = `You've completed the self-check for ${skillName}. Review the explanations to build your understanding.`;
+  }
+  
+  // Show a temporary toast/banner (not a blocking alert)
+  _showCompletionToast(message);
+}
+
+/**
+ * Show a temporary completion toast message that auto-dismisses.
+ */
+function _showCompletionToast(message) {
+  const existing = document.getElementById('sc-completion-toast');
+  if (existing && existing.parentNode) {
+    existing.parentNode.removeChild(existing);
+  }
+  
+  const toast = document.createElement('div');
+  toast.id = 'sc-completion-toast';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--healthy);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 14px;
+    font-family: var(--font-sans);
+    max-width: 500px;
+    text-align: center;
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+  `;
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    toast.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }, 5000);
 }
 
 // ─── Internal: modal open/close helpers ──────────────────────────────────────

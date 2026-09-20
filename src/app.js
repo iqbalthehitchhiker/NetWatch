@@ -1793,29 +1793,223 @@ export async function refreshStudentList() {
 
   empty.style.display = 'none';
 
-  // Populate table
-  tbody.innerHTML = students.map(s => `
-    <tr>
-      <td style="font-family:var(--font-mono);color:var(--accent)">${s.npm}</td>
-      <td>${s.name}</td>
-      <td style="font-family:var(--font-mono);text-align:center">${s.attemptsUsed}</td>
-      <td style="font-family:var(--font-mono);text-align:center;color:${s.bestScore > 0 ? 'var(--healthy)' : 'var(--muted)'}">${s.bestScore}</td>
-      <td>
-        <button class="btn btn-ghost" onclick="resetStudentAttempts('${s.npm}')" style="font-size:11px;padding:5px 10px">
-          Reset Attempts
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  // Populate table with expandable rows showing per-lesson breakdown
+  tbody.innerHTML = students.map(s => {
+    const breakdown = s.lessonBreakdown || [];
+    const totalAttempts = breakdown.reduce((sum, l) => sum + l.attemptsUsed, 0);
+    const avgScore = breakdown.length > 0 
+      ? Math.round(breakdown.reduce((sum, l) => sum + l.bestScore, 0) / breakdown.length)
+      : 0;
+    const summary = breakdown.length > 0
+      ? `${breakdown.length} lesson(s) attempted, avg best score ${avgScore}`
+      : 'No attempts yet';
+
+    // Build per-lesson detail rows (hidden by default)
+    const detailRows = breakdown.length > 0 ? breakdown.map(l => `
+      <tr class="student-detail-row hidden" data-npm="${s.npm}">
+        <td></td>
+        <td colspan="5" style="padding-left:40px;padding-top:4px;padding-bottom:4px;background:var(--bg-accent);border-bottom:1px solid var(--border)">
+          <div style="display:flex;gap:20px;align-items:center;font-size:12px">
+            <span style="font-family:var(--font-mono);color:var(--accent);min-width:120px">${l.lessonId}</span>
+            <span style="color:var(--muted)">Attempts: <span style="color:var(--text)">${l.attemptsUsed}</span></span>
+            <span style="color:var(--muted)">Best Score: <span style="color:${l.bestScore > 0 ? 'var(--healthy)' : 'var(--muted)'};font-weight:500">${l.bestScore}</span></span>
+            <button class="btn btn-ghost" onclick="resetStudentAttempts('${s.npm}', '${l.lessonId}')" style="font-size:11px;padding:4px 8px;margin-left:auto">
+              Reset
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('') : '';
+
+    return `
+      <tr class="student-summary-row" data-npm="${s.npm}">
+        <td onclick="event.stopPropagation()">
+          <input type="checkbox" class="student-checkbox" data-npm="${s.npm}" onchange="updateStudentSelection()" style="cursor:pointer" aria-label="Select ${s.name}" />
+        </td>
+        <td onclick="toggleStudentDetails('${s.npm}')" style="cursor:pointer;font-family:var(--font-mono);color:var(--accent)">
+          <span class="expand-icon" data-npm="${s.npm}" style="display:inline-block;margin-right:8px;transition:transform 0.2s;color:var(--muted)">▶</span>
+          ${s.npm}
+        </td>
+        <td onclick="toggleStudentDetails('${s.npm}')" style="cursor:pointer">${s.name}</td>
+        <td onclick="toggleStudentDetails('${s.npm}')" style="cursor:pointer;font-family:var(--font-mono);text-align:center">${totalAttempts}</td>
+        <td onclick="toggleStudentDetails('${s.npm}')" style="cursor:pointer;font-size:12px;color:var(--muted)">${summary}</td>
+        <td>
+          <button class="btn btn-ghost" onclick="deleteSelectedStudents(['${s.npm}'])" style="font-size:11px;padding:5px 10px">
+            Delete
+          </button>
+        </td>
+      </tr>
+      ${detailRows}
+    `;
+  }).join('');
 
   container.style.display = 'block';
+  updateStudentSelection();
 }
 
 /**
- * Reset all attempts for a student (prompts for lesson ID).
+ * Toggle the per-lesson detail rows for a student.
  */
-export async function resetStudentAttempts(npm) {
-  const lessonId = prompt(`Enter lesson ID to reset attempts for NPM ${npm}:`);
+export function toggleStudentDetails(npm) {
+  const detailRows = document.querySelectorAll(`.student-detail-row[data-npm="${npm}"]`);
+  const icon = document.querySelector(`.expand-icon[data-npm="${npm}"]`);
+  
+  detailRows.forEach(row => {
+    row.classList.toggle('hidden');
+  });
+  
+  if (icon) {
+    const isExpanded = !detailRows[0]?.classList.contains('hidden');
+    icon.style.transform = isExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
+  }
+}
+
+/**
+ * Update the selection state UI (selected count, bulk actions visibility).
+ */
+export function updateStudentSelection() {
+  const checkboxes = document.querySelectorAll('.student-checkbox');
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  
+  const bulkActions = document.getElementById('bulk-delete-actions');
+  const selectedCount = document.getElementById('selected-count');
+  const selectAllCheckbox = document.getElementById('select-all-students');
+  
+  if (selectedCount) {
+    selectedCount.textContent = `${checked.length} selected`;
+  }
+  
+  if (bulkActions) {
+    bulkActions.style.display = checked.length > 0 ? 'block' : 'none';
+  }
+  
+  if (selectAllCheckbox) {
+    selectAllCheckbox.checked = checkboxes.length > 0 && checked.length === checkboxes.length;
+    selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+  }
+}
+
+/**
+ * Toggle select all students checkbox.
+ */
+export function toggleSelectAllStudents() {
+  const selectAll = document.getElementById('select-all-students');
+  const checkboxes = document.querySelectorAll('.student-checkbox');
+  
+  checkboxes.forEach(cb => {
+    cb.checked = selectAll.checked;
+  });
+  
+  updateStudentSelection();
+}
+
+/**
+ * Clear all student selections.
+ */
+export function clearStudentSelection() {
+  document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('select-all-students');
+  if (selectAll) selectAll.checked = false;
+  updateStudentSelection();
+}
+
+/**
+ * Delete selected students with double confirmation.
+ * First confirmation shows detailed list with result counts.
+ * Second confirmation requires typing DELETE.
+ * 
+ * @param {string[]} [npmsOverride] - Optional NPMs to delete (for single-delete button)
+ */
+export async function deleteSelectedStudents(npmsOverride = null) {
+  let npmsToDelete;
+  
+  if (npmsOverride) {
+    // Single student delete from row button
+    npmsToDelete = npmsOverride;
+  } else {
+    // Bulk delete from checkboxes
+    const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+    npmsToDelete = Array.from(checkboxes).map(cb => cb.dataset.npm);
+  }
+  
+  if (npmsToDelete.length === 0) {
+    alert('No students selected.');
+    return;
+  }
+  
+  // Fetch current student data to show detailed confirmation
+  const res = await api.getAllStudents();
+  if (!res.ok) {
+    alert(`Error loading student data: ${res.error}`);
+    return;
+  }
+  
+  const studentsToDelete = res.students.filter(s => npmsToDelete.includes(s.npm));
+  
+  // Build detailed confirmation message
+  let confirmMsg = `You are about to delete ${studentsToDelete.length} student(s):\n\n`;
+  
+  studentsToDelete.forEach(s => {
+    const breakdown = s.lessonBreakdown || [];
+    const resultsCount = breakdown.reduce((sum, l) => {
+      // Each lesson with attempts likely has some results
+      return sum + (l.attemptsUsed > 0 ? l.attemptsUsed : 0);
+    }, 0);
+    
+    confirmMsg += `• ${s.name} (${s.npm})`;
+    if (resultsCount > 0) {
+      confirmMsg += ` — ⚠️  This will also delete ${resultsCount} attempt(s) and associated results`;
+    }
+    confirmMsg += '\n';
+  });
+  
+  confirmMsg += '\n⚠️  THIS ACTION CANNOT BE UNDONE.\n\nDo you want to continue?';
+  
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+  
+  // Second confirmation: require typing DELETE
+  const confirmText = prompt(
+    `FINAL CONFIRMATION\n\n` +
+    `About to permanently delete ${studentsToDelete.length} student(s) and all their data.\n\n` +
+    `Type "DELETE" (all caps) to confirm:`
+  );
+  
+  if (confirmText !== 'DELETE') {
+    alert('Deletion cancelled. Text did not match "DELETE".');
+    return;
+  }
+  
+  // Execute deletion
+  const deleteRes = await api.deleteStudents(npmsToDelete);
+  
+  if (deleteRes.ok) {
+    const summary = deleteRes.deleted.map(d => 
+      `${d.name} (${d.npm}): ${d.resultsDeleted} results, ${d.attemptsDeleted} attempts`
+    ).join('\n');
+    
+    alert(
+      `✓ Successfully deleted ${deleteRes.deleted.length} student(s)\n\n` +
+      `Details:\n${summary}`
+    );
+    
+    clearStudentSelection();
+    refreshStudentList();
+  } else {
+    alert(`Error: ${deleteRes.error || 'Deletion failed'}`);
+  }
+}
+
+/**
+ * Reset attempts for a student on a specific lesson.
+ * If called from per-lesson detail row, lessonId is provided.
+ * If called from old context, prompts for lessonId (backward compatibility).
+ */
+export async function resetStudentAttempts(npm, lessonId = null) {
+  if (!lessonId) {
+    lessonId = prompt(`Enter lesson ID to reset attempts for NPM ${npm}:`);
+  }
   if (!lessonId) return;
 
   const confirmed = confirm(`Reset attempt counter for ${npm} on lesson ${lessonId}?`);

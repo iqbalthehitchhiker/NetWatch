@@ -137,8 +137,9 @@ function makeSelfCheckDom() {
     textContent: '',
     innerHTML: '',
     className: '',
-    style: {},
+    style: { cssText: '' },
     disabled: false,
+    parentNode: null,
     classList: {
       _hidden: false,
       add(cls)      { if (cls === 'hidden') this._hidden = true; },
@@ -164,10 +165,28 @@ function makeSelfCheckDom() {
     'sc-minimized-label':     makeEl('sc-minimized-label'),
   };
 
+  // Mock body with appendChild and removeChild support
+  const bodyChildren = [];
+  const mockBody = {
+    appendChild: vi.fn((el) => {
+      el.parentNode = mockBody;
+      bodyChildren.push(el);
+      return el;
+    }),
+    removeChild: vi.fn((el) => {
+      const idx = bodyChildren.indexOf(el);
+      if (idx !== -1) bodyChildren.splice(idx, 1);
+      el.parentNode = null;
+      return el;
+    }),
+  };
+
   return {
     getElementById: vi.fn(id => elements[id] || makeEl(id)),
+    createElement: vi.fn((tag) => makeEl(`dynamic-${tag}-${Date.now()}`)),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    body: mockBody,
   };
 }
 

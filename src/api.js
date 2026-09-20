@@ -176,3 +176,25 @@ export async function getAllStudents() {
   if (status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
   return { ok: false, status, error: data.error || 'Could not fetch students' };
 }
+
+/**
+ * Delete selected students (instructor only).
+ * @param {string[]} npms - Array of NPMs to delete
+ * @returns {{ ok: true, deleted: [] } | { ok: false, status, error }}
+ */
+export async function deleteStudents(npms) {
+  const token = getInstructorToken();
+  try {
+    const res = await fetch(BASE + '/api/admin/students', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ npms }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, deleted: data.deleted || [] };
+    if (res.status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
+    return { ok: false, status: res.status, error: data.error || 'Delete failed' };
+  } catch {
+    return { ok: false, status: 0, error: 'Network error — backend may be unavailable' };
+  }
+}
