@@ -1797,29 +1797,46 @@ export async function refreshStudentList() {
   tbody.innerHTML = students.map(s => {
     const breakdown = s.lessonBreakdown || [];
     const totalAttempts = breakdown.reduce((sum, l) => sum + l.attemptsUsed, 0);
-    const avgScore = breakdown.length > 0 
-      ? Math.round(breakdown.reduce((sum, l) => sum + l.bestScore, 0) / breakdown.length)
+    
+    // Calculate average ONLY for lessons with actual results (exclude attempts without completion)
+    const lessonsWithScores = breakdown.filter(l => l.hasResults);
+    const avgScore = lessonsWithScores.length > 0
+      ? Math.round(lessonsWithScores.reduce((sum, l) => sum + l.bestScore, 0) / lessonsWithScores.length)
       : 0;
+    
     const summary = breakdown.length > 0
-      ? `${breakdown.length} lesson(s) attempted, avg best score ${avgScore}`
+      ? lessonsWithScores.length > 0
+        ? `${lessonsWithScores.length} of ${breakdown.length} completed, avg score ${avgScore}`
+        : `${breakdown.length} lesson(s) started, none completed yet`
       : 'No attempts yet';
 
     // Build per-lesson detail rows (hidden by default)
-    const detailRows = breakdown.length > 0 ? breakdown.map(l => `
-      <tr class="student-detail-row hidden" data-npm="${s.npm}">
-        <td></td>
-        <td colspan="5" style="padding-left:40px;padding-top:4px;padding-bottom:4px;background:var(--bg-accent);border-bottom:1px solid var(--border)">
-          <div style="display:flex;gap:20px;align-items:center;font-size:12px">
-            <span style="font-family:var(--font-mono);color:var(--accent);min-width:120px">${l.lessonId}</span>
-            <span style="color:var(--muted)">Attempts: <span style="color:var(--text)">${l.attemptsUsed}</span></span>
-            <span style="color:var(--muted)">Best Score: <span style="color:${l.bestScore > 0 ? 'var(--healthy)' : 'var(--muted)'};font-weight:500">${l.bestScore}</span></span>
-            <button class="btn btn-ghost" onclick="resetStudentAttempts('${s.npm}', '${l.lessonId}')" style="font-size:11px;padding:4px 8px;margin-left:auto">
-              Reset
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('') : '';
+    const detailRows = breakdown.length > 0 ? breakdown.map(l => {
+      // Show score or "Not completed" based on hasResults
+      const scoreDisplay = l.hasResults
+        ? `<span style="color:${l.bestScore > 0 ? 'var(--healthy)' : 'var(--muted)'};font-weight:500">${l.bestScore}</span>`
+        : `<span style="color:var(--muted);font-style:italic">Not completed</span>`;
+      
+      // Disable reset button when attempts are already 0, with tooltip
+      const resetDisabled = l.attemptsUsed === 0;
+      const resetButton = resetDisabled
+        ? `<button class="btn btn-ghost" disabled style="font-size:11px;padding:4px 8px;margin-left:auto;opacity:0.4;cursor:not-allowed" title="Already at 0 attempts (full attempts available)">Reset</button>`
+        : `<button class="btn btn-ghost" onclick="resetStudentAttempts('${s.npm}', '${l.lessonId}')" style="font-size:11px;padding:4px 8px;margin-left:auto" title="Reset attempt counter to 0 (give full attempts)">Reset</button>`;
+      
+      return `
+        <tr class="student-detail-row hidden" data-npm="${s.npm}">
+          <td></td>
+          <td colspan="5" style="padding-left:40px;padding-top:4px;padding-bottom:4px;background:var(--bg-accent);border-bottom:1px solid var(--border)">
+            <div style="display:flex;gap:20px;align-items:center;font-size:12px">
+              <span style="font-family:var(--font-mono);color:var(--accent);min-width:120px">${l.lessonId}</span>
+              <span style="color:var(--muted)">Attempts: <span style="color:var(--text)">${l.attemptsUsed}</span></span>
+              <span style="color:var(--muted)">Best Score: ${scoreDisplay}</span>
+              ${resetButton}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('') : '';
 
     return `
       <tr class="student-summary-row" data-npm="${s.npm}">
@@ -2025,6 +2042,147 @@ export async function resetStudentAttempts(npm, lessonId = null) {
   }
 }
 
+/**
+ * Open the bulk reset lesson picker modal.
+ * Shows lesson dropdown and preview of affected students.
+ */
+export async function openBulkResetPicker() {
+  const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+  const selectedNpms = Array.from(checkboxes).map(cb => cb.dataset.npm);
+  
+  if (selectedNpms.length === 0) {
+    alert('No students selected.');
+    return;
+  }
+  
+  // Fetch current student data for preview
+  const res = await api.getAllStudents();
+  if (!res.ok) {
+    alert(`Error loading student data: ${res.error}`);
+    return;
+  }
+  
+  const selectedStudents = res.students.filter(s => selectedNpms.includes(s.npm));
+  
+  // Store selected data for later use
+  window._bulkResetSelection = { npms: selectedNpms, students: selectedStudents };
+  
+  // Update modal count
+  document.getElementById('bulk-reset-count').textContent = selectedNpms.length;
+  
+  // Populate lesson dropdown
+  const lessonSelect = document.getElementById('bulk-reset-lesson-select');
+  lessonSelect.innerHTML = '<option value="">— Choose a lesson —</option>' +
+    LESSONS.map(l => `<option value="${l.id}">${l.name} (${l.id})</option>`).join('');
+  
+  // Clear previous selection
+  lessonSelect.value = '';
+  document.getElementById('bulk-reset-preview').classList.add('hidden');
+  document.getElementById('bulk-reset-confirm-btn').disabled = true;
+  
+  // Add change listener to show preview when lesson is selected
+  lessonSelect.onchange = updateBulkResetPreview;
+  
+  openModal('modal-bulk-reset-picker');
+}
+
+/**
+ * Update the bulk reset preview when a lesson is selected.
+ */
+export function updateBulkResetPreview() {
+  const lessonSelect = document.getElementById('bulk-reset-lesson-select');
+  const selectedLessonId = lessonSelect.value;
+  const preview = document.getElementById('bulk-reset-preview');
+  const studentList = document.getElementById('bulk-reset-student-list');
+  const confirmBtn = document.getElementById('bulk-reset-confirm-btn');
+  
+  if (!selectedLessonId) {
+    preview.classList.add('hidden');
+    confirmBtn.disabled = true;
+    return;
+  }
+  
+  const { students } = window._bulkResetSelection || {};
+  if (!students) return;
+  
+  // Build preview list showing current attempt counts for this lesson
+  studentList.innerHTML = students.map(s => {
+    const lessonData = (s.lessonBreakdown || []).find(l => l.lessonId === selectedLessonId);
+    const currentAttempts = lessonData ? lessonData.attemptsUsed : 0;
+    
+    return `
+      <div style="padding:4px 0;border-bottom:1px solid var(--border-subtle)">
+        <span style="color:var(--accent)">${s.npm}</span>
+        <span style="color:var(--muted)"> — </span>
+        <span>${s.name}</span>
+        <span style="color:var(--muted);margin-left:8px">(${currentAttempts} attempt${currentAttempts !== 1 ? 's' : ''})</span>
+      </div>
+    `;
+  }).join('');
+  
+  preview.classList.remove('hidden');
+  confirmBtn.disabled = false;
+}
+
+/**
+ * Confirm and execute bulk reset for the selected lesson and students.
+ */
+export async function confirmBulkReset() {
+  const lessonSelect = document.getElementById('bulk-reset-lesson-select');
+  const selectedLessonId = lessonSelect.value;
+  
+  if (!selectedLessonId) {
+    alert('Please select a lesson.');
+    return;
+  }
+  
+  const { npms, students } = window._bulkResetSelection || {};
+  if (!npms || npms.length === 0) {
+    alert('No students selected.');
+    return;
+  }
+  
+  const lessonName = LESSONS.find(l => l.id === selectedLessonId)?.name || selectedLessonId;
+  
+  // Confirmation
+  const confirmed = confirm(
+    `Reset attempt counters for ${npms.length} student(s) on "${lessonName}"?\n\n` +
+    `This will reset their attempt counters to 0 for this lesson only. ` +
+    `Past results will be preserved.`
+  );
+  
+  if (!confirmed) return;
+  
+  // Execute bulk reset
+  const res = await api.bulkResetAttempts(npms, selectedLessonId);
+  
+  if (res.ok) {
+    const resetCount = res.results.filter(r => r.status === 'reset').length;
+    const skippedCount = res.results.filter(r => r.status === 'skipped').length;
+    
+    let message = `✓ ${res.message}\n\n`;
+    
+    // Show details
+    res.results.forEach(r => {
+      if (r.status === 'reset') {
+        message += `• ${r.name} (${r.npm}): ${r.priorCount} → 0 attempts\n`;
+      } else {
+        message += `• ${r.npm}: Skipped (${r.reason})\n`;
+      }
+    });
+    
+    alert(message);
+    
+    // Close modal and refresh list
+    closeModal('modal-bulk-reset-picker');
+    clearStudentSelection();
+    refreshStudentList();
+  } else {
+    alert(`Error: ${res.error || 'Bulk reset failed'}`);
+  }
+}
+
+
 // ─── Global event wiring ──────────────────────────────────────────────────────
 
 // Expose functions needed by inline HTML event attributes
@@ -2056,6 +2214,8 @@ if (typeof window !== 'undefined') {
     // Manage Students
     openManageStudents, submitBulkStudents, refreshStudentList, resetStudentAttempts, copyToClipboard,
     toggleLessonReference, copyLessonId,
+    toggleStudentDetails, updateStudentSelection, toggleSelectAllStudents, 
+    clearStudentSelection, deleteSelectedStudents,
     // Explain panel
     closeExplainPanel,
     // Sandbox
@@ -2189,4 +2349,78 @@ if (typeof document !== 'undefined') {
   });
 }); // end DOMContentLoaded
 } // end typeof document guard
+
+// ─── Expose functions for inline onclick/onchange handlers ────────────────────
+// ES6 modules keep exports scoped; inline HTML event attributes require globals.
+// Attach all functions used in onclick/onchange to window object.
+if (typeof window !== 'undefined') {
+  // Theme & Navigation
+  window.applyTheme = applyTheme;
+  window.toggleTheme = toggleTheme;
+  window.handleLogoClick = handleLogoClick;
+  window.handleBackNav = handleBackNav;
+  window.goToLanding = goToLanding;
+  window.proceedToLessons = proceedToLessons;
+  window.proceedToTeach = proceedToTeach;
+  
+  // Auth & Login
+  window.openLandingLogin = openLandingLogin;
+  window.logoutStudent = logoutStudent;
+  window.submitLogin = submitLogin;
+  window.backFromLogin = backFromLogin;
+  
+  // Simulation Controls
+  window.startSimulation = startSimulation;
+  window.resetSimulation = resetSimulation;
+  window.exitSimulation = exitSimulation;
+  window.openHint = openHint;
+  window.nextHint = nextHint;
+  window.openDiagnosis = openDiagnosis;
+  window.pickDiagOption = pickDiagOption;
+  window.submitDiagnosis = submitDiagnosis;
+  
+  // Self-Check (from self-check.js, need to import and expose)
+  window.openSelfCheck = openSelfCheck;
+  
+  // Tabs & UI
+  window.switchTab = switchTab;
+  window.toggleDrawer = toggleDrawer;
+  window.dismissAlertBanner = dismissAlertBanner;
+  window.setPacketFilter = setPacketFilter;
+  window.clearLog = clearLog;
+  window.injectAlert = injectAlert;
+  window.setManualOverride = setManualOverride;
+  window.openDeviceDetail = openDeviceDetail;
+  
+  // Explain Panel
+  window.showExplainPanel = showExplainPanel;
+  window.closeExplainPanel = closeExplainPanel;
+  
+  // Modals
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  
+  // Admin & Manage Students
+  window.openManageStudents = openManageStudents;
+  window.openAdminReset = openAdminReset;
+  window.submitInstructorLogin = submitInstructorLogin;
+  window.submitAdminReset = submitAdminReset;
+  window.submitBulkStudents = submitBulkStudents;
+  window.toggleLessonReference = toggleLessonReference;
+  window.copyLessonId = copyLessonId;
+  window.refreshStudentList = refreshStudentList;
+  window.resetStudentAttempts = resetStudentAttempts;
+  window.toggleStudentDetails = toggleStudentDetails;
+  window.updateStudentSelection = updateStudentSelection;
+  window.toggleSelectAllStudents = toggleSelectAllStudents;
+  window.clearStudentSelection = clearStudentSelection;
+  window.deleteSelectedStudents = deleteSelectedStudents;
+  window.openBulkResetPicker = openBulkResetPicker;
+  window.updateBulkResetPreview = updateBulkResetPreview;
+  window.confirmBulkReset = confirmBulkReset;
+  
+  // Exit confirmation
+  window.confirmExit = confirmExit;
+  window.cancelExit = cancelExit;
+}
 

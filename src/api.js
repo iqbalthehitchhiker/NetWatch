@@ -198,3 +198,18 @@ export async function deleteStudents(npms) {
     return { ok: false, status: 0, error: 'Network error — backend may be unavailable' };
   }
 }
+
+/**
+ * Bulk reset attempt counters for selected students on a specific lesson (instructor only).
+ * @param {string[]} npms - Array of NPMs to reset
+ * @param {string} lessonId - Lesson ID to reset attempts for
+ * @returns {{ ok: true, results: [], message: string } | { ok: false, status, error }}
+ */
+export async function bulkResetAttempts(npms, lessonId) {
+  const token = getInstructorToken();
+  const { ok, status, data } = await post('/api/admin/reset/bulk', { npms, lessonId }, token);
+  if (ok) return { ok: true, results: data.results || [], message: data.message };
+  if (status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
+  if (status === 404) return { ok: false, status: 404, error: 'Lesson ID not recognised' };
+  return { ok: false, status, error: data.error || 'Bulk reset failed' };
+}

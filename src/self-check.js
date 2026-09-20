@@ -452,3 +452,11 @@ export function skipSelfCheck() {
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 function _el(id) { return document.getElementById(id); }
+
+// ─── Expose functions for inline onclick handlers ─────────────────────────────
+if (typeof window !== 'undefined') {
+  window.reopenSelfCheck = reopenSelfCheck;
+  window.selfCheckNext = selfCheckNext;
+  window.selfCheckSkip = selfCheckSkip;
+  window.skipSelfCheck = skipSelfCheck;
+}

@@ -930,8 +930,11 @@
         </table>
         
         <div id="bulk-delete-actions" style="margin-top:16px;display:none;padding:12px;background:var(--bg-accent);border:1px solid var(--border);border-radius:6px">
-          <div style="display:flex;gap:12px;align-items:center">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
             <span id="selected-count" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">0 selected</span>
+            <button class="btn" onclick="openBulkResetPicker()" style="background:var(--accent);color:white;font-size:12px;padding:6px 12px">
+              Reset Attempts for...
+            </button>
             <button class="btn" onclick="deleteSelectedStudents()" style="background:var(--error);color:white;font-size:12px;padding:6px 12px">
               Delete Selected
             </button>
@@ -1103,6 +1106,38 @@
       <div style="margin-top:16px">
         <button class="btn btn-primary" onclick="submitAdminReset()">Reset Counter</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Reset Lesson Picker Modal -->
+<div id="modal-bulk-reset-picker" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('modal-bulk-reset-picker')">✕</button>
+    <div class="modal-title">Reset Attempt Counters</div>
+    <div class="modal-sub" style="margin-bottom:16px">
+      Select which lesson's attempt counters to reset for the <span id="bulk-reset-count" style="font-weight:500;color:var(--accent)">0</span> selected student(s).
+    </div>
+    
+    <div style="margin-bottom:16px">
+      <label class="login-label" for="bulk-reset-lesson-select" style="display:block;margin-bottom:8px">Lesson</label>
+      <select id="bulk-reset-lesson-select" class="login-input" style="width:100%;cursor:pointer;padding:10px">
+        <option value="">— Choose a lesson —</option>
+      </select>
+    </div>
+    
+    <div id="bulk-reset-preview" class="hidden" style="margin-bottom:16px;padding:12px;background:var(--bg-accent);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto">
+      <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:8px">Will reset attempts for:</div>
+      <div id="bulk-reset-student-list" style="font-size:12px;font-family:var(--font-mono);color:var(--text)"></div>
+    </div>
+    
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" id="bulk-reset-confirm-btn" onclick="confirmBulkReset()" disabled>
+        Reset Attempt Counters
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-bulk-reset-picker')">
+        Cancel
+      </button>
     </div>
   </div>
 </div>

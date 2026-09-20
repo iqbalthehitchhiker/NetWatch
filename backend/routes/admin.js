@@ -58,6 +58,75 @@ router.post('/reset', requireInstructor, (req, res) => {
 });
 
 /**
+ * POST /api/admin/reset/bulk
+ * Bulk reset attempt counters for selected students on a specific lesson.
+ * 
+ * Accepts: { npms: ['npm1', 'npm2', ...], lessonId: 'ddos_edge' }
+ * 
+ * Reuses the existing resetAttempt() logic for each student.
+ * Does NOT touch Result_Records (preserves recorded results).
+ * Returns per-student status (npm, name, priorCount, status: 'reset' | 'skipped').
+ */
+router.post('/reset/bulk', requireInstructor, (req, res) => {
+  const { npms, lessonId } = req.body || {};
+
+  // Validation
+  if (!Array.isArray(npms) || npms.length === 0) {
+    return res.status(400).json({ error: 'npms must be a non-empty array' });
+  }
+
+  if (!lessonId || String(lessonId).trim().length === 0) {
+    return res.status(400).json({ error: 'lessonId is required' });
+  }
+
+  const trimmedLessonId = String(lessonId).trim();
+
+  // Lesson existence check
+  if (!KNOWN_LESSON_IDS.has(trimmedLessonId)) {
+    return res.status(404).json({ error: 'Lesson ID not recognised' });
+  }
+
+  const results = [];
+
+  for (const npm of npms) {
+    const trimmedNpm = String(npm).trim();
+
+    // Check if student exists
+    const student = db.prepare('SELECT npm, name FROM Student_Accounts WHERE npm = ?').get(trimmedNpm);
+    
+    if (!student) {
+      results.push({
+        npm: trimmedNpm,
+        name: null,
+        priorCount: 0,
+        status: 'skipped',
+        reason: 'student not found'
+      });
+      continue;
+    }
+
+    // Reset attempt counter (reuses existing logic)
+    const priorCount = resetAttempt(trimmedNpm, trimmedLessonId);
+
+    results.push({
+      npm: trimmedNpm,
+      name: student.name,
+      priorCount,
+      status: 'reset'
+    });
+  }
+
+  const resetCount = results.filter(r => r.status === 'reset').length;
+  const skippedCount = results.filter(r => r.status === 'skipped').length;
+
+  return res.json({
+    message: `Reset ${resetCount} student(s), skipped ${skippedCount}`,
+    lessonId: trimmedLessonId,
+    results
+  });
+});
+
+/**
  * POST /api/admin/students/bulk
  * Bulk create students from an array of { name, npm } pairs.
  * Returns per-entry status: created | duplicate | invalid
@@ -222,14 +291,15 @@ router.get('/students', requireInstructor, (req, res) => {
       WHERE npm = ?
     `).all(student.npm);
 
-    // Build a map of lessonId -> { attemptsUsed, bestScore }
+    // Build a map of lessonId -> { attemptsUsed, bestScore, hasResults }
     const lessonMap = new Map();
     
     attemptedLessons.forEach(row => {
       lessonMap.set(row.lesson_id, {
         lessonId: row.lesson_id,
         attemptsUsed: row.count,
-        bestScore: 0
+        bestScore: 0,
+        hasResults: false  // Track whether actual results exist
       });
     });
 
@@ -244,12 +314,14 @@ router.get('/students', requireInstructor, (req, res) => {
     lessonScores.forEach(row => {
       if (lessonMap.has(row.lesson_id)) {
         lessonMap.get(row.lesson_id).bestScore = row.best_score;
+        lessonMap.get(row.lesson_id).hasResults = true;
       } else {
         // Has results but no attempt counter (shouldn't happen, but handle it)
         lessonMap.set(row.lesson_id, {
           lessonId: row.lesson_id,
           attemptsUsed: 0,
-          bestScore: row.best_score
+          bestScore: row.best_score,
+          hasResults: true
         });
       }
     });

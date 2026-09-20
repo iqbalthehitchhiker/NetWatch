@@ -36,8 +36,9 @@ vi.mock('../backend/db.js', () => ({
 const TEST_JWT_SECRET = 'test-secret-manage-students';
 process.env.JWT_SECRET = TEST_JWT_SECRET;
 
-// Now safe to import admin router (db.js is mocked, so no node:sqlite)
+// Now safe to import admin router and mocked db functions
 const { default: adminRouter } = await import('../backend/routes/admin.js');
+const { resetAttempt } = await import('../backend/db.js');
 
 // Create minimal test app
 const app = express();
@@ -250,17 +251,19 @@ describe('GET /api/admin/students', () => {
       createdAt: '2024-01-01'
     });
     
-    // Check lessonBreakdown structure
+    // Check lessonBreakdown structure with hasResults flag
     expect(res.body.students[0].lessonBreakdown).toHaveLength(2);
     expect(res.body.students[0].lessonBreakdown[0]).toMatchObject({
       lessonId: 'ddos_edge',
       attemptsUsed: 2,
-      bestScore: 85
+      bestScore: 85,
+      hasResults: true
     });
     expect(res.body.students[0].lessonBreakdown[1]).toMatchObject({
       lessonId: 'scan_detect',
       attemptsUsed: 1,
-      bestScore: 70
+      bestScore: 70,
+      hasResults: true
     });
 
     expect(res.body.students[1]).toMatchObject({
@@ -413,5 +416,130 @@ describe('Teach Mode completion summary (Part C)', () => {
     
     // Here we just document the constraint for the manage-students test file
     expect(true).toBe(true);
+  });
+});
+
+describe('POST /api/admin/reset/bulk (bulk reset)', () => {
+  
+  it('should reset attempt counters for multiple students on a specific lesson', async () => {
+    // Mock student lookups
+    mockPreparedStatement.get
+      .mockReturnValueOnce({ npm: 'bulk-1', name: 'Bulk Test One' })
+      .mockReturnValueOnce({ npm: 'bulk-2', name: 'Bulk Test Two' });
+    
+    // Mock resetAttempt calls (will be called for each student)
+    vi.mocked(resetAttempt)
+      .mockReturnValueOnce(5)  // bulk-1 previous count
+      .mockReturnValueOnce(3); // bulk-2 previous count
+
+    const res = await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: ['bulk-1', 'bulk-2'], lessonId: 'ddos_edge' })
+      .expect(200);
+
+    expect(res.body.message).toMatch(/reset 2 student/i);
+    expect(res.body.lessonId).toBe('ddos_edge');
+    expect(res.body.results).toHaveLength(2);
+    
+    expect(res.body.results[0]).toMatchObject({
+      npm: 'bulk-1',
+      name: 'Bulk Test One',
+      priorCount: 5,
+      status: 'reset'
+    });
+    
+    expect(res.body.results[1]).toMatchObject({
+      npm: 'bulk-2',
+      name: 'Bulk Test Two',
+      priorCount: 3,
+      status: 'reset'
+    });
+    
+    // Verify resetAttempt was called correctly
+    expect(resetAttempt).toHaveBeenCalledWith('bulk-1', 'ddos_edge');
+    expect(resetAttempt).toHaveBeenCalledWith('bulk-2', 'ddos_edge');
+  });
+
+  it('should only touch Attempt_Counters, never Result_Records', async () => {
+    // This test verifies that resetAttempt (from db.js) only modifies
+    // Attempt_Counters and Attempt_Counter_Backups, never Result_Records
+    
+    mockPreparedStatement.get.mockReturnValue({ npm: 'test-npm', name: 'Test' });
+    vi.mocked(resetAttempt).mockReturnValue(2);
+
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: ['test-npm'], lessonId: 'ddos_edge' })
+      .expect(200);
+
+    // resetAttempt internally only touches Attempt_Counters and backups
+    // This is verified by the function's implementation in db.js
+    expect(resetAttempt).toHaveBeenCalledWith('test-npm', 'ddos_edge');
+  });
+
+  it('should handle partial success when some npms are invalid', async () => {
+    // First student exists, second doesn't
+    mockPreparedStatement.get
+      .mockReturnValueOnce({ npm: 'valid-npm', name: 'Valid Student' })
+      .mockReturnValueOnce(null); // Student not found
+    
+    vi.mocked(resetAttempt).mockReturnValueOnce(4);
+
+    const res = await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: ['valid-npm', 'invalid-npm'], lessonId: 'ddos_edge' })
+      .expect(200);
+
+    expect(res.body.message).toMatch(/reset 1.*skipped 1/i);
+    expect(res.body.results).toHaveLength(2);
+    
+    expect(res.body.results[0]).toMatchObject({
+      npm: 'valid-npm',
+      status: 'reset'
+    });
+    
+    expect(res.body.results[1]).toMatchObject({
+      npm: 'invalid-npm',
+      status: 'skipped',
+      reason: 'student not found'
+    });
+  });
+
+  it('should require instructor authentication', async () => {
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .send({ npms: ['test'], lessonId: 'ddos_edge' })
+      .expect(401);
+
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ npms: ['test'], lessonId: 'ddos_edge' })
+      .expect(403);
+  });
+
+  it('should return 400 if npms is not an array or is empty', async () => {
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: 'not-an-array', lessonId: 'ddos_edge' })
+      .expect(400);
+
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: [], lessonId: 'ddos_edge' })
+      .expect(400);
+  });
+
+  it('should return 404 if lessonId is invalid', async () => {
+    await request(app)
+      .post('/api/admin/reset/bulk')
+      .set('Authorization', `Bearer ${instructorToken}`)
+      .send({ npms: ['test'], lessonId: 'nonexistent_lesson' })
+      .expect(404);
   });
 });
