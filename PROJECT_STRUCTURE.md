@@ -141,14 +141,19 @@ NetWatch/
 │   │                                #   tick exception isolation (P12)
 │   ├── explain-content.test.js      # Contract tests: every device/metric/alert/protocol has an entry;
 │   │                                #   quiz-mode suppression
+│   ├── global-nav.test.js           # Navigation flow tests: landing → skill/lesson select, back buttons,
+│   │                                #   mode-aware exit routing
 │   ├── lessons.test.js              # Structural tests: every lesson has 4-step types in order,
 │   │                                #   every course.lessonIds resolves, getSimulationConfig validity
+│   ├── manage-students.test.js      # Admin student management tests: create/delete students, reset attempts
 │   ├── mode-behavior.test.js        # Navigation screen-state, explain listener idempotency,
 │   │                                #   Teach/Quiz mode routing, no-POST in Teach
+│   ├── scoring.test.js              # Quiz scoring and result recording tests
 │   ├── self-check.test.js           # selfCheck data shape (3 tiers per skill), click-to-answer,
 │   │                                #   no-POST guarantee, completedSkills Set
 │   ├── smoke.test.js                # Static grep: engine.js purity, no hardcoded passwords,
 │   │                                #   ATTEMPT_LIMIT === 3
+│   ├── theme-exitconfirm-resume.test.js  # Theme persistence, exit confirmation, lesson resume tests
 │   ├── utils.test.js                # Property tests: NPM validation (P1), admin form validation (P2),
 │   │                                #   welcome name truncation (P13)
 │   └── verify.ps1                   # PowerShell sanity-check script
@@ -193,7 +198,9 @@ index.html
         ├── src/api.js ─────────────── src/auth.js (reads token)        │
         ├── src/utils.js            (pure: validation, formatting)      │
         ├── src/explain-content.js  (pure data: explain panel lookup)   │
+        ├── src/explain-content-bridge.js  (DOM bridge for explain panel) │
         ├── src/self-check.js       (self-check state machine)          │
+        ├── src/scoring.js          (quiz result recording)             │
         └── src/renderers/          (6 modules, each: state → DOM)      │
               ├── overview.js                                            │
               ├── topology.js ──────── src/lessons.js (DEVICE_TYPES)    │
@@ -297,7 +304,7 @@ Result_Records      (id SERIAL PK, npm, lesson_id, outcome CHECK('correct','inco
 | `self-check.test.js` | selfCheck data shape (3 tiers × 4 skills), click listener lifecycle, no-POST guarantee, `completedSkills` Set | Vitest |
 | `smoke.test.js` | `engine.js` purity (static grep), no hardcoded passwords, `ATTEMPT_LIMIT === 3` | Vitest |
 
-**Current count: 314 tests, 8 files, all passing.**
+**Current count: 438 tests, 12 files, all passing.**
 
 ---
 
