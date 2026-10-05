@@ -1,9 +1,16 @@
-# NetWatch — Network Monitoring Trainer
+<div align="center">
+  <img src="screenshots/logo.png" alt="NetWatch Logo" width="120"/>
+  
+  # NetWatch — Network Monitoring Trainer
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+  ![Version](https://img.shields.io/badge/version-2.0.0-blue)
+  ![License](https://img.shields.io/badge/license-MIT-green)
 
-**NetWatch** is an interactive network diagnosis training platform that teaches students and professionals how to monitor, analyze, and diagnose network incidents using real-world signals — without requiring prior networking infrastructure knowledge.
+  **NetWatch** is an interactive network diagnosis training platform that teaches students and professionals how to monitor, analyze, and diagnose network incidents using real-world signals — without requiring prior networking infrastructure knowledge.
+
+  ![NetWatch Landing Page](screenshots/landing-page.png)
+  *NetWatch landing page — Learn to diagnose network failures*
+</div>
 
 ## 🎯 What Makes NetWatch Different
 
@@ -25,6 +32,10 @@ NetWatch focuses on **network monitoring and diagnosis**, not configuration or i
 - Perfect for learning how to read network signals
 
 #### 📝 Quiz Mode (Authenticated)
+
+![Quiz Mode Screenshot](screenshots/quiz-mode.png)
+*Quiz Mode — Diagnose network incidents without guidance*
+
 - Explanations hidden — investigate evidence independently
 - Submit root-cause diagnosis from multiple-choice options
 - Attempt-limited per scenario
