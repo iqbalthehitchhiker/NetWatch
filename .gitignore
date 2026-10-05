@@ -5,3 +5,12 @@ node_modules/
 *.db-wal
 coverage/
 dist/
+
+# Kiro and Claude directories
+.kiro/
+.claude/
+
+# Documentation files
+CHANGELOG.md
+DEPLOYMENT.md
+PROJECT_STRUCTURE.md
