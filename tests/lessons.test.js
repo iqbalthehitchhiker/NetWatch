@@ -199,13 +199,13 @@ describe('TODO placeholder tracking', () => {
     });
   });
 
-  it('lessons 3-6 have TODO placeholders in concept/watchFor bodies (still pending real content)', () => {
+  it('lessons 3-6 have real content (TODO placeholders replaced)', () => {
     const remaining = ['gpu_thermal', 'internal_overload', 'web_leak', 'loop_storm'];
     remaining.forEach(id => {
       const lesson = LESSONS.find(l => l.id === id);
       ['concept', 'watchFor'].forEach(type => {
         const step = lesson.steps.find(s => s.type === type);
-        expect(step.body, `lesson "${id}" step "${type}" should contain a TODO placeholder`).toMatch(/TODO/i);
+        expect(step.body, `lesson "${id}" step "${type}" should not contain TODO placeholder`).not.toMatch(/TODO/i);
       });
     });
   });
