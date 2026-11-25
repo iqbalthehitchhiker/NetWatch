@@ -14,11 +14,22 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { findStudentByNpm, findInstructorByUsername } from '../db.js';
 import { JWT_EXPIRY } from '../constants.js';
+import { checkRateLimit, recordFailure, clearRateLimit } from '../rateLimit.js';
 
 const router = Router();
 
 router.post('/login', async (req, res) => {
   const { npm, username, password, role } = req.body || {};
+  const identifier = role === 'instructor' ? (username || '') : (npm || '');
+  const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+
+  const limit = checkRateLimit(identifier, ip);
+  if (!limit.allowed) {
+    return res.status(429).json({
+      error: 'Too many login attempts. Please try again later.',
+      retryAfter: limit.retryAfter,
+    });
+  }
 
   if (!password) {
     return res.status(400).json({ error: 'password is required' });
@@ -36,8 +47,10 @@ router.post('/login', async (req, res) => {
       }
       const match = await bcrypt.compare(password, account.password_hash);
       if (!match) {
+        recordFailure(identifier, ip);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
+      loginAttempts.delete(rateLimitKey(identifier, ip));
       const token = jwt.sign(
         { sub: account.username, role: 'instructor', name: account.name },
         process.env.JWT_SECRET,
@@ -56,8 +69,10 @@ router.post('/login', async (req, res) => {
       }
       const match = await bcrypt.compare(password, account.password_hash);
       if (!match) {
+        recordFailure(identifier, ip);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
+      loginAttempts.delete(rateLimitKey(identifier, ip));
       const token = jwt.sign(
         { sub: account.npm, role: 'student', name: account.name },
         process.env.JWT_SECRET,

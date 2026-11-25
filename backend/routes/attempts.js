@@ -40,4 +40,26 @@ router.post('/', requireStudent, (req, res) => {
   });
 });
 
+// GET /api/attempts — read-only attempt status (no increment)
+router.get('/', requireStudent, (req, res) => {
+  const { studentId, lessonId } = req.query;
+  const npm = req.user.sub;
+
+  if (!studentId || !lessonId) {
+    return res.status(400).json({ error: 'studentId and lessonId query params are required' });
+  }
+
+  // Students may only query their own attempts
+  if (npm !== studentId) {
+    return res.status(403).json({ error: 'You may only view your own attempts' });
+  }
+
+  const attemptsUsed = getAttemptCount(studentId, lessonId);
+  return res.json({
+    attemptsUsed,
+    attemptLimit: ATTEMPT_LIMIT,
+    attemptsRemaining: Math.max(0, ATTEMPT_LIMIT - attemptsUsed),
+  });
+});
+
 export default router;

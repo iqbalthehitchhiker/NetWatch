@@ -12,6 +12,7 @@ import bcrypt from 'bcryptjs';
 import { requireInstructor } from '../middleware/auth.js';
 import { resetAttempt } from '../db.js';
 import { LESSONS } from '../../src/lessons.js';
+import { BCRYPT_ROUNDS } from '../constants.js';
 import db from '../db.js';
 
 const router = Router();
@@ -171,7 +172,7 @@ router.post('/students/bulk', requireInstructor, async (req, res) => {
 
     // Generate password and hash it using bcrypt (same as auth.js)
     const plainPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    const passwordHash = await bcrypt.hash(plainPassword, BCRYPT_ROUNDS);
 
     // Insert student
     try {
