@@ -1,9 +1,12 @@
 /**
  * src/auth.js
- * In-memory session state. No writes to localStorage, sessionStorage, or cookies.
+ * Session state with sessionStorage persistence.
+ *
+ * Student session (token, name, NPM, mode) and instructor token are persisted
+ * to sessionStorage on login and restored on module load. Cleared on explicit
+ * Log out, token expiry (401), or tab close.
  *
  * Private variables are module-scoped. Only getter/setter functions are exported.
- * The beforeunload handler clears the student session when the tab closes.
  */
 
 // ─── Private state ────────────────────────────────────────────────────────────
@@ -13,6 +16,19 @@ let _instructorToken = null;
 let _currentMode     = null;  // 'teach' | 'quiz' | null
 let _studentName     = null;
 let _studentNPM      = null;
+
+// ─── Role determination ───────────────────────────────────────────────────────
+
+/**
+ * getCurrentRole()
+ * Returns 'student' | 'instructor' | 'guest' based on which token is set.
+ * Instructor takes priority (mutual exclusion ensures only one is active).
+ */
+export function getCurrentRole() {
+  if (_instructorToken) return 'instructor';
+  if (_sessionToken)    return 'student';
+  return 'guest';
+}
 
 // ─── Student session ──────────────────────────────────────────────────────────
 
@@ -28,6 +44,7 @@ export function setStudentSession(token, name, npm, mode) {
   _studentName  = name;
   _studentNPM   = npm;
   _currentMode  = mode;
+  persistStudentSession();
 }
 
 export function getSessionToken()  { return _sessionToken; }
@@ -40,15 +57,64 @@ export function clearStudentSession() {
   _studentName  = null;
   _studentNPM   = null;
   _currentMode  = null;
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem('nw_student_token');
+    sessionStorage.removeItem('nw_student_name');
+    sessionStorage.removeItem('nw_student_npm');
+    sessionStorage.removeItem('nw_student_mode');
+  }
 }
 
 // ─── Instructor session ───────────────────────────────────────────────────────
 
-export function setInstructorToken(token) { _instructorToken = token; }
-export function getInstructorToken()      { return _instructorToken; }
-export function clearInstructorToken()    { _instructorToken = null; }
-
-// ─── Tab close cleanup ────────────────────────────────────────────────────────
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', clearStudentSession);
+export function setInstructorToken(token) {
+  _instructorToken = token;
+  persistInstructorToken();
 }
+export function getInstructorToken()      { return _instructorToken; }
+export function clearInstructorToken()    {
+  _instructorToken = null;
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem('nw_instructor_token');
+  }
+}
+
+// ─── sessionStorage persistence ───────────────────────────────────────────────
+// Persist student session and instructor token so a refresh keeps the login.
+// Cleared on explicit Log out, token expiry (401), or tab close.
+function persistStudentSession() {
+  if (typeof sessionStorage === 'undefined') return;
+  sessionStorage.setItem('nw_student_token', _sessionToken ?? '');
+  sessionStorage.setItem('nw_student_name', _studentName ?? '');
+  sessionStorage.setItem('nw_student_npm', _studentNPM ?? '');
+  sessionStorage.setItem('nw_student_mode', _currentMode ?? '');
+}
+
+function persistInstructorToken() {
+  if (typeof sessionStorage === 'undefined') return;
+  sessionStorage.setItem('nw_instructor_token', _instructorToken ?? '');
+}
+
+function restoreSessionFromStorage() {
+  if (typeof sessionStorage === 'undefined') return;
+
+  const token = sessionStorage.getItem('nw_student_token') || null;
+  const name  = sessionStorage.getItem('nw_student_name') || null;
+  const npm   = sessionStorage.getItem('nw_student_npm') || null;
+  const mode  = sessionStorage.getItem('nw_student_mode') || null;
+
+  if (token) {
+    _sessionToken = token;
+    _studentName  = name;
+    _studentNPM   = npm;
+    _currentMode  = mode;
+  }
+
+  const instrToken = sessionStorage.getItem('nw_instructor_token') || null;
+  if (instrToken) {
+    _instructorToken = instrToken;
+  }
+}
+
+// Restore any persisted session on module load.
+restoreSessionFromStorage();

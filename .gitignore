@@ -7,7 +7,6 @@ coverage/
 dist/
 
 # Kiro and Claude directories
-.kiro/
 .claude/
 
 # Documentation files

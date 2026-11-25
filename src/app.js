@@ -11,6 +11,7 @@ import {
   setStudentSession, getSessionToken, getCurrentMode,
   getStudentName, getStudentNPM, clearStudentSession,
   setInstructorToken, getInstructorToken, clearInstructorToken,
+  getCurrentRole,
 } from './auth.js';
 import * as api from './api.js';
 import { validateLoginForm, formatWelcomeName, validateAdminResetForm } from './utils.js';
@@ -389,10 +390,9 @@ export function proceedToTeach() {
  * the same whether or not a prompt is shown.
  */
 export function goToLanding() {
-  // Stop simulation timers and clean up session state (same as exitSimulation)
+  // Stop simulation timers. Session is intentionally NOT cleared here —
+  // a refresh or navigation back to landing must keep the login (Task 30).
   stopSimTimers();
-  clearStudentSession();
-  clearInstructorToken();
   simState        = null;
   pendingLessonId = null;
   packetFilter    = 'all';
@@ -690,6 +690,31 @@ export function openLandingLogin() {
 export function logoutStudent() {
   clearStudentSession();
   updateGlobalNav();
+}
+
+/**
+ * logoutInstructor()
+ * Log out the current instructor and refresh the navbar display.
+ * Clears only the instructor token — does not touch any student session.
+ * Instructor remains on landing page as guest.
+ */
+export function logoutInstructor() {
+  clearInstructorToken();
+  updateGlobalNav();
+}
+
+/**
+ * logout()
+ * Role-aware logout dispatcher. Calls logoutStudent() or logoutInstructor()
+ * based on the current role. Used by the #gnav-logout-btn onclick handler.
+ */
+export function logout() {
+  const role = getCurrentRole();
+  if (role === 'instructor') {
+    logoutInstructor();
+  } else {
+    logoutStudent();
+  }
 }
 
 export function submitLogin() {
@@ -2197,7 +2222,7 @@ if (typeof window !== 'undefined') {
     // Nav
     exitSimulation, switchTab,
     // Landing
-    proceedToLessons, proceedToTeach, goToLanding, openLandingLogin, logoutStudent,
+    proceedToLessons, proceedToTeach, goToLanding, openLandingLogin, logoutStudent, logoutInstructor, logout,
     // Sim controls
     startSimulation, resetSimulation,
     // Login
@@ -2299,15 +2324,15 @@ if (typeof document !== 'undefined') {
   const savedTheme = (typeof localStorage !== 'undefined' && localStorage.getItem(THEME_KEY)) || 'light';
   applyTheme(savedTheme);
 
-  // Initialise global nav to "no simulation" state (just logo + theme toggle)
-  updateGlobalNav();
-
   // ── Initial screen routing ────────────────────────────────────────────────
   // Always show the landing screen on fresh page load.
   // Clear any stale sessionStorage flag to ensure clean state after server restarts.
   sessionStorage.removeItem('nw_intro_seen');
   document.getElementById('screen-landing').classList.remove('hidden');
   document.getElementById('screen-select').classList.add('hidden');
+
+  // Initialise global nav — now that screen-landing is visible, isLanding will be true
+  updateGlobalNav();
 
   // Populate both grids up front so clicking either mode feels instant.
   // renderLessonSelect targets #lesson-grid (Quiz path); renderSkillSelect
@@ -2366,6 +2391,8 @@ if (typeof window !== 'undefined') {
   // Auth & Login
   window.openLandingLogin = openLandingLogin;
   window.logoutStudent = logoutStudent;
+  window.logoutInstructor = logoutInstructor;
+  window.logout = logout;
   window.submitLogin = submitLogin;
   window.backFromLogin = backFromLogin;
   
