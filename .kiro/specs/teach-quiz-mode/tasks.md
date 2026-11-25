@@ -22,10 +22,11 @@ Dependency order: project scaffolding → backend foundation → frontend module
 ## Tasks
 
 - [ ] 0. Debug: Log in button not visible on localhost:3000
-  - Run the app (or trace what actually renders) and determine whether `#gnav-profile` / the "Log in" button is visible on the landing page.
+  - Trace what actually renders from the code to determine whether `#gnav-profile` / the "Log in" button is visible on the landing page.
   - Identify the cause: CSS, JS not running, wrong auth state, or missing element.
   - Report what each role (guest, student, instructor) actually sees in the top nav on every screen.
-  - **Acceptance test:** A browser check (e.g. Playwright) confirms the landing page shows "Log in" for a guest, "Log out" + name for a logged-in student, and "Log out" + name for a logged-in instructor.
+  - Fix the cause in code; do not use Playwright — verify in the browser manually.
+  - **Acceptance test:** The landing page shows "Log in" for a guest, "Log out" + name for a logged-in student, and "Log out" + name for a logged-in instructor (verified in browser).
 
 - [x] 1. Scaffold project structure and install dependencies
   - [x] 1.1 Create directory tree and root configuration files
@@ -517,11 +518,11 @@ Dependency order: project scaffolding → backend foundation → frontend module
   - Ask the user if questions arise.
 
 - [ ] 21. Migrate session from memory-only to `sessionStorage` (reversal of earlier decision)
-  - In `src/auth.js`, persist student token/name/NPM/role in `sessionStorage` on login; restore on module load.
+  - In `src/auth.js`, persist student token/name/NPM/role and instructor token in `sessionStorage` on login; restore both on module load.
   - Remove the `beforeunload` handler that cleared the student session.
-  - Ensure `goToLanding()` no longer clears the session.
+  - Ensure `goToLanding()` no longer clears either session.
   - Clear `sessionStorage` on explicit Log out, on token expiry (401), or tab close.
-  - **Acceptance test:** Refresh the page while logged in as a student and confirm the session (name, role, token) survives; confirm it is cleared after clicking Log out.
+  - **Acceptance test:** Refresh the page while logged in as a student or instructor and confirm the session (name, role, token) survives; confirm it is cleared after clicking Log out.
 
 - [ ] 22. Add persistent account block (full form on pages, compact form in sim topbar)
   - Render a full account block under the logo (top-left) on every screen: name, role badge, My results link (students), attempts remaining per lesson (students), Log out.
@@ -539,7 +540,8 @@ Dependency order: project scaffolding → backend foundation → frontend module
   - Store student and instructor tokens separately in the auth module.
   - **Acceptance test:** Instructor login (username) and student login (NPM) are separate flows; student login does not grant instructor privileges and vice versa.
 
-- [ ] 25. Add global 401 handler + re-login in place during quiz
+- [ ] 25. Add global 401 handler + session expiry handling (one implementation)
+  - Confirm backend issues student JWTs with `JWT_EXPIRY = '8h'`.
   - Add a global 401 interceptor in `src/api.js` (or a shared wrapper) so every API call checks for 401.
   - On 401 during a quiz, do NOT discard the simulation; prompt for re-login in place and retry the failed call (including saving results) with the new token.
   - Show "Session expired" when the user does not re-login.
@@ -556,25 +558,24 @@ Dependency order: project scaffolding → backend foundation → frontend module
   - **Acceptance test:** Calling the endpoint does not change the attempt count; returns correct remaining count for the student's lesson.
 
 - [ ] 28. Add login rate limiting
-  - Apply rate limiting to `POST /api/auth/login` (student and instructor paths) per identifier + IP (e.g., 5 failures per 15 minutes).
+  - Apply rate limiting to `POST /api/auth/login` (student and instructor paths) per identifier + IP (e.g., 5 failures per 15 minutes) using a small in-memory limiter; no new dependency.
   - Return HTTP 429 with a retry message when exceeded.
   - **Acceptance test:** After N failed logins for the same NPM/IP, the endpoint returns 429; the NPM field is retained on the frontend.
 
-- [ ] 29. Sandbox UI gating (hide during Quiz for all roles)
-  - Hide the Sandbox drawer during Quiz Mode for all roles, including instructors.
-  - Show Sandbox in Teach Mode for students and guests; all modes for instructors.
-  - **Acceptance test:** Sandbox is invisible in Quiz Mode for guest/student/instructor; visible in Teach Mode for student and guest.
+- [ ] 29. Sandbox UI gating
+  - Show the Sandbox drawer in Teach Mode for guest, student, and instructor.
+  - Show the Sandbox drawer in Quiz Mode for instructor only.
+  - Hide the Sandbox drawer in Quiz Mode for guest and student.
+  - **Acceptance test:** Sandbox is visible in Teach Mode for guest/student/instructor; visible in Quiz Mode for instructor only; hidden in Quiz Mode for guest and student.
 
 - [ ] 30. Logout for both roles (clear sessionStorage)
   - Student Log out: clear student `sessionStorage`, return to landing as guest.
-  - Instructor Log out: clear instructor token, return to landing as guest.
+  - Instructor Log out: clear instructor `sessionStorage` token, return to landing as guest.
   - Logout occurs only on explicit click or token expiry — not on refresh or navigation away.
   - **Acceptance test:** Clicking Log out as student or instructor clears the session and shows the logged-out account block; refresh does not log the user out.
 
 - [ ] 31. Session expiry handling (8h JWT, 401 during quiz)
-  - Confirm backend issues student JWTs with `JWT_EXPIRY = '8h'`.
-  - On 401 mid-quiz, prompt re-login in place without discarding simulation; retry saving result after re-login.
-  - **Acceptance test:** An expired token mid-quiz shows an in-place re-login prompt; the simulation state is preserved and the in-progress result is saved after successful re-login.
+  - **Merged into Task 25** — the global 401 handler and session expiry handling are implemented together in Task 25. This task is retained for numbering continuity only; no separate implementation is needed.
 
 - [ ] 32. Update existing tests for sessionStorage migration and new roles
   - `tests/auth.test.js` currently tests in-memory-only session (`clearAll`, `setStudentSession`, `setInstructorToken`, mutual exclusion). It must be updated to cover `sessionStorage` persistence and the new role model.

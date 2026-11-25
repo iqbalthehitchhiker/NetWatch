@@ -310,10 +310,10 @@ Student identity, attempts, and results are persisted server-side in a database,
 
 #### Acceptance Criteria
 
-1. WHEN a user is not authenticated (guest), THE NetWatch SHALL allow access to Teach Mode only and SHALL NOT allow entry to Quiz Mode, the Sandbox, or any admin feature.
-2. WHEN a user is authenticated as a student, THE NetWatch SHALL allow access to Teach Mode and Quiz Mode, SHALL NOT allow access to the Sandbox or admin features, and SHALL enforce the per-lesson attempt limit on the server.
+1. WHEN a user is not authenticated (guest), THE NetWatch SHALL allow access to Teach Mode and the Sandbox, and SHALL NOT allow entry to Quiz Mode or any admin feature.
+2. WHEN a user is authenticated as a student, THE NetWatch SHALL allow access to Teach Mode, Quiz Mode, and the Sandbox (Teach Mode only), SHALL NOT allow access to admin features, and SHALL enforce the per-lesson attempt limit on the server.
 3. WHEN a user is authenticated as an instructor, THE NetWatch SHALL allow access to Teach Mode, Quiz Mode, the Sandbox, Admin Reset, and all instructor-only endpoints.
-4. THE Sandbox drawer SHALL be hidden during Quiz Mode for all roles, including instructors.
+4. THE Sandbox drawer SHALL be visible in Teach Mode for all roles (guest, student, instructor) and visible in Quiz Mode for instructors only; it SHALL be hidden in Quiz Mode for guest and student.
 5. Server-side role enforcement SHALL apply to every `POST /api/admin/*` endpoint; frontend Sandbox gating is UI-only and is NOT a security boundary.
 6. WHEN a student attempts to start a Quiz Mode lesson and the attempt counter equals or exceeds `ATTEMPT_LIMIT`, THE NetWatch SHALL show the blocked-attempt screen and SHALL NOT load the simulation.
 

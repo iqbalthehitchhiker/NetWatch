@@ -343,9 +343,9 @@ Student login (NPM + password) and instructor login (username + password) are se
 The Sandbox (`#settings-drawer`) is a frontend-only manual override and test-alert drawer. It has no backend routes and no auth restrictions of its own.
 
 **UI gating (not a security boundary):**
-- Instructor: the Sandbox is available in all modes (Teach, Quiz, and admin screens).
-- Student and guest: the Sandbox is available in Teach Mode only.
-- The Sandbox drawer is hidden during Quiz Mode for all roles, including instructors.
+- The Sandbox is visible in Teach Mode for all roles (guest, student, instructor).
+- The Sandbox is visible in Quiz Mode for instructors only.
+- The Sandbox is hidden in Quiz Mode for guest and student.
 
 **Rationale (recorded in SRS):** The simulation runs in the browser, so Sandbox visibility is UI gating only. Server-side role enforcement applies exclusively to `POST /api/admin/*` endpoints, not to the Sandbox drawer.
 
@@ -366,7 +366,7 @@ The Sandbox (`#settings-drawer`) is a frontend-only manual override and test-ale
 
 The `beforeunload` handler that cleared the student session is removed. `goToLanding()` no longer clears the session.
 
-**Instructor token:** The instructor JWT continues to be held in memory only (separate lifetime from the student session), cleared on explicit instructor logout or tab close.
+**Instructor token:** The instructor JWT is also persisted in `sessionStorage` (separate key from the student session), cleared on explicit instructor logout or tab close.
 
 ---
 
