@@ -7,5 +7,10 @@ export default defineConfig({
       reporter: ['text', 'html'],
     },
     environment: 'node',
+    server: {
+      deps: {
+        inline: ['sqlite'],
+      },
+    },
   },
 });

@@ -52,3 +52,7 @@ export function recordFailure(identifier, ip) {
 export function clearRateLimit(identifier, ip) {
   loginAttempts.delete(rateLimitKey(identifier, ip));
 }
+
+export function clearFailures(identifier, ip) {
+  loginAttempts.delete(rateLimitKey(identifier, ip));
+}

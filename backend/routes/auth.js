@@ -14,7 +14,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { findStudentByNpm, findInstructorByUsername } from '../db.js';
 import { JWT_EXPIRY } from '../constants.js';
-import { checkRateLimit, recordFailure, clearRateLimit } from '../rateLimit.js';
+import { checkRateLimit, recordFailure, clearFailures } from '../rateLimit.js';
 
 const router = Router();
 
@@ -50,7 +50,7 @@ router.post('/login', async (req, res) => {
         recordFailure(identifier, ip);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      loginAttempts.delete(rateLimitKey(identifier, ip));
+      clearFailures(identifier, ip);
       const token = jwt.sign(
         { sub: account.username, role: 'instructor', name: account.name },
         process.env.JWT_SECRET,
@@ -72,7 +72,7 @@ router.post('/login', async (req, res) => {
         recordFailure(identifier, ip);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      loginAttempts.delete(rateLimitKey(identifier, ip));
+      clearFailures(identifier, ip);
       const token = jwt.sign(
         { sub: account.npm, role: 'student', name: account.name },
         process.env.JWT_SECRET,

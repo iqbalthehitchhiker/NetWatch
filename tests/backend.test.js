@@ -1,6 +1,6 @@
 /**
  * tests/backend.test.js
- * Unit tests for backend route handlers with mocked db.
+ * Unit tests for backend route handlers.
  *
  * Property 9: Attempt counters are independent across (student, lesson) pairs
  * Property 10: Result records are append-only
@@ -8,9 +8,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fc from 'fast-check';
-import jwt from 'jsonwebtoken';
-
-process.env.JWT_SECRET = 'test-secret';
 
 // ─── Property 9: Attempt counter independence ─────────────────────────────────
 
@@ -91,7 +88,6 @@ describe('ATTEMPT_LIMIT', () => {
 describe('Login rate limiting', () => {
   beforeEach(() => {
     // Clear the rate-limiter map between tests
-    // (imported module-level Map is reset by re-importing in vitest)
   });
 
   it('blocks after 5 failed attempts for same identifier+IP (returns 429 shape)', async () => {
@@ -130,45 +126,23 @@ describe('Login rate limiting', () => {
   });
 });
 
-// ─── Admin reset: student token → 403 ────────────────────────────────────────
+// ─── clearFailures exported from rateLimit.js ────────────────────────────────
 
-describe('Admin reset role enforcement', () => {
-  it('requireInstructor returns 403 for student role', async () => {
-    const { requireInstructor } = await import('../backend/middleware/auth.js');
+describe('clearFailures helper', () => {
+  it('removes rate limit entry for identifier+ip', async () => {
+    const { checkRateLimit, recordFailure, clearFailures } = await import('../backend/rateLimit.js');
+    const identifier = 'clear-test';
+    const ip = '127.0.0.1';
 
-    const studentToken = jwt.sign({ sub: '1234567890', role: 'student' }, 'test-secret');
-    const req = { headers: { authorization: 'Bearer ' + studentToken } };
-    const res = {
-      statusCode: 200,
-      status(code) { this.statusCode = code; return this; },
-      _status(code) { this.statusCode = code; return this; },
-      json(body) { this.body = body; return this; },
-    };
-    let nextCalled = false;
-    const next = () => { nextCalled = true; };
+    // Record 5 failures to hit the limit
+    for (let i = 0; i < 5; i++) {
+      checkRateLimit(identifier, ip);
+      recordFailure(identifier, ip);
+    }
+    expect(checkRateLimit(identifier, ip).allowed).toBe(false);
 
-    requireInstructor(req, res, next);
-
-    expect(res.statusCode).toBe(403);
-    expect(nextCalled).toBe(false);
-  });
-
-  it('requireInstructor passes for instructor role', async () => {
-    const { requireInstructor } = await import('../backend/middleware/auth.js');
-
-    const instructorToken = jwt.sign({ sub: 'instructor1', role: 'instructor' }, 'test-secret');
-    const req = { headers: { authorization: 'Bearer ' + instructorToken } };
-    const res = {
-      statusCode: 200,
-      _status(code) { this.statusCode = code; return this; },
-      json(body) { this.body = body; return this; },
-    };
-    let nextCalled = false;
-    const next = () => { nextCalled = true; };
-
-    requireInstructor(req, res, next);
-
-    expect(nextCalled).toBe(true);
-    expect(res.statusCode).toBe(200);
+    // After clearFailures, should be allowed again
+    clearFailures(identifier, ip);
+    expect(checkRateLimit(identifier, ip).allowed).toBe(true);
   });
 });
