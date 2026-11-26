@@ -1633,6 +1633,132 @@ body:not(.screen-select):not(.screen-sim) .gnav-inner {
   }
 }
 
+/* ─── SNAPSHOT INCIDENT REPLAY ANIMATION ─── */
+/* Replays the timeline once on page load: RTR warning (12:34:12), then GW critical (12:34:18).
+   Compressed to ~2.5s. No loops, no transforms. Respects prefers-reduced-motion. */
+
+/* Initial state: RTR and GW start neutral, alerts hidden, chart hidden */
+.snap-node-rtr,
+.snap-link-rtr {
+  stroke: var(--lp-cyan-decoration);
+  opacity: 0.6;
+}
+
+.snap-node-gw,
+.snap-link-gw {
+  stroke: var(--lp-cyan-decoration);
+  opacity: 0.6;
+}
+
+.snap-alert-badge {
+  opacity: 0;
+}
+
+.snap-alert-rtr,
+.snap-alert-gw {
+  opacity: 0;
+}
+
+.snap-chart-line {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+}
+
+.snap-chart-fill {
+  opacity: 0;
+}
+
+/* Sequence: RTR warning at 0.5s, GW critical at 1.5s, chart draws 0.5s–2.5s */
+@keyframes snap-rtr-warn {
+  0% { stroke: var(--lp-cyan-decoration); opacity: 0.6; }
+  100% { stroke: var(--lp-status-warn); opacity: 1; }
+}
+
+@keyframes snap-gw-crit {
+  0% { stroke: var(--lp-cyan-decoration); opacity: 0.6; }
+  100% { stroke: var(--lp-status-crit); opacity: 1; }
+}
+
+@keyframes snap-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes snap-chart-draw {
+  0% { stroke-dashoffset: 400; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes snap-fill-reveal {
+  0% { opacity: 0; }
+  100% { opacity: 0.12; }
+}
+
+/* Apply animations */
+.snap-node-rtr,
+.snap-link-rtr {
+  animation: snap-rtr-warn 0.4s ease-out 0.5s forwards;
+}
+
+.snap-node-gw,
+.snap-link-gw {
+  animation: snap-gw-crit 0.4s ease-out 1.5s forwards;
+}
+
+.snap-alert-badge {
+  animation: snap-fade-in 0.3s ease-out 1.5s forwards;
+}
+
+.snap-alert-rtr {
+  animation: snap-fade-in 0.3s ease-out 0.5s forwards;
+}
+
+.snap-alert-gw {
+  animation: snap-fade-in 0.3s ease-out 1.5s forwards;
+}
+
+.snap-chart-line {
+  animation: snap-chart-draw 2s ease-in-out 0.5s forwards;
+}
+
+.snap-chart-fill {
+  animation: snap-fill-reveal 0.5s ease-out 2.5s forwards;
+}
+
+/* Reduced motion: show final state immediately */
+@media (prefers-reduced-motion: reduce) {
+  .snap-node-rtr,
+  .snap-link-rtr {
+    stroke: var(--lp-status-warn);
+    opacity: 1;
+    animation: none;
+  }
+
+  .snap-node-gw,
+  .snap-link-gw {
+    stroke: var(--lp-status-crit);
+    opacity: 1;
+    animation: none;
+  }
+
+  .snap-alert-badge,
+  .snap-alert-rtr,
+  .snap-alert-gw {
+    opacity: 1;
+    animation: none;
+  }
+
+  .snap-chart-line {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .snap-chart-fill {
+    opacity: 0.12;
+    animation: none;
+  }
+}
+
 /* Old dashboard styles - removed */
 .lp-dash { display: none; }
 .lp-dash-topbar { display: none; }
@@ -3639,3 +3765,18 @@ body.quiz-mode .topo-node:hover circle  { stroke: inherit !important; }
     opacity: 0;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEADERBOARD
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lb-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.lb-title { margin:0; }
+.lb-controls { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.lb-label { display:flex; flex-direction:column; gap:4px; font-size:12px; }
+.lb-me { margin-bottom:12px; font-size:13px; }
+.lb-status { min-height:20px; margin-bottom:8px; font-size:13px; }
+.lb-table-wrap { overflow-x:auto; }
+.lb-table { width:100%; border-collapse:collapse; font-size:13px; }
+.lb-table th, .lb-table td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border, rgba(128,128,128,.25)); }
+.lb-table td:nth-child(n+3) { font-family:var(--font-mono); }

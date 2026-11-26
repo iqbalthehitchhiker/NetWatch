@@ -11,7 +11,7 @@ import {
   setStudentSession, getSessionToken, getCurrentMode,
   getStudentName, getStudentNPM, clearStudentSession,
   setInstructorToken, getInstructorToken, clearInstructorToken,
-  getCurrentRole,
+  getCurrentRole, getStudentDisplayName, setStudentDisplayName,
 } from './auth.js';
 import * as api from './api.js';
 import { validateLoginForm, formatWelcomeName, validateAdminResetForm } from './utils.js';
@@ -365,11 +365,135 @@ export function closeExplainPanel() {
 // ─── Modal helpers ────────────────────────────────────────────────────────────
 
 function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function closeModal(id) { 
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
 
 function closeAllModals() {
   ['modal-login','modal-blocked','modal-admin-reset','modal-instructor-login','modal-my-results',
-   'modal-hint','modal-diagnosis','modal-device'].forEach(closeModal);
+   'modal-hint','modal-diagnosis','modal-device','modal-display-name'].forEach(closeModal);
+}
+
+// ─── Leaderboard ──────────────────────────────────────────────────────────────
+
+let _lbReq = 0;
+let _lbReady = false;
+
+function _fmtDuration(s) {
+  if (!Number.isFinite(s)) return '-';
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function _lbCell(tr, text, cls) {
+  const td = document.createElement('td');
+  td.textContent = String(text);
+  if (cls) td.className = cls;
+  tr.appendChild(td);
+}
+
+function _lbHeader(overall) {
+  const thead = document.getElementById('lb-thead');
+  thead.replaceChildren();
+  const tr = document.createElement('tr');
+  const cols = overall
+    ? ['Rank', 'Name', 'Total score', 'Lessons', 'Avg', 'Total time']
+    : ['Rank', 'Name', 'Score', 'Time'];
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; tr.appendChild(th); });
+  thead.appendChild(tr);
+}
+
+async function _loadLeaderboard() {
+  const mine = ++_lbReq;
+  const lesson = document.getElementById('lb-lesson').value;
+  const sort = document.getElementById('lb-sort').value;
+  const status = document.getElementById('lb-status');
+  const tbody = document.getElementById('lb-tbody');
+  const overall = lesson === 'overall';
+
+  status.textContent = 'Loading...';
+  tbody.replaceChildren();
+  _lbHeader(overall);
+
+  const res = await api.fetchLeaderboard({ lesson, sort });
+  if (mine !== _lbReq) return;
+
+  if (!res.ok) { status.textContent = res.error; return; }
+
+  if (res.rows.length === 0) {
+    status.textContent = sort === 'speed'
+      ? 'No correct results with a score of 80 or more yet.'
+      : 'No results yet.';
+    return;
+  }
+
+  status.textContent = '';
+  res.rows.forEach(r => {
+    const tr = document.createElement('tr');
+    _lbCell(tr, r.rank);
+    _lbCell(tr, r.displayName);
+    _lbCell(tr, r.score);
+    if (overall) { _lbCell(tr, r.lessonsDone); _lbCell(tr, r.avgScore); }
+    _lbCell(tr, _fmtDuration(r.durationSeconds));
+    tbody.appendChild(tr);
+  });
+}
+
+function _showLeaderboard() {
+  if (!_lbReady) {
+    const sel = document.getElementById('lb-lesson');
+    const all = document.createElement('option');
+    all.value = 'overall'; all.textContent = 'Overall';
+    sel.appendChild(all);
+    LESSONS.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id; o.textContent = l.title;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', _loadLeaderboard);
+    document.getElementById('lb-sort').addEventListener('change', _loadLeaderboard);
+    _lbReady = true;
+  }
+  document.getElementById('lb-my-name').textContent = getStudentDisplayName() || 'your default name';
+  document.getElementById('screen-leaderboard').classList.remove('hidden');
+  updateGlobalNav();
+  _loadLeaderboard();
+}
+
+export function openLeaderboard() {
+  if (getCurrentRole() !== 'student') return;
+  _guardedExit(() => {
+    goToLanding();
+    document.getElementById('screen-landing').classList.add('hidden');
+    _showLeaderboard();
+  });
+}
+
+export function closeLeaderboard() { goToLanding(); }
+
+export function openDisplayNameModal() {
+  document.getElementById('dn-input').value = getStudentDisplayName() || '';
+  document.getElementById('dn-err').classList.add('hidden');
+  openModal('modal-display-name');
+}
+
+export function closeDisplayNameModal() { closeModal('modal-display-name'); }
+
+export async function saveDisplayName() {
+  const btn = document.getElementById('dn-save-btn');
+  const err = document.getElementById('dn-err');
+  btn.disabled = true;
+  const res = await api.updateDisplayName(document.getElementById('dn-input').value);
+  btn.disabled = false;
+  if (res.ok) {
+    setStudentDisplayName(res.displayName);
+    document.getElementById('lb-my-name').textContent = res.displayName;
+    closeModal('modal-display-name');
+    _loadLeaderboard();
+  } else {
+    err.textContent = res.error;
+    err.classList.remove('hidden');
+  }
 }
 
 // ─── Landing screen ───────────────────────────────────────────────────────────
@@ -461,6 +585,8 @@ export function goToLanding() {
   document.getElementById('app').classList.remove('active');
   document.getElementById('screen-select').classList.add('hidden');
   document.getElementById('screen-manage-students').classList.add('hidden');
+  const lbScreen = document.getElementById('screen-leaderboard');
+  if (lbScreen) lbScreen.classList.add('hidden');
   updateGlobalNav();   // simState null, mode null — nav shows logo+theme only
 
   // Clear the "seen" flag so the landing screen renders fully again
@@ -2010,8 +2136,12 @@ function parseBulkStudentInput(text) {
       return;
     }
 
-    const name = line.substring(0, dashIndex).trim();
-    const npm = line.substring(dashIndex + 1).trim();
+    let name = line.substring(0, dashIndex).trim();
+    let npm = line.substring(dashIndex + 1).trim();
+
+    // Strip double quote, single quote, and backtick from both values
+    name = name.replace(/["'`]/g, '');
+    npm = npm.replace(/["'`]/g, '');
 
     if (!npm) {
       invalid.push({ line: idx + 1, text: line, error: 'NPM is empty' });
@@ -2778,6 +2908,11 @@ if (typeof window !== 'undefined') {
   window.openInstructorLogin = openInstructorLogin;
   window.submitInstructorLoginDirect = submitInstructorLoginDirect;
   window.openMyResults = openMyResults;
+  window.openLeaderboard = openLeaderboard;
+  window.closeLeaderboard = closeLeaderboard;
+  window.openDisplayNameModal = openDisplayNameModal;
+  window.closeDisplayNameModal = closeDisplayNameModal;
+  window.saveDisplayName = saveDisplayName;
   window.logoutStudent = logoutStudent;
   window.logoutInstructor = logoutInstructor;
   window.logout = logout;

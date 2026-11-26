@@ -332,7 +332,7 @@ export async function fetchLeaderboard({ lesson = 'overall', sort = 'score', min
 
 export async function updateDisplayName(displayName) {
   const token = getSessionToken();
-  const { ok, status, data } = await patch('/api/auth/display-name', { displayName }, token);
+  const { ok, status, data, sessionExpired } = await patch('/api/auth/display-name', { displayName }, token);
   if (ok) return { ok: true, displayName: data.displayName };
-  return { ok: false, status, error: data.error || 'Could not save display name', sessionExpired: !!data.sessionExpired };
+  return { ok: false, status, error: data.error || 'Could not save display name', sessionExpired: !!sessionExpired };
 }
