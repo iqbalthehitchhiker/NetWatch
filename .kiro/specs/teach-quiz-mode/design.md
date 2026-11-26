@@ -744,3 +744,36 @@ Cover the specific interaction paths identified in the prework as EXAMPLE or EDG
 - `engine.js` source contains no references to `currentMode`, `sessionToken`, or any auth variable (grep check).
 - Frontend source contains no hardcoded password constants (grep check).
 - All five required module files exist (`lessons.js`, `engine.js`, `auth.js`, `api.js`, `app.js`).
+
+
+---
+
+## Leaderboard and Attempt Timing
+
+### Duration Computation
+
+**Duration is computed server-side only.** The frontend records the attempt start by calling `POST /api/attempts`, which creates a row in the `Attempts` table with a `started_at` timestamp. When the student submits a diagnosis via `POST /api/results`, the backend computes the duration in seconds as:
+
+```
+duration_seconds = floor((NOW() - Attempts.started_at) / 1000)
+```
+
+The computed duration is stored in `Result_Records.duration_seconds` alongside the score and outcome. The frontend never sends a duration value—it is always derived server-side from timestamp math.
+
+### Leaderboard Ranking Logic
+
+**Best attempt per student per lesson:** For each (student, lesson) pair, the leaderboard identifies the single attempt with the highest score. If multiple attempts share the highest score (ties), the attempt with the shortest duration wins. This is the student's "best attempt" for that lesson.
+
+**Speed run rankings:** When sorting by "Fastest Time," only attempts meeting a minimum score threshold (default 80) are considered. Students who never reached the threshold are excluded from speed rankings.
+
+**Overall view:** The overall leaderboard sums each student's best score across all lessons. Only lessons with at least one recorded result count toward the sum. The overall ranking also displays the number of lessons completed and the average score per lesson.
+
+### Instructor Reset Behavior
+
+**Attempt counter reset clears the counter only; historical results remain.** When an instructor resets a student's attempt counter for a lesson via `POST /api/admin/reset`, the backend:
+1. Backs up the prior counter value to `Attempt_Counter_Backups` for audit.
+2. Sets `Attempt_Counters.count` to 0 for the (npm, lessonId) pair.
+3. Does NOT modify any rows in `Result_Records`.
+
+This preserves the student's historical best score and duration for leaderboard purposes, while allowing them to make new attempts. The leaderboard continues to display their prior best unless they achieve a higher score on a subsequent attempt.
+

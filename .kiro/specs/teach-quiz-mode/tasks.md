@@ -767,3 +767,103 @@ Inspired by Linux system monitoring tools (`htop`, `btop`, terminal multiplexers
 - Slide (0.2s) — hover effects
 
 All visual indicators supplement text labels and meet WCAG AA contrast ratios for accessibility.
+
+
+---
+
+## Leaderboard and Attempt Timing
+
+- [x] 21.1 Add `Attempts` table to database schema (`backend/db.js`)
+  - Columns: `id` (PK, autoincrement), `npm`, `lesson_id`, `started_at` (ISO 8601 timestamp, server-generated on insert)
+  - _Requirements: 24.3, 25_
+
+- [x] 21.2 Add `attempt_id` and `duration_seconds` columns to `Result_Records` table
+  - `attempt_id` (INTEGER, nullable, UNIQUE index)
+  - `duration_seconds` (INTEGER, nullable)
+  - Migration: check column existence before ALTER TABLE to support existing databases
+  - _Requirements: 24.3, 25_
+
+- [x] 21.3 Add `createAttempt(npm, lessonId)` function to `backend/db.js`
+  - Inserts row into `Attempts` table with current timestamp
+  - Returns `lastInsertRowid` (the new attempt ID)
+  - _Requirements: 24.3_
+
+- [x] 21.4 Add `openAttemptSeconds(attemptId, npm, lessonId)` function to `backend/db.js`
+  - Queries `Attempts` table joined with `Result_Records`
+  - Returns duration in seconds since `started_at` if attempt is valid (exists, matches npm/lessonId, has no result yet)
+  - Returns `null` if attempt doesn't exist, already has a result, or belongs to another student
+  - _Requirements: 24.3_
+
+- [x] 21.5 Update `POST /api/attempts` to create attempt record and return `attemptId`
+  - After incrementing `Attempt_Counters`, call `createAttempt(npm, lessonId)`
+  - Include `attemptId` in response body: `{ allowed: true, attemptsUsed, attemptLimit, attemptId }`
+  - _Requirements: 24.3_
+
+- [x] 21.6 Update `POST /api/results` to validate `attemptId` and store duration
+  - Require `attemptId` in request body (HTTP 400 if missing)
+  - Call `openAttemptSeconds(attemptId, npm, lessonId)` before inserting result
+  - Return HTTP 409 if `openAttemptSeconds` returns `null` (invalid/reused attempt)
+  - Store `attempt_id` and computed `duration_seconds` in `Result_Records`
+  - _Requirements: 24.3, 25_
+
+- [x] 21.7 Move score computation to server-side (`backend/routes/results.js`)
+  - Formula: `max(0, min(100, 100 - (hints_used × 10) - (wrong_answers × 20)))`
+  - Ignore client-supplied `score` field (breaking change from prior implementation)
+  - Validate `hints_used` and `wrong_answers` are non-negative integers, default to 0 if invalid
+  - Constants: `SCORE_BASE = 100`, `HINT_PENALTY = 10`, `WRONG_PENALTY = 20` (defined in `backend/constants.js`)
+  - _Requirements: 25.1, 25.2, 25.3, 25.5, 25.6_
+
+- [x] 21.8 Update frontend to store and send `attemptId` (`src/api.js`, `src/app.js`)
+  - `startAttempt()` extracts `attemptId` from response and returns it
+  - Module-level `_currentAttemptId` variable stores attempt ID after successful `POST /api/attempts`
+  - `recordResult()` signature changed: removed `score` parameter, added `attemptId` parameter
+  - Clear `_currentAttemptId` on `exitSimulation()` and `goToLanding()`
+  - _Requirements: 24.3, 25.2_
+
+- [ ] 21.9 Verify incorrect outcome cannot score above 0
+  - Server should enforce `score = 0` when `outcome === 'incorrect'` regardless of hints/wrong values
+  - Add validation: `const finalScore = outcome === 'incorrect' ? 0 : computedScore;`
+  - Write test: submit incorrect diagnosis with 0 hints, 0 wrong → assert score is 0
+  - _Requirements: 25.4_
+
+- [ ] 21.10 Implement `GET /api/leaderboard` endpoint (`backend/routes/leaderboard.js`)
+  - Query params: `lesson` (lessonId or 'overall'), `sort` ('score' or 'speed'), `minScore` (default 80)
+  - Per-lesson: return top 50 students by best score (ties broken by duration) or fastest time (among scores ≥ minScore)
+  - Overall: sum of best scores per lesson, number of lessons completed, average score
+  - Response: `{ rank, displayName, score, durationSeconds }[]` — NEVER include `npm`
+  - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6, 24.7_
+
+- [ ] 21.11 Add Leaderboard tab to simulation view (`index.html`, `src/app.js`)
+  - New tab after "Logs" tab, before "Sandbox"
+  - Icon: 🏆
+  - Tab content: filter controls (lesson dropdown, sort toggle, minScore slider) + leaderboard table
+  - _Requirements: 24.1, 24.5_
+
+- [ ] 21.12 Implement leaderboard rendering (`src/renderers/leaderboard.js`)
+  - Fetch data from `GET /api/leaderboard` on tab activation and filter change
+  - Render table: columns = Rank, Name, Score, Duration (MM:SS format)
+  - Highlight current student's row if present
+  - Empty state: "No results meet the criteria"
+  - _Requirements: 24.3, 24.5_
+
+- [ ] 21.13 Display name decision
+  - Current: `Student_Accounts.name` stores full name
+  - Options: add `display_name` column, use initials only, allow pseudonyms, add opt-out flag
+  - Decision required before implementing leaderboard UI
+  - _Requirements: 24.4_
+
+- [ ] 21.14 Answer key security decision
+  - Current: `src/lessons.js` contains `correct: true` flags visible in browser DevTools
+  - Options: move answer key server-side (backend validates diagnosis), or document as known limitation
+  - If moving server-side: frontend sends `optionId`, backend compares to answer key
+  - Decision required before production deployment
+  - _Related to: 25 (server-side scoring)_
+
+- [ ] 21.15 Document known limitations in README.md
+  - Duration includes idle time (timer doesn't pause when tab inactive)
+  - Abandoned attempts consume counter slot (closing tab mid-simulation counts as used attempt)
+  - Answer key exposed in `lessons.js` if not moved server-side
+  - Client determines `outcome` ('correct'/'incorrect') if answer key not moved server-side
+  - No pause/resume functionality
+  - _Requirements: 24, 25_
+

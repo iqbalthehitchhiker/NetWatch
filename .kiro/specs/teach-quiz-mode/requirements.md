@@ -458,3 +458,36 @@ The following behaviors exist in the current implementation but may warrant revi
 **Documented Exception:** Requirement 13.7 now documents this as an explicit exception to Req 7.2.
 
 **Question for Review:** Should student deletion preserve Result_Records (soft delete Student_Accounts) or is permanent deletion acceptable for administrative cleanup?
+
+
+---
+
+### Requirement 24: Leaderboard and Public Rankings
+
+**User Story:** As a student, I want to see how my performance compares to my peers on a public leaderboard, so that I can track my progress and be motivated to improve.
+
+#### Acceptance Criteria
+
+1. THE leaderboard SHALL be accessible from the simulation view as a tab or dedicated view, displayed alongside other evidence tabs (Topology, Metrics, Alerts, Packets, Logs).
+2. THE leaderboard SHALL be filterable by lesson (per-lesson rankings) or overall (aggregate rankings across all lessons).
+3. FOR each student on the leaderboard, THE NetWatch SHALL display their best score for the selected lesson along with the duration (in MM:SS format) from that same highest-scoring attempt.
+4. THE leaderboard SHALL NEVER expose student NPM or any personally identifiable information beyond display name.
+5. THE leaderboard SHALL support two sort modes: "Best Score" (highest score, ties broken by shortest duration) and "Fastest Time" (shortest duration among scores meeting a minimum threshold, default 80).
+6. THE overall leaderboard view SHALL display the sum of each student's best scores across all lessons, the number of lessons completed, and the average score.
+7. THE leaderboard endpoint SHALL return at most the top 50 entries by default, expandable to 100 via a pagination parameter.
+
+---
+
+### Requirement 25: Server-Side Score Computation
+
+**User Story:** As an instructor, I want quiz scores computed server-side so that students cannot manipulate their scores by modifying client code.
+
+#### Acceptance Criteria
+
+1. THE backend SHALL compute quiz scores using the formula: `max(0, min(100, 100 - (hints_used × 10) - (wrong_answers × 20)))`.
+2. THE frontend SHALL send `hints_used` and `wrong_answers` to the backend; the server SHALL ignore any client-supplied `score` value.
+3. THE backend SHALL clamp the computed score to the range [0, 100] regardless of input values.
+4. WHEN the outcome is `'incorrect'`, THE backend SHALL enforce a maximum score of 0 regardless of hints or wrong answers used.
+5. THE backend SHALL validate that `hints_used` and `wrong_answers` are non-negative integers, defaulting to 0 if invalid or missing.
+6. THE scoring constants (`SCORE_BASE = 100`, `HINT_PENALTY = 10`, `WRONG_PENALTY = 20`) SHALL be defined server-side and SHALL NOT be configurable by the client.
+

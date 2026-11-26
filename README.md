@@ -158,11 +158,14 @@ Test coverage includes:
 
 ## 🗃️ Database Schema
 
-The application uses SQLite with three core tables:
+The application uses SQLite with the following core tables:
 
-- **users** — Student authentication and profiles
-- **quiz_attempts** — Individual scenario attempts with timestamps
-- **quiz_results** — Aggregate performance per student per lesson
+- **Student_Accounts** — Student authentication (npm, name, password_hash)
+- **Instructor_Accounts** — Instructor authentication (username, name, password_hash)
+- **Attempt_Counters** — 3-attempt limit enforcement per (npm, lesson_id)
+- **Attempts** — Start timestamp for each quiz attempt
+- **Result_Records** — Diagnosis submissions with score, hints, wrong answers, duration
+- **Attempt_Counter_Backups** — Audit trail when instructors reset attempt limits
 
 ## 🔐 Authentication
 
@@ -268,6 +271,61 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 For questions, issues, or feature requests:
 - Open an issue on GitHub
 - Contact: [iqbalinggil@gmail.com]
+
+---
+
+## 🚧 Known Limitations
+
+### Quiz Mode Security & Timing
+
+1. **Answer key exposed client-side**: The correct answer for each lesson is marked with `correct: true` in `src/lessons.js`, which is downloaded by the browser. Students can inspect this in DevTools to cheat. 
+   - **Mitigation options**: Move answer key server-side so the backend validates diagnoses without trusting the client's `outcome` claim, or document as an educational tool limitation.
+
+2. **Duration includes idle time**: Attempt duration is calculated from the moment `POST /api/attempts` succeeds until `POST /api/results` is received. If a student opens a lesson and walks away, that idle time counts toward their recorded duration.
+   - **Impact**: Leaderboard "speed" rankings may not reflect actual investigation time.
+
+3. **Abandoned attempts consume counter slots**: The 3-attempt limit increments when a simulation loads, not when a diagnosis is submitted. Navigating away mid-attempt (e.g., closing the tab, returning to landing) counts as a used attempt even though no result was recorded.
+   - **Rationale**: Prevents students from "scouting" scenarios without penalty.
+
+4. **No pause/resume**: Once a simulation starts, the timer cannot be paused. Refreshing the page or navigating away abandons the attempt.
+
+5. **Client supplies outcome**: The frontend still determines whether the selected diagnosis is `correct` or `incorrect` before sending to the server. While the server validates the `attemptId` and computes the score from penalties, it does not independently verify correctness against an answer key.
+   - **Current behavior**: An incorrect diagnosis can still score 100 if the client claims `outcome: 'correct'` with 0 hints and 0 wrong answers.
+   - **Impact**: Combined with limitation #1 (exposed answer key), a student can inspect the correct answer in DevTools, select it, and receive full credit.
+   - **Priority fix**: Phase 2 of leaderboard implementation will move outcome validation server-side.
+
+### Session & Authentication
+
+6. **Session persistence across page refresh**: JWT tokens are stored in HttpOnly cookies, so login persists across browser restarts. However, in-progress simulations (timers, state) do not persist—refreshing mid-simulation returns the user to the lesson select screen, and the attempt is considered abandoned.
+
+---
+
+## 🔮 Roadmap: Leaderboard & Attempt Timing
+
+The following features are planned but **not yet implemented**:
+
+### Leaderboard (In Progress)
+- [x] Add `Attempts` table with `started_at` timestamp
+- [x] Add `attempt_id` and `duration_seconds` columns to `Result_Records`
+- [x] Server-side score computation (100 − hints×10 − wrong×20, clamped 0–100)
+- [x] Frontend stores and sends `attemptId` with result submission
+- [ ] **Verify incorrect outcomes cannot score above 0** (server validates outcome claim)
+- [ ] **`GET /api/leaderboard`** endpoint (params: `lessonId`, `sort=score|speed`, `minScore` default 80)
+  - Returns: rank, display name (not NPM), best score, duration from that same attempt
+  - Privacy: Never exposes NPM or other PII
+- [ ] **Leaderboard UI tab** in simulation view
+  - Lesson filter (per-lesson + overall aggregate)
+  - Toggle sort: best score or fastest time (among scores ≥ 80)
+  - Display: rank, name, score, duration (MM:SS format)
+- [ ] **Display name vs. full name decision**
+  - Current: `Student_Accounts.name` stores full name
+  - Options: Add separate `display_name` column, or use initials/anonymized identifiers
+
+### Future Enhancements
+- Pause/resume functionality for long scenarios
+- Idle time detection (track active tab, mouse/keyboard events)
+- Per-lesson attempt limit configuration (override global 3-attempt default)
+- Server-side answer key validation (remove `correct` flag from `lessons.js`)
 
 ---
 
