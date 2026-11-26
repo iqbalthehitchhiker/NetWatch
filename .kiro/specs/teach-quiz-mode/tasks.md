@@ -820,13 +820,13 @@ All visual indicators supplement text labels and meet WCAG AA contrast ratios fo
   - Clear `_currentAttemptId` on `exitSimulation()` and `goToLanding()`
   - _Requirements: 24.3, 25.2_
 
-- [ ] 21.9 Verify incorrect outcome cannot score above 0
+- [x] 21.9 Verify incorrect outcome cannot score above 0
   - Server should enforce `score = 0` when `outcome === 'incorrect'` regardless of hints/wrong values
   - Add validation: `const finalScore = outcome === 'incorrect' ? 0 : computedScore;`
   - Write test: submit incorrect diagnosis with 0 hints, 0 wrong → assert score is 0
   - _Requirements: 25.4_
 
-- [ ] 21.10 Implement `GET /api/leaderboard` endpoint (`backend/routes/leaderboard.js`)
+- [x] 21.10 Implement `GET /api/leaderboard` endpoint (`backend/routes/leaderboard.js`)
   - Query params: `lesson` (lessonId or 'overall'), `sort` ('score' or 'speed'), `minScore` (default 80)
   - Per-lesson: return top 50 students by best score (ties broken by duration) or fastest time (among scores ≥ minScore)
   - Overall: sum of best scores per lesson, number of lessons completed, average score
