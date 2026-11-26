@@ -36,7 +36,13 @@
       <span class="gnav-logo-name">NetWatch</span>
     </button>
 
-    <!-- MIDDLE: sim-only context (mode badge + score slot) -->
+    <!-- MIDDLE: landing nav links (visible on landing) or sim context (visible in simulation) -->
+    <nav class="gnav-landing-nav hidden" id="gnav-landing-nav" aria-label="Landing page sections">
+      <a href="#lp-modes" class="gnav-landing-link">Teach</a>
+      <a href="#lp-modes" class="gnav-landing-link">Quiz</a>
+      <a href="#lp-evidence" class="gnav-landing-link">Evidence</a>
+    </nav>
+    
     <div class="gnav-sim-ctx hidden" id="gnav-sim-ctx" aria-live="polite">
       <!-- Mode indicator: Teach Mode / Quiz Mode -->
       <span class="gnav-mode-badge gnav-mode-teach hidden" id="gnav-mode-teach"
@@ -65,6 +71,7 @@
         </div>
         <!-- Logged in: profile display with role badge -->
         <div class="gnav-profile hidden" id="gnav-profile">
+          <div class="gnav-profile-initial" id="gnav-profile-initial">—</div>
           <div class="gnav-profile-info">
             <span class="gnav-profile-name" id="gnav-profile-name">—</span>
             <span class="gnav-role-badge hidden" id="gnav-role-badge">—</span>
@@ -93,202 +100,141 @@
 <!-- ══════════════ LANDING / INTRO ══════════════ -->
 <div id="screen-landing">
 
-  <!-- ── NAV ── (landing-page section links only — logo/theme are in #global-nav) -->
-  <div class="lp-section-nav">
-    <div class="lp-section-nav-inner">
-      <nav class="lp-nav-links" aria-label="Page sections">
-        <a href="#lp-loop"     class="lp-nav-link">How it works</a>
-        <a href="#lp-evidence" class="lp-nav-link">Evidence</a>
-        <a href="#lp-modes"    class="lp-nav-link">Modes</a>
-      </nav>
-    </div>
-  </div>
-
   <!-- ── HERO ── -->
   <section class="lp-hero" aria-labelledby="hero-headline">
     <div class="lp-hero-inner">
 
       <div class="lp-hero-copy">
         <p class="lp-eyebrow">Network Diagnosis Trainer</p>
-        <h1 class="lp-headline" id="hero-headline">Watch the incident.<br>Learn to find the cause.</h1>
-        <p class="lp-subhead">Watch a simulated network failure unfold, follow the evidence, and learn to diagnose problems using the same signals engineers rely on.</p>
+        <h1 class="lp-headline" id="hero-headline">Watch a network fail in real time and learn what the signals mean</h1>
+        <p class="lp-subhead">NetWatch simulates network incidents in real time. Follow the evidence—topology changes, rising latency, packet floods, alert cascades—and learn to diagnose problems the way monitoring engineers do.</p>
         <div class="lp-hero-cta">
-          <button class="lp-btn-primary" onclick="proceedToLessons()" id="btn-take-scenario">
-            Take a Scenario <span aria-hidden="true">→</span>
-          </button>
-          <button class="lp-btn-ghost" onclick="proceedToTeach()" id="btn-learn-tool">
-            Learn how it works
-          </button>
+          <div class="lp-cta-block">
+            <button class="lp-btn-primary lp-btn-teach" onclick="proceedToTeach()" id="btn-teach-cta">
+              Start learning
+            </button>
+            <p class="lp-cta-line">No login required. Click any element for context.</p>
+          </div>
+          <div class="lp-cta-block">
+            <button class="lp-btn-primary lp-btn-quiz" onclick="proceedToLessons()" id="btn-quiz-cta">
+              Take the quiz
+            </button>
+            <p class="lp-cta-line">Login required. Scored. 3 attempts per lesson.</p>
+          </div>
         </div>
-        <p class="lp-hero-note">Quiz Mode requires login · Teach Mode is open to all</p>
       </div>
 
-      <!-- Dashboard mock-up -->
-      <div class="lp-hero-visual" aria-hidden="true">
-        <div class="lp-dash">
-          <div class="lp-dash-topbar">
-            <div class="lp-dash-logo"><div class="pulse-dot" style="width:6px;height:6px;"></div><span>NetWatch</span></div>
-            <div class="lp-dash-scenario">Scenario: <strong>BGP Route Leak</strong></div>
-            <div class="lp-dash-clock">00:41</div>
+      <!-- Frozen snapshot -->
+      <div class="lp-hero-visual" aria-label="A frozen moment from a network incident">
+        <div class="lp-snapshot">
+          <div class="lp-snapshot-topo">
+            <svg viewBox="0 0 400 240" class="lp-snapshot-svg">
+              <!-- Links with cyan decoration color -->
+              <line x1="200" y1="50" x2="100" y2="120" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" opacity="0.6"/>
+              <line x1="200" y1="50" x2="300" y2="120" stroke="var(--lp-status-warn)" stroke-width="3"/>
+              <line x1="100" y1="120" x2="100" y2="190" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" opacity="0.6"/>
+              <line x1="300" y1="120" x2="300" y2="190" stroke="var(--lp-status-crit)" stroke-width="3.5"/>
+              
+              <!-- Nodes with labels beside them -->
+              <circle cx="200" cy="50" r="16" fill="var(--lp-surface)" stroke="var(--lp-brand)" stroke-width="2.5"/>
+              <text x="232" y="55" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-text)">CORE</text>
+              
+              <circle cx="100" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2.5"/>
+              <text x="122" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)">SW1</text>
+              
+              <circle cx="300" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-status-warn)" stroke-width="2.5"/>
+              <text x="322" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)">RTR</text>
+              
+              <circle cx="100" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2"/>
+              <text x="118" y="195" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-muted)">SRV1</text>
+              
+              <circle cx="300" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-status-crit)" stroke-width="3"/>
+              <text x="320" y="196" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-status-crit)">GW</text>
+              
+              <!-- Alert badge on GW -->
+              <circle cx="315" cy="176" r="7" fill="var(--lp-status-crit)"/>
+              <text x="315" y="181" text-anchor="middle" font-family="var(--lp-font-mono)" font-size="11" fill="#fff" font-weight="700">!</text>
+            </svg>
           </div>
-          <div class="lp-dash-statbar">
-            <div class="lp-stat lp-stat-warn">
-              <div class="lp-stat-label">Devices Healthy</div>
-              <div class="lp-stat-val" style="color:var(--warning)">4/7</div>
+          <div class="lp-snapshot-data">
+            <!-- Telemetry stats -->
+            <div class="lp-snapshot-stats">
+              <div class="lp-snapshot-stat">
+                <span class="lp-snapshot-stat-label">Latency</span>
+                <span class="lp-snapshot-stat-value lp-stat-warn">142ms</span>
+              </div>
+              <div class="lp-snapshot-stat">
+                <span class="lp-snapshot-stat-label">Packet Loss</span>
+                <span class="lp-snapshot-stat-value lp-stat-crit">12.3%</span>
+              </div>
+              <div class="lp-snapshot-stat">
+                <span class="lp-snapshot-stat-label">CPU (GW)</span>
+                <span class="lp-snapshot-stat-value lp-stat-warn">78%</span>
+              </div>
+              <div class="lp-snapshot-stat">
+                <span class="lp-snapshot-stat-label">Jitter</span>
+                <span class="lp-snapshot-stat-value lp-stat-ok">3ms</span>
+              </div>
             </div>
-            <div class="lp-stat lp-stat-crit">
-              <div class="lp-stat-label">Active Alerts</div>
-              <div class="lp-stat-val" style="color:var(--critical)">3</div>
-            </div>
-            <div class="lp-stat lp-stat-crit">
-              <div class="lp-stat-label">Avg Latency</div>
-              <div class="lp-stat-val" style="color:var(--critical)">287ms</div>
-            </div>
-            <div class="lp-stat">
-              <div class="lp-stat-label">Avg CPU</div>
-              <div class="lp-stat-val" style="color:var(--warning)">61%</div>
-            </div>
-            <div class="lp-stat lp-stat-warn">
-              <div class="lp-stat-label">Pkt Loss</div>
-              <div class="lp-stat-val" style="color:var(--warning)">4.2%</div>
-            </div>
-          </div>
-          <div class="lp-dash-body">
-            <div class="lp-dash-topo">
-              <!-- Simplified topology SVG -->
-              <svg viewBox="0 0 260 160" class="lp-topo-svg" aria-label="Network topology diagram">
-                <!-- links -->
-                <line x1="130" y1="30"  x2="50"  y2="85"  stroke="#4a9e6e" stroke-width="1.5"/>
-                <line x1="130" y1="30"  x2="130" y2="85"  stroke="#c8893a" stroke-width="1.5" stroke-dasharray="4 2"/>
-                <line x1="130" y1="30"  x2="210" y2="85"  stroke="#c85a4a" stroke-width="2"/>
-                <line x1="50"  y1="85"  x2="50"  y2="135" stroke="#4a9e6e" stroke-width="1.5"/>
-                <line x1="130" y1="85"  x2="130" y2="135" stroke="#c8893a" stroke-width="1.5" stroke-dasharray="4 2"/>
-                <line x1="210" y1="85"  x2="210" y2="135" stroke="#c85a4a" stroke-width="2"/>
-                <!-- nodes row 1 -->
-                <circle cx="130" cy="30"  r="10" fill="#242830" stroke="#4a9ebb" stroke-width="1.5"/>
-                <text x="130" y="34" text-anchor="middle" font-family="monospace" font-size="8" fill="#4a9ebb">CORE</text>
-                <!-- nodes row 2 -->
-                <circle cx="50"  cy="85"  r="8" fill="#242830" stroke="#4a9e6e" stroke-width="1.5"/>
-                <text x="50"  y="89" text-anchor="middle" font-family="monospace" font-size="7" fill="#4a9e6e">SW1</text>
-                <circle cx="130" cy="85"  r="8" fill="#242830" stroke="#c8893a" stroke-width="1.5"/>
-                <text x="130" y="89" text-anchor="middle" font-family="monospace" font-size="7" fill="#c8893a">RTR</text>
-                <circle cx="210" cy="85"  r="8" fill="#1c2028" stroke="#c85a4a" stroke-width="2"/>
-                <text x="210" y="89" text-anchor="middle" font-family="monospace" font-size="7" fill="#c85a4a">GW</text>
-                <!-- nodes row 3 -->
-                <circle cx="50"  cy="135" r="7" fill="#242830" stroke="#4a9e6e" stroke-width="1.5"/>
-                <text x="50"  y="139" text-anchor="middle" font-family="monospace" font-size="7" fill="#8891a0">SRV1</text>
-                <circle cx="130" cy="135" r="7" fill="#242830" stroke="#c8893a" stroke-width="1.5"/>
-                <text x="130" y="139" text-anchor="middle" font-family="monospace" font-size="7" fill="#8891a0">SRV2</text>
-                <circle cx="210" cy="135" r="7" fill="#1c2028" stroke="#8891a0" stroke-width="1.5"/>
-                <text x="210" y="139" text-anchor="middle" font-family="monospace" font-size="7" fill="#8891a0">SRV3</text>
-                <!-- critical badge on GW -->
-                <circle cx="220" cy="76" r="5" fill="#c85a4a"/>
-                <text x="220" y="80" text-anchor="middle" font-family="monospace" font-size="7" fill="#fff" font-weight="700">!</text>
+            
+            <!-- Latency chart -->
+            <div class="lp-snapshot-chart">
+              <div class="lp-snapshot-chart-label">Latency trend</div>
+              <svg viewBox="0 0 160 60" class="lp-snapshot-chart-svg">
+                <polyline points="0,48 20,46 40,44 60,38 80,28 100,18 120,12 140,8 160,6"
+                  fill="none" stroke="var(--lp-status-warn)" stroke-width="2.5"/>
+                <polyline points="0,48 20,46 40,44 60,38 80,28 100,18 120,12 140,8 160,6 160,60 0,60"
+                  fill="var(--lp-status-warn)" opacity="0.12"/>
               </svg>
             </div>
-            <div class="lp-dash-right">
-              <!-- Latency sparkline -->
-              <div class="lp-dash-chart-label">Latency (ms)</div>
-              <div class="lp-spark-wrap">
-                <svg viewBox="0 0 120 36" class="lp-spark">
-                  <polyline points="0,28 12,26 24,25 36,22 48,18 60,16 72,10 84,5 96,4 108,3 120,2"
-                    fill="none" stroke="#c85a4a" stroke-width="1.5"/>
-                  <polyline points="0,28 12,26 24,25 36,22 48,18 60,16 72,10 84,5 96,4 108,3 120,2"
-                    fill="url(#spark-fill)" stroke="none"/>
-                  <defs>
-                    <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#c85a4a" stop-opacity="0.25"/>
-                      <stop offset="100%" stop-color="#c85a4a" stop-opacity="0"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
+            
+            <!-- Alerts -->
+            <div class="lp-snapshot-alerts">
+              <div class="lp-snapshot-alert lp-snapshot-alert-crit">
+                <span class="lp-snapshot-alert-ts">12:34:18</span>
+                <span class="lp-snapshot-alert-msg">GW: packet loss &gt; 10%</span>
               </div>
-              <!-- Alerts list -->
-              <div class="lp-dash-alerts">
-                <div class="lp-dash-alert lp-dash-alert-crit">
-                  <span class="lp-dash-alert-ts">09:41:24</span>
-                  <span class="lp-dash-alert-msg">GW packet loss &gt; threshold</span>
-                </div>
-                <div class="lp-dash-alert lp-dash-alert-warn">
-                  <span class="lp-dash-alert-ts">09:41:18</span>
-                  <span class="lp-dash-alert-msg">RTR latency spike detected</span>
-                </div>
-                <div class="lp-dash-alert lp-dash-alert-info">
-                  <span class="lp-dash-alert-ts">09:41:12</span>
-                  <span class="lp-dash-alert-msg">Anomalous BGP UPDATE flood</span>
-                </div>
+              <div class="lp-snapshot-alert lp-snapshot-alert-warn">
+                <span class="lp-snapshot-alert-ts">12:34:12</span>
+                <span class="lp-snapshot-alert-msg">RTR: latency spike detected</span>
               </div>
             </div>
           </div>
         </div>
+        <p class="lp-snapshot-caption">A frozen moment from a practice scenario. Where would you look first?</p>
       </div>
     </div>
   </section>
 
-  <!-- ── LEARNING LOOP ── -->
-  <section class="lp-section lp-loop-section" id="lp-loop" aria-labelledby="loop-heading">
+  <!-- ── TEACH vs QUIZ ── -->
+  <section class="lp-section lp-modes-section" id="lp-modes" aria-labelledby="modes-heading">
     <div class="lp-section-inner">
-      <p class="lp-section-eyebrow">How it works</p>
-      <h2 class="lp-section-heading" id="loop-heading">Every scenario follows the same path.</h2>
-      <div class="lp-loop" role="list">
-        <div class="lp-loop-step" role="listitem">
-          <div class="lp-loop-num" aria-hidden="true">01</div>
-          <div class="lp-loop-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <circle cx="11" cy="11" r="9" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="11" cy="11" r="3" fill="currentColor"/>
-              <line x1="11" y1="2" x2="11" y2="5" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="11" y1="17" x2="11" y2="20" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="2" y1="11" x2="5" y2="11" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="17" y1="11" x2="20" y2="11" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-          </div>
-          <h3 class="lp-loop-title">Watch</h3>
-          <p class="lp-loop-desc">A scripted network incident unfolds in real time. Metrics shift, devices degrade, alerts fire.</p>
+      <p class="lp-section-eyebrow">Choose your path</p>
+      <h2 class="lp-section-heading" id="modes-heading">Start by learning to read the signals. Then prove you can diagnose from them.</h2>
+      <div class="lp-modes-grid">
+
+        <article class="lp-mode-card lp-mode-teach" aria-labelledby="teach-heading">
+          <div class="lp-mode-step-label" aria-label="First stage">Stage 1</div>
+          <div class="lp-mode-badge lp-mode-badge-teach">Teach Mode</div>
+          <h3 class="lp-mode-title" id="teach-heading">Learn while you investigate</h3>
+          <p class="lp-mode-tagline">No login, no score. Click any device, metric, alert, or packet row to open a plain-language explanation. Understand what each signal means and what it indicates about network health. Self-check questions confirm comprehension—ungraded, unlimited attempts.</p>
+          <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Start learning →</button>
+        </article>
+
+        <div class="lp-modes-divider" aria-hidden="true">
+          <div class="lp-modes-divider-line"></div>
+          <span class="lp-modes-divider-label">then</span>
+          <div class="lp-modes-divider-line"></div>
         </div>
-        <div class="lp-loop-arrow" aria-hidden="true">→</div>
-        <div class="lp-loop-step" role="listitem">
-          <div class="lp-loop-num" aria-hidden="true">02</div>
-          <div class="lp-loop-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <rect x="3" y="3" width="16" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="7" y1="19" x2="15" y2="19" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="11" y1="15" x2="11" y2="19" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="6" y1="7" x2="16" y2="7" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 1.5"/>
-              <line x1="6" y1="10" x2="13" y2="10" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 1.5"/>
-            </svg>
-          </div>
-          <h3 class="lp-loop-title">Investigate</h3>
-          <p class="lp-loop-desc">Cross-reference topology, metrics, alerts, packet captures, and logs. Every signal is evidence.</p>
-        </div>
-        <div class="lp-loop-arrow" aria-hidden="true">→</div>
-        <!-- Fork at step 3 -->
-        <div class="lp-loop-step lp-loop-step-fork" role="listitem" aria-label="Step 3 — depends on mode">
-          <div class="lp-loop-num" aria-hidden="true">03</div>
-          <div class="lp-loop-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <circle cx="11" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="11" y1="7.5" x2="11" y2="12" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="11" y1="12" x2="5"  y2="17" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="11" y1="12" x2="17" y2="17" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="5"  cy="18.5" r="2" stroke="var(--accent)"   stroke-width="1.5"/>
-              <circle cx="17" cy="18.5" r="2" stroke="var(--warning)"  stroke-width="1.5"/>
-            </svg>
-          </div>
-          <div class="lp-fork-labels">
-            <div class="lp-fork-branch lp-fork-teach">
-              <span class="lp-fork-badge lp-fork-badge-teach">Teach</span>
-              <span class="lp-fork-label">Understand</span>
-              <p class="lp-fork-desc">Explanations are available. Learn what each signal means. Self-check confirms comprehension, no scoring.</p>
-            </div>
-            <div class="lp-fork-divider" aria-hidden="true"></div>
-            <div class="lp-fork-branch lp-fork-quiz">
-              <span class="lp-fork-badge lp-fork-badge-quiz">Quiz</span>
-              <span class="lp-fork-label">Diagnose</span>
-              <p class="lp-fork-desc">Explanations hidden. Identify the root cause yourself and submit, scored, attempt-limited.</p>
-            </div>
-          </div>
-        </div>
+
+        <article class="lp-mode-card lp-mode-quiz" aria-labelledby="quiz-heading">
+          <div class="lp-mode-step-label" aria-label="Second stage">Stage 2</div>
+          <div class="lp-mode-badge lp-mode-badge-quiz">Quiz Mode</div>
+          <h3 class="lp-mode-title" id="quiz-heading">Diagnose without the guide</h3>
+          <p class="lp-mode-tagline">Login required, 3 attempts per lesson. Explanations are hidden. Investigate topology, metrics, alerts, packets, and logs yourself. Submit a root-cause diagnosis from the multiple-choice options. Results are recorded server-side.</p>
+          <button class="lp-mode-cta lp-mode-cta-quiz" onclick="proceedToLessons()">Take the quiz →</button>
+        </article>
+
       </div>
     </div>
   </section>
@@ -371,104 +317,6 @@
             <p class="lp-evidence-desc">Timestamped device events let you reconstruct what happened in what order and where it started.</p>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── TEACH vs QUIZ ── -->
-  <section class="lp-section lp-modes-section" id="lp-modes" aria-labelledby="modes-heading">
-    <div class="lp-section-inner">
-      <p class="lp-section-eyebrow">Two stages of learning</p>
-      <h2 class="lp-section-heading" id="modes-heading">Start by learning to read the signals. Then prove you can diagnose from them.</h2>
-      <div class="lp-modes-grid">
-
-        <article class="lp-mode-card lp-mode-teach" aria-labelledby="teach-heading">
-          <div class="lp-mode-step-label" aria-label="First stage">Stage 1</div>
-          <div class="lp-mode-badge lp-mode-badge-teach">Teach Mode</div>
-          <h3 class="lp-mode-title" id="teach-heading">Learn while you investigate.</h3>
-          <p class="lp-mode-tagline">Explanations are available at every step. No scoring, no login.</p>
-          <ul class="lp-mode-list" role="list">
-            <li>Click any device, metric, alert, or packet row to open a plain-language explanation</li>
-            <li>Understand what each signal means and what it indicates about network health</li>
-            <li>Self-check questions confirm comprehension, ungraded, no attempt limit</li>
-            <li>No root-cause diagnosis required, the payoff is understanding</li>
-            <li>No login needed</li>
-          </ul>
-          <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Learn how it works →</button>
-        </article>
-
-        <div class="lp-modes-divider" aria-hidden="true">
-          <div class="lp-modes-divider-line"></div>
-          <span class="lp-modes-divider-label">then</span>
-          <div class="lp-modes-divider-line"></div>
-        </div>
-
-        <article class="lp-mode-card lp-mode-quiz" aria-labelledby="quiz-heading">
-          <div class="lp-mode-step-label" aria-label="Second stage">Stage 2</div>
-          <div class="lp-mode-badge lp-mode-badge-quiz">Quiz Mode</div>
-          <h3 class="lp-mode-title" id="quiz-heading">Diagnose without the training wheels.</h3>
-          <p class="lp-mode-tagline">Explanations hidden. Investigate the evidence, identify the root cause.</p>
-          <ul class="lp-mode-list" role="list">
-            <li>Explanations are hidden, no Explain Panel, no guided hints</li>
-            <li>Investigate topology, metrics, alerts, packets, and logs yourself</li>
-            <li>Submit a root-cause diagnosis from the multiple-choice options</li>
-            <li>Attempt-limited per scenario, results are recorded server-side</li>
-            <li>Requires student login</li>
-          </ul>
-          <button class="lp-mode-cta lp-mode-cta-quiz" onclick="proceedToLessons()">Take a Scenario →</button>
-        </article>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ── INCIDENT EXAMPLE ── -->
-  <section class="lp-section lp-incident-section" aria-labelledby="incident-heading">
-    <div class="lp-section-inner lp-incident-inner">
-      <div class="lp-incident-copy">
-        <p class="lp-section-eyebrow">What an incident looks like</p>
-        <h2 class="lp-section-heading" id="incident-heading">Something is wrong.</h2>
-        <p class="lp-incident-subhead">The signals arrive one by one. You have to piece them together.</p>
-        <p class="lp-incident-close">"The answer isn't given to you. You have to connect the evidence."</p>
-      </div>
-      <div class="lp-incident-timeline" role="list" aria-label="Example incident timeline">
-        <div class="lp-tl-item" role="listitem">
-          <span class="lp-tl-ts">09:41:12</span>
-          <span class="lp-tl-dot lp-tl-dot-warn" aria-hidden="true"></span>
-          <span class="lp-tl-msg">Latency begins increasing on gateway link</span>
-        </div>
-        <div class="lp-tl-item" role="listitem">
-          <span class="lp-tl-ts">09:41:18</span>
-          <span class="lp-tl-dot lp-tl-dot-warn" aria-hidden="true"></span>
-          <span class="lp-tl-msg">Packet loss detected — 2.1% on upstream interface</span>
-        </div>
-        <div class="lp-tl-item" role="listitem">
-          <span class="lp-tl-ts">09:41:24</span>
-          <span class="lp-tl-dot lp-tl-dot-crit" aria-hidden="true"></span>
-          <span class="lp-tl-msg lp-tl-msg-crit">CRITICAL alert fired — GW packet loss exceeds threshold</span>
-        </div>
-        <div class="lp-tl-item" role="listitem">
-          <span class="lp-tl-ts">09:41:31</span>
-          <span class="lp-tl-dot lp-tl-dot-crit" aria-hidden="true"></span>
-          <span class="lp-tl-msg lp-tl-msg-crit">Downstream service degrades — SRV3 unreachable</span>
-        </div>
-        <div class="lp-tl-item" role="listitem">
-          <span class="lp-tl-ts">09:41:47</span>
-          <span class="lp-tl-dot lp-tl-dot-crit" aria-hidden="true"></span>
-          <span class="lp-tl-msg lp-tl-msg-crit">BGP UPDATE flood confirmed in packet capture</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FINAL CTA ── -->
-  <section class="lp-section lp-final-section" aria-labelledby="final-cta-heading">
-    <div class="lp-section-inner lp-final-inner">
-      <h2 class="lp-final-heading" id="final-cta-heading">Ready to investigate an incident?</h2>
-      <p class="lp-final-sub">Stop reading about network failures.<br>Learn to diagnose them.</p>
-      <div class="lp-final-cta">
-        <button class="lp-btn-primary lp-btn-lg" onclick="proceedToLessons()">Take a Scenario →</button>
-        <button class="lp-btn-ghost  lp-btn-lg" onclick="proceedToTeach()">Learn how it works</button>
       </div>
     </div>
   </section>

@@ -227,6 +227,13 @@ export function updateGlobalNav() {
   const isLanding = !inSim && document.getElementById('screen-landing') && 
                     !document.getElementById('screen-landing').classList.contains('hidden');
 
+  // ── landing nav links (shown only on landing screen) ────────────────────
+  const landingNav = document.getElementById('gnav-landing-nav');
+  if (landingNav) {
+    if (isLanding) landingNav.classList.remove('hidden');
+    else           landingNav.classList.add('hidden');
+  }
+
   // ── auth slot (shown on ALL screens now) ─────────────────────────────────
   const authSlot = document.getElementById('gnav-auth-slot');
   const guestLinks = document.getElementById('gnav-guest-links');
