@@ -16,6 +16,7 @@ let _instructorToken = null;
 let _currentMode     = null;  // 'teach' | 'quiz' | null
 let _studentName     = null;
 let _studentNPM      = null;
+let _studentDisplayName = null;
 
 // ─── Role determination ───────────────────────────────────────────────────────
 
@@ -39,11 +40,12 @@ export function getCurrentRole() {
  * @param {string|null} npm   - Student's NPM identifier
  * @param {'teach'|'quiz'} mode - The chosen mode for this session
  */
-export function setStudentSession(token, name, npm, mode) {
+export function setStudentSession(token, name, npm, mode, displayName = null) {
   _sessionToken = token;
   _studentName  = name;
   _studentNPM   = npm;
   _currentMode  = mode;
+  _studentDisplayName = displayName;
   persistStudentSession();
 }
 
@@ -52,16 +54,24 @@ export function getCurrentMode()   { return _currentMode; }
 export function getStudentName()   { return _studentName; }
 export function getStudentNPM()    { return _studentNPM; }
 
+export function getStudentDisplayName() { return _studentDisplayName; }
+export function setStudentDisplayName(value) {
+  _studentDisplayName = value;
+  persistStudentSession();
+}
+
 export function clearStudentSession() {
   _sessionToken = null;
   _studentName  = null;
   _studentNPM   = null;
   _currentMode  = null;
+  _studentDisplayName = null;
   if (typeof sessionStorage !== 'undefined') {
     sessionStorage.removeItem('nw_student_token');
     sessionStorage.removeItem('nw_student_name');
     sessionStorage.removeItem('nw_student_npm');
     sessionStorage.removeItem('nw_student_mode');
+    sessionStorage.removeItem('nw_student_display');
   }
 }
 
@@ -88,6 +98,7 @@ function persistStudentSession() {
   sessionStorage.setItem('nw_student_name', _studentName ?? '');
   sessionStorage.setItem('nw_student_npm', _studentNPM ?? '');
   sessionStorage.setItem('nw_student_mode', _currentMode ?? '');
+  sessionStorage.setItem('nw_student_display', _studentDisplayName ?? '');
 }
 
 function persistInstructorToken() {
@@ -122,6 +133,7 @@ function restoreSessionFromStorage() {
   const name  = sessionStorage.getItem('nw_student_name') || null;
   const npm   = sessionStorage.getItem('nw_student_npm') || null;
   const mode  = sessionStorage.getItem('nw_student_mode') || null;
+  const displayName = sessionStorage.getItem('nw_student_display') || null;
 
   if (token) {
     if (isTokenExpired(token)) {
@@ -130,11 +142,13 @@ function restoreSessionFromStorage() {
       sessionStorage.removeItem('nw_student_name');
       sessionStorage.removeItem('nw_student_npm');
       sessionStorage.removeItem('nw_student_mode');
+      sessionStorage.removeItem('nw_student_display');
     } else {
       _sessionToken = token;
       _studentName  = name;
       _studentNPM   = npm;
       _currentMode  = mode;
+      _studentDisplayName = displayName;
     }
   }
 

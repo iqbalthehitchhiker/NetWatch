@@ -80,6 +80,25 @@ async function get(url, token) {
   }
 }
 
+async function patch(url, body, token) {
+  try {
+    const res = await fetch(BASE + url, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body:    JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && token) {
+      const role = getCurrentRole();
+      const errorMsg = handle401(role);
+      return { ok: false, status: 401, data: { error: errorMsg }, sessionExpired: true };
+    }
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: 'Network error - backend may be unavailable' } };
+  }
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -88,7 +107,7 @@ async function get(url, token) {
  */
 export async function login(npm, password) {
   const { ok, status, data } = await post('/api/auth/login', { npm, password });
-  if (ok)           return { ok: true,  token: data.token, name: data.name, role: data.role };
+  if (ok)           return { ok: true,  token: data.token, name: data.name, displayName: data.displayName, role: data.role };
   if (status === 401) return { ok: false, status: 401, error: data.error || 'Invalid NPM or password' };
   return { ok: false, status, error: data.error || 'Login could not be completed' };
 }
@@ -302,4 +321,18 @@ export async function bulkResetAttempts(npms, lessonId) {
   if (status === 403) return { ok: false, status: 403, error: 'Instructor authentication required' };
   if (status === 404) return { ok: false, status: 404, error: 'Lesson ID not recognised' };
   return { ok: false, status, error: data.error || 'Bulk reset failed' };
+}
+
+export async function fetchLeaderboard({ lesson = 'overall', sort = 'score', minScore = 80, limit = 50, offset = 0 } = {}) {
+  const qs = new URLSearchParams({ lesson, sort, minScore, limit, offset });
+  const { ok, status, data } = await get('/api/leaderboard?' + qs.toString());
+  if (ok) return { ok: true, rows: Array.isArray(data) ? data : [] };
+  return { ok: false, status, error: (data && data.error) || 'Could not load leaderboard' };
+}
+
+export async function updateDisplayName(displayName) {
+  const token = getSessionToken();
+  const { ok, status, data } = await patch('/api/auth/display-name', { displayName }, token);
+  if (ok) return { ok: true, displayName: data.displayName };
+  return { ok: false, status, error: data.error || 'Could not save display name', sessionExpired: !!data.sessionExpired };
 }

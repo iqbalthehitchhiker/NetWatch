@@ -989,7 +989,7 @@ export function submitLogin() {
     btn.disabled   = false;
     btn.textContent = 'Sign In →';
     if (res.ok) {
-      setStudentSession(res.token, res.name, npm, 'quiz');
+      setStudentSession(res.token, res.name, npm, 'quiz', res.displayName);
       closeModal('modal-login');
       
       // Check if there's a pending quiz save from 401 during quiz
