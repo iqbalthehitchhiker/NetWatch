@@ -259,20 +259,20 @@ export function getLeaderboard({ lessonId = null, sort = 'score', minScore = 80,
   let sql;
   if (lessonId) {
     const order = speed
-      ? 'b.duration_seconds ASC, b.score DESC, a.name ASC'
-      : 'b.score DESC, b.duration_seconds ASC, a.name ASC';
+      ? 'b.duration_seconds ASC, b.score DESC, a.name ASC, b.npm ASC'
+      : 'b.score DESC, b.duration_seconds ASC, a.name ASC, b.npm ASC';
     sql = `WITH best AS (${bestRows})
-           SELECT a.name AS name, b.score AS score, b.duration_seconds AS durationSeconds
+           SELECT a.name AS name, a.display_name AS displayNameRaw, b.score AS score, b.duration_seconds AS durationSeconds
            FROM best b JOIN Student_Accounts a ON a.npm = b.npm
            WHERE b.rn = 1
            ORDER BY ${order}
            LIMIT ? OFFSET ?`;
   } else {
     const order = speed
-      ? 'lessonsDone DESC, durationSeconds ASC, name ASC'
-      : 'score DESC, durationSeconds ASC, name ASC';
+      ? 'lessonsDone DESC, durationSeconds ASC, name ASC, b.npm ASC'
+      : 'score DESC, durationSeconds ASC, name ASC, b.npm ASC';
     sql = `WITH best AS (${bestRows})
-           SELECT a.name AS name, SUM(b.score) AS score, SUM(b.duration_seconds) AS durationSeconds,
+           SELECT a.name AS name, a.display_name AS displayNameRaw, SUM(b.score) AS score, SUM(b.duration_seconds) AS durationSeconds,
                   COUNT(*) AS lessonsDone, ROUND(AVG(b.score), 1) AS avgScore
            FROM best b JOIN Student_Accounts a ON a.npm = b.npm
            WHERE b.rn = 1
@@ -280,5 +280,8 @@ export function getLeaderboard({ lessonId = null, sort = 'score', minScore = 80,
            ORDER BY ${order}
            LIMIT ? OFFSET ?`;
   }
-  return db.prepare(sql).all(...params, limit, offset);
+  return db.prepare(sql).all(...params, limit, offset).map(({ name, displayNameRaw, ...rest }) => ({
+    ...rest,
+    displayName: displayNameRaw || deriveDisplayName(name),
+  }));
 }

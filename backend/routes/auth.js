@@ -12,9 +12,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { findStudentByNpm, findInstructorByUsername } from '../db.js';
+import { findStudentByNpm, findInstructorByUsername, getDisplayName, setDisplayName } from '../db.js';
 import { JWT_EXPIRY } from '../constants.js';
 import { checkRateLimit, recordFailure, clearFailures } from '../rateLimit.js';
+import { requireStudent } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -78,12 +79,21 @@ router.post('/login', async (req, res) => {
         process.env.JWT_SECRET,
         { expiresIn: JWT_EXPIRY }
       );
-      return res.json({ token, name: account.name, role: 'student' });
+      return res.json({ token, name: account.name, displayName: getDisplayName(account.npm), role: 'student' });
     }
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+router.patch('/display-name', requireStudent, (req, res) => {
+  const npm = req.user.sub;
+  const saved = setDisplayName(npm, req.body && req.body.displayName);
+  if (!saved) {
+    return res.status(400).json({ error: 'Display name must be 2-24 characters' });
+  }
+  return res.json({ displayName: saved });
 });
 
 export default router;

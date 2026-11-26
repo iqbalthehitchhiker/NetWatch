@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
   const rows = getLeaderboard({ lessonId, sort, minScore, limit, offset });
   res.json(rows.map((r, i) => ({
     rank: offset + i + 1,
-    displayName: r.name,
+    displayName: r.displayName,
     score: r.score,
     durationSeconds: r.durationSeconds,
     ...(lessonId ? {} : { lessonsDone: r.lessonsDone, avgScore: r.avgScore }),

@@ -186,6 +186,44 @@ async function test3_reusingAttemptIdReturns409() {
   console.log('PASS Test 3 passed');
 }
 
+async function test4_leaderboardHidesIdentity() {
+  console.log('\n[Test 4] leaderboard exposes display name only');
+  const res = await request(app).get('/api/leaderboard?lesson=' + testLesson + '&sort=score');
+  assertEqual(res.status, 200, 'GET /api/leaderboard should return 200');
+  assertEqual(res.body.length, 1, 'Leaderboard should have 1 row');
+  const row = res.body[0];
+  assertEqual(row.displayName, 'Test S.', 'Default display name should be first name + last initial');
+  assertEqual(JSON.stringify(Object.keys(row)), JSON.stringify(['rank', 'displayName', 'score', 'durationSeconds']), 'Row must have exactly these keys');
+  const raw = JSON.stringify(res.body);
+  assert(!raw.includes('Test Student'), 'Full name must not appear');
+  assert(!raw.includes(testNpm), 'npm must not appear');
+  console.log('PASS Test 4 passed');
+}
+
+async function test5_displayNameEditing() {
+  console.log('\n[Test 5] display name can be edited and is validated');
+  const bad = await request(app).patch('/api/auth/display-name')
+    .set('Authorization', `Bearer ${studentToken}`).send({ displayName: 'x' });
+  assertEqual(bad.status, 400, 'Too-short display name should return 400');
+  const ok = await request(app).patch('/api/auth/display-name')
+    .set('Authorization', `Bearer ${studentToken}`).send({ displayName: '  Budi   S  ' });
+  assertEqual(ok.status, 200, 'Valid display name should return 200');
+  assertEqual(ok.body.displayName, 'Budi S', 'Display name should be trimmed and collapsed');
+  const lb = await request(app).get('/api/leaderboard?lesson=' + testLesson + '&sort=score');
+  assertEqual(lb.body[0].displayName, 'Budi S', 'Leaderboard should show the edited name');
+  const noAuth = await request(app).patch('/api/auth/display-name').send({ displayName: 'Hacker' });
+  assertEqual(noAuth.status, 401, 'PATCH without a token should return 401');
+  console.log('PASS Test 5 passed');
+}
+
+async function test6_loginReturnsDisplayName() {
+  console.log('\n[Test 6] login returns displayName');
+  const res = await request(app).post('/api/auth/login').send({ npm: testNpm, password: 'password123' });
+  assertEqual(res.status, 200, 'Login should return 200');
+  assertEqual(res.body.displayName, 'Budi S', 'Login should return the saved display name');
+  console.log('PASS Test 6 passed');
+}
+
 // Run all tests
 (async () => {
   try {
@@ -196,6 +234,9 @@ async function test3_reusingAttemptIdReturns409() {
     await test1_incorrectOutcomeScoresZero();
     await test2_correctWithPenaltiesScores70();
     await test3_reusingAttemptIdReturns409();
+    await test4_leaderboardHidesIdentity();
+    await test5_displayNameEditing();
+    await test6_loginReturnsDisplayName();
     await teardown();
 
     console.log(`\n=== SUMMARY ===`);
