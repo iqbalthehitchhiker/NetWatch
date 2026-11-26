@@ -51,7 +51,6 @@ router.post('/', requireStudent, (req, res) => {
   
   // Incorrect outcomes always score 0, regardless of penalties
   const computedScore = outcome === 'incorrect' ? 0 : clampedScore;
-
   const { id, recordedAt } = insertResult(npm, lessonId, outcome, computedScore, safeHints, safeWrong, attemptId, durationSeconds);
   const bestScore = getBestScore(npm, lessonId);
   return res.status(201).json({ id, recordedAt, score: computedScore, bestScore });
