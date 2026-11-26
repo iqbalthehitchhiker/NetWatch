@@ -34,6 +34,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../src/auth.js', () => ({
   getSessionToken:      vi.fn(() => null),
   getCurrentMode:       vi.fn(() => 'teach'),
+  getCurrentRole:       vi.fn(() => 'guest'),
   getStudentName:       vi.fn(() => null),
   getStudentNPM:        vi.fn(() => null),
   clearStudentSession:  vi.fn(),

@@ -95,6 +95,26 @@ function persistInstructorToken() {
   sessionStorage.setItem('nw_instructor_token', _instructorToken ?? '');
 }
 
+/**
+ * isTokenExpired(token)
+ * Decode JWT payload (no library) and check exp claim.
+ * Returns true if expired or malformed.
+ */
+function isTokenExpired(token) {
+  if (!token || typeof token !== 'string') return true;
+  const parts = token.split('.');
+  if (parts.length !== 3) return true;
+  
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.exp) return false; // No expiry = treat as valid
+    const now = Math.floor(Date.now() / 1000);
+    return payload.exp < now;
+  } catch {
+    return true; // Malformed token
+  }
+}
+
 function restoreSessionFromStorage() {
   if (typeof sessionStorage === 'undefined') return;
 
@@ -104,15 +124,28 @@ function restoreSessionFromStorage() {
   const mode  = sessionStorage.getItem('nw_student_mode') || null;
 
   if (token) {
-    _sessionToken = token;
-    _studentName  = name;
-    _studentNPM   = npm;
-    _currentMode  = mode;
+    if (isTokenExpired(token)) {
+      // Clear expired student session
+      sessionStorage.removeItem('nw_student_token');
+      sessionStorage.removeItem('nw_student_name');
+      sessionStorage.removeItem('nw_student_npm');
+      sessionStorage.removeItem('nw_student_mode');
+    } else {
+      _sessionToken = token;
+      _studentName  = name;
+      _studentNPM   = npm;
+      _currentMode  = mode;
+    }
   }
 
   const instrToken = sessionStorage.getItem('nw_instructor_token') || null;
   if (instrToken) {
-    _instructorToken = instrToken;
+    if (isTokenExpired(instrToken)) {
+      // Clear expired instructor token
+      sessionStorage.removeItem('nw_instructor_token');
+    } else {
+      _instructorToken = instrToken;
+    }
   }
 }
 

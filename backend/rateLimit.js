@@ -14,6 +14,11 @@ export function checkRateLimit(identifier, ip) {
   const now = Date.now();
   const entry = loginAttempts.get(key);
 
+  // Clean up expired entries to prevent unbounded Map growth
+  if (entry && now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    loginAttempts.delete(key);
+  }
+
   if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
     loginAttempts.set(key, { failures: 0, windowStart: now });
     return { allowed: true };

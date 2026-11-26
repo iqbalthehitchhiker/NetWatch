@@ -1,12 +1,36 @@
 /**
  * src/api.js
  * Fetch wrappers for all backend endpoints.
- * Reads tokens from src/auth.js — never touches DOM or global state.
+ * Reads tokens from src/auth.js — never touches DOM or global state directly,
+ * except for the global 401 handler which clears sessions on expiry.
  */
 
-import { getSessionToken, getInstructorToken } from './auth.js';
+import { getSessionToken, getInstructorToken, clearStudentSession, clearInstructorToken, getCurrentRole } from './auth.js';
 
 const BASE = '';  // Same-origin; adjust if backend runs on a different port in dev
+
+// ─── Global 401 handler ───────────────────────────────────────────────────────
+
+/**
+ * handle401(role)
+ * Global handler for 401 responses. Clears the appropriate session and
+ * notifies the UI via updateGlobalNav() (imported dynamically to avoid cycles).
+ * Returns an error message for the caller to display.
+ */
+function handle401(role) {
+  if (role === 'student') {
+    clearStudentSession();
+  } else if (role === 'instructor') {
+    clearInstructorToken();
+  }
+  
+  // Notify UI of session change
+  if (typeof window !== 'undefined' && window.updateGlobalNav) {
+    window.updateGlobalNav();
+  }
+  
+  return 'Session expired, please log in again.';
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +46,14 @@ async function post(url, body, token) {
       body:    JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
+    
+    // Handle 401 globally
+    if (res.status === 401 && token) {
+      const role = getCurrentRole();
+      const errorMsg = handle401(role);
+      return { ok: false, status: 401, data: { error: errorMsg }, sessionExpired: true };
+    }
+    
     return { ok: res.ok, status: res.status, data };
   } catch {
     return { ok: false, status: 0, data: { error: 'Network error — backend may be unavailable' } };
@@ -34,6 +66,14 @@ async function get(url, token) {
       headers: { ...authHeader(token) },
     });
     const data = await res.json().catch(() => ({}));
+    
+    // Handle 401 globally
+    if (res.status === 401 && token) {
+      const role = getCurrentRole();
+      const errorMsg = handle401(role);
+      return { ok: false, status: 401, data: { error: errorMsg }, sessionExpired: true };
+    }
+    
     return { ok: res.ok, status: res.status, data };
   } catch {
     return { ok: false, status: 0, data: { error: 'Network error — backend may be unavailable' } };
@@ -81,12 +121,13 @@ export async function startAttempt(lessonId) {
 
 /**
  * Record a diagnosis result. Retries once on failure (500 ms delay).
+ * On 401, returns sessionExpired: true so caller can trigger in-place re-login.
  * @param {string}  lessonId
  * @param {string}  outcome        'correct' | 'incorrect'
  * @param {number}  [score=0]      Computed score for this attempt
  * @param {number}  [hintsUsed=0]  Hints opened during this attempt
  * @param {number}  [wrongAnswers=0] Wrong submissions before this one
- * @returns {{ ok: true, id, recordedAt, score, bestScore } | { ok: false, error }}
+ * @returns {{ ok: true, id, recordedAt, score, bestScore } | { ok: false, error, sessionExpired?: true }}
  */
 export async function recordResult(lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0) {
   const token = getSessionToken();
@@ -101,8 +142,13 @@ export async function recordResult(lessonId, outcome, score = 0, hintsUsed = 0, 
     score: first.data.score,
     bestScore: first.data.bestScore,
   };
+  
+  // If 401, return immediately with sessionExpired flag for in-place re-login
+  if (first.status === 401 && first.sessionExpired) {
+    return { ok: false, error: first.data.error, sessionExpired: true };
+  }
 
-  // Single retry after 500 ms
+  // Single retry after 500 ms (for other errors)
   await new Promise(r => setTimeout(r, 500));
   const second = await attempt();
   if (second.ok) return {
@@ -112,6 +158,10 @@ export async function recordResult(lessonId, outcome, score = 0, hintsUsed = 0, 
     score: second.data.score,
     bestScore: second.data.bestScore,
   };
+  
+  if (second.status === 401 && second.sessionExpired) {
+    return { ok: false, error: second.data.error, sessionExpired: true };
+  }
 
   return { ok: false, error: second.data.error || 'Result could not be saved' };
 }

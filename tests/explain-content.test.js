@@ -176,6 +176,7 @@ describe('showExplainPanel — quiz-mode suppression (Req 6)', () => {
   vi.mock('../src/auth.js', () => ({
     getSessionToken:      vi.fn(() => null),
     getCurrentMode:       vi.fn(() => 'quiz'),    // ← quiz mode
+    getCurrentRole:       vi.fn(() => 'guest'),
     getStudentName:       vi.fn(() => null),
     getStudentNPM:        vi.fn(() => null),
     clearStudentSession:  vi.fn(),

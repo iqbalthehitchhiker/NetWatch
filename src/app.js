@@ -236,16 +236,31 @@ export function updateGlobalNav() {
   if (authSlot) {
     if (isLanding) {
       authSlot.classList.remove('hidden');
-      // Check if student is logged in
-      const token = getSessionToken();
-      const name = getStudentName();
-      if (token && name) {
-        // Logged in: show profile
+      
+      // Check role: instructor takes priority, then student
+      const role = getCurrentRole();
+      
+      if (role === 'instructor') {
+        // Instructor logged in: show profile with instructor badge
         loginBtn.classList.add('hidden');
         profile.classList.remove('hidden');
-        profileName.textContent = name;
+        // Get instructor name from token (decode JWT payload)
+        const token = getInstructorToken();
+        let name = 'Instructor';
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            name = payload.name || 'Instructor';
+          } catch { /* use default */ }
+        }
+        profileName.textContent = `${name} (Instructor)`;
+      } else if (role === 'student') {
+        // Student logged in: show profile
+        loginBtn.classList.add('hidden');
+        profile.classList.remove('hidden');
+        profileName.textContent = getStudentName() || 'Student';
       } else {
-        // Not logged in: show login button
+        // Guest: show login button
         loginBtn.classList.remove('hidden');
         profile.classList.add('hidden');
       }
@@ -730,14 +745,52 @@ export function submitLogin() {
   btn.disabled   = true;
   btn.textContent = 'Signing in…';
 
-  api.login(npm, password).then(res => {
+  api.login(npm, password).then(async res => {
     btn.disabled   = false;
     btn.textContent = 'Sign In →';
     if (res.ok) {
       setStudentSession(res.token, res.name, npm, 'quiz');
       closeModal('modal-login');
       
-      // If pendingLessonId exists, start attempt gate for that lesson.
+      // Check if there's a pending quiz save from 401 during quiz
+      if (window._pendingQuizSave) {
+        const { lessonId, outcome, score, hintsUsed, wrongAnswers, resultEl, originalNpm } = window._pendingQuizSave;
+        window._pendingQuizSave = null;
+        
+        // Verify NPM matches the original student
+        if (npm !== originalNpm) {
+          const errDiv = document.createElement('div');
+          errDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--red);';
+          errDiv.textContent = `⚠ NPM mismatch: logged in as ${npm}, but quiz was started by ${originalNpm}. Result not saved.`;
+          if (resultEl) resultEl.appendChild(errDiv);
+          return;
+        }
+        
+        // Retry saving the result with new token
+        const retryRes = await api.recordResult(lessonId, outcome, score, hintsUsed, wrongAnswers);
+        if (retryRes.ok) {
+          const successDiv = document.createElement('div');
+          successDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--green);';
+          successDiv.textContent = '✓ Result saved successfully after re-login.';
+          if (resultEl) resultEl.appendChild(successDiv);
+          
+          // Show best score
+          if (retryRes.bestScore !== undefined && resultEl) {
+            const bestDiv = document.createElement('div');
+            bestDiv.style.cssText = 'margin-top:4px;font-size:11px;font-family:var(--font-mono);color:var(--muted);';
+            bestDiv.textContent = `Your best: ${retryRes.bestScore} / 100`;
+            resultEl.appendChild(bestDiv);
+          }
+        } else {
+          const errDiv = document.createElement('div');
+          errDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--red);';
+          errDiv.textContent = `⚠ Retry failed: ${retryRes.error}`;
+          if (resultEl) resultEl.appendChild(errDiv);
+        }
+        return;
+      }
+      
+      // Normal login flow: If pendingLessonId exists, start attempt gate for that lesson.
       // Otherwise, just go to Lesson Selection (direct login from landing).
       if (pendingLessonId) {
         _startAttemptGate(pendingLessonId);
@@ -1293,7 +1346,25 @@ export async function submitDiagnosis() {
 // Feature: teach-quiz-mode, Property 10: Result records are append-only (enforced server-side)
 async function recordQuizResult(lessonId, outcome, score, hintsUsed, wrongAnswers, resultEl) {
   if (getCurrentMode() !== 'quiz' || !getStudentNPM()) return;
+  
+  const originalNpm = getStudentNPM();
   const res = await api.recordResult(lessonId, outcome, score, hintsUsed, wrongAnswers);
+  
+  // Handle 401 session expiry during quiz: prompt for in-place re-login
+  if (!res.ok && res.sessionExpired) {
+    // Show re-login prompt
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--orange);';
+    errDiv.textContent = 'Session expired. Please log in again to save your result.';
+    if (resultEl) resultEl.appendChild(errDiv);
+    
+    // Open login modal for re-authentication
+    // Store the pending save so we can retry after successful login
+    window._pendingQuizSave = { lessonId, outcome, score, hintsUsed, wrongAnswers, resultEl, originalNpm };
+    openModal('modal-login');
+    return;
+  }
+  
   if (!res.ok) {
     // Show inline error inside Diagnosis Modal
     const errDiv = document.createElement('div');
