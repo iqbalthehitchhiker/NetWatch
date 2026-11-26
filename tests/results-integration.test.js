@@ -224,6 +224,58 @@ async function test6_loginReturnsDisplayName() {
   console.log('PASS Test 6 passed');
 }
 
+async function test7_bulkStudentHardening() {
+  console.log('\n[Test 7] bulk student creation hardening (quotes stripped, numeric names, digits-only validation)');
+  
+  // Sign an instructor token
+  const instructorToken = jwt.sign({ sub: 'instructor1', role: 'instructor', name: 'Test Instructor' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+  const res = await request(app)
+    .post('/api/admin/students/bulk')
+    .set('Authorization', `Bearer ${instructorToken}`)
+    .send({
+      students: [
+        { name: '"Quote Test', npm: '5550001"' },
+        { name: 'Bad', npm: 'abc123' },
+        { name: '', npm: '5550002' },
+      ]
+    });
+  
+  if (res.status === 401) {
+    console.error('FAIL Instructor token was rejected. Response:', res.body);
+    throw new Error('requireInstructor rejected the instructor token. Check middleware.');
+  }
+  
+  assertEqual(res.status, 200, 'POST /api/admin/students/bulk should return 200');
+  assertEqual(res.body.results.length, 3, 'Should process 3 entries');
+  
+  // Entry 1: quotes stripped -> 5550001 and "Quote Test"
+  const r1 = res.body.results[0];
+  assertEqual(r1.npm, '5550001', 'First entry npm should be 5550001 (quote stripped)');
+  assertEqual(r1.name, 'Quote Test', 'First entry name should be Quote Test (quote stripped)');
+  assertEqual(r1.status, 'created', 'First entry should be created');
+  
+  // Entry 2: abc123 is not digits-only
+  const r2 = res.body.results[1];
+  assertEqual(r2.status, 'invalid', 'Second entry should be invalid');
+  
+  // Entry 3: empty name, npm is numeric -> should be created
+  const r3 = res.body.results[2];
+  assertEqual(r3.npm, '5550002', 'Third entry npm should be 5550002');
+  assertEqual(r3.status, 'created', 'Third entry should be created');
+  
+  // Check leaderboard does NOT contain '5550002' anywhere (no results yet)
+  const lb = await request(app).get('/api/leaderboard?lesson=' + testLesson + '&sort=score');
+  const lbJson = JSON.stringify(lb.body);
+  assert(!lbJson.includes('5550002'), 'Leaderboard must not contain 5550002 (no results)');
+  
+  // Check deriveDisplayName('5550002') === 'Student'
+  const { deriveDisplayName } = await import('../backend/db.js');
+  assertEqual(deriveDisplayName('5550002'), 'Student', 'deriveDisplayName for numeric name should return Student');
+  
+  console.log('PASS Test 7 passed');
+}
+
 // Run all tests
 (async () => {
   try {
@@ -237,6 +289,7 @@ async function test6_loginReturnsDisplayName() {
     await test4_leaderboardHidesIdentity();
     await test5_displayNameEditing();
     await test6_loginReturnsDisplayName();
+    await test7_bulkStudentHardening();
     await teardown();
 
     console.log(`\n=== SUMMARY ===`);

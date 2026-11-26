@@ -215,7 +215,7 @@ export default db;
 
 export function deriveDisplayName(fullName) {
   const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'Student';
+  if (parts.length === 0 || /^\d+$/.test(parts.join(''))) return 'Student';
   if (parts.length === 1) return parts[0];
   return parts[0] + ' ' + parts[parts.length - 1][0].toUpperCase() + '.';
 }

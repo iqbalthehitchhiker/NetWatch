@@ -155,8 +155,18 @@ router.post('/students/bulk', requireInstructor, async (req, res) => {
       continue;
     }
 
-    const trimmedNpm = String(npm).trim();
-    const trimmedName = String(name || '').trim() || trimmedNpm;
+    const cleanText = (v) => String(v ?? '')
+      .replace(/["'`\u0000-\u001f\u007f\u200b-\u200d\ufeff]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const trimmedNpm = cleanText(npm);
+    if (!/^\d{1,20}$/.test(trimmedNpm)) {
+      results.push({ npm: trimmedNpm, name: cleanText(name), status: 'invalid', error: 'npm must be 1-20 digits' });
+      continue;
+    }
+
+    const trimmedName = cleanText(name).slice(0, 60) || trimmedNpm;
 
     // Check for duplicate
     const existing = db.prepare('SELECT npm FROM Student_Accounts WHERE npm = ?').get(trimmedNpm);
