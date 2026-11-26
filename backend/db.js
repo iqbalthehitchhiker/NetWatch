@@ -82,6 +82,11 @@ if (!resultCols.includes('attempt_id'))       db.exec(`ALTER TABLE Result_Record
 if (!resultCols.includes('duration_seconds')) db.exec(`ALTER TABLE Result_Records ADD COLUMN duration_seconds INTEGER`);
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_result_attempt ON Result_Records(attempt_id)`);
 
+const studentCols = db.prepare("PRAGMA table_info(Student_Accounts)").all();
+if (!studentCols.some(c => c.name === 'display_name')) {
+  db.exec("ALTER TABLE Student_Accounts ADD COLUMN display_name TEXT");
+}
+
 // ─── Schema migration: add scoring columns to pre-existing databases ───────────
 // ALTER TABLE ADD COLUMN throws if the column already exists (SQLite < 3.37.0).
 // We catch those errors silently — the CREATE TABLE above handles new databases.
@@ -207,6 +212,32 @@ export function getAllResults() {
 }
 
 export default db;
+
+export function deriveDisplayName(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Student';
+  if (parts.length === 1) return parts[0];
+  return parts[0] + ' ' + parts[parts.length - 1][0].toUpperCase() + '.';
+}
+
+export function sanitizeDisplayName(input) {
+  const s = String(input ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().replace(/\s+/g, ' ');
+  if (s.length < 2 || s.length > 24) return null;
+  return s;
+}
+
+export function getDisplayName(npm) {
+  const row = db.prepare('SELECT name, display_name FROM Student_Accounts WHERE npm = ?').get(npm);
+  if (!row) return null;
+  return row.display_name || deriveDisplayName(row.name);
+}
+
+export function setDisplayName(npm, input) {
+  const clean = sanitizeDisplayName(input);
+  if (!clean) return null;
+  db.prepare('UPDATE Student_Accounts SET display_name = ? WHERE npm = ?').run(clean, npm);
+  return clean;
+}
 
 export function getLeaderboard({ lessonId = null, sort = 'score', minScore = 80, limit = 50, offset = 0 }) {
   const speed = sort === 'speed';
