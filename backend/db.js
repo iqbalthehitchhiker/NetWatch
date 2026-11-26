@@ -207,3 +207,47 @@ export function getAllResults() {
 }
 
 export default db;
+
+export function getLeaderboard({ lessonId = null, sort = 'score', minScore = 80, limit = 50, offset = 0 }) {
+  const speed = sort === 'speed';
+  const lessonFilter = lessonId ? 'AND lesson_id = ?' : '';
+  const params = [];
+  if (speed) params.push(minScore);
+  if (lessonId) params.push(lessonId);
+  const bestRows = speed
+    ? `SELECT npm, lesson_id, score, duration_seconds,
+              ROW_NUMBER() OVER (PARTITION BY npm, lesson_id
+                                 ORDER BY duration_seconds ASC, score DESC) AS rn
+       FROM Result_Records
+       WHERE outcome = 'correct' AND duration_seconds IS NOT NULL AND score >= ? ${lessonFilter}`
+    : `SELECT npm, lesson_id, score, duration_seconds,
+              ROW_NUMBER() OVER (PARTITION BY npm, lesson_id
+                                 ORDER BY score DESC, duration_seconds ASC) AS rn
+       FROM Result_Records
+       WHERE outcome = 'correct' AND duration_seconds IS NOT NULL ${lessonFilter}`;
+  let sql;
+  if (lessonId) {
+    const order = speed
+      ? 'b.duration_seconds ASC, b.score DESC, a.name ASC'
+      : 'b.score DESC, b.duration_seconds ASC, a.name ASC';
+    sql = `WITH best AS (${bestRows})
+           SELECT a.name AS name, b.score AS score, b.duration_seconds AS durationSeconds
+           FROM best b JOIN Student_Accounts a ON a.npm = b.npm
+           WHERE b.rn = 1
+           ORDER BY ${order}
+           LIMIT ? OFFSET ?`;
+  } else {
+    const order = speed
+      ? 'lessonsDone DESC, durationSeconds ASC, name ASC'
+      : 'score DESC, durationSeconds ASC, name ASC';
+    sql = `WITH best AS (${bestRows})
+           SELECT a.name AS name, SUM(b.score) AS score, SUM(b.duration_seconds) AS durationSeconds,
+                  COUNT(*) AS lessonsDone, ROUND(AVG(b.score), 1) AS avgScore
+           FROM best b JOIN Student_Accounts a ON a.npm = b.npm
+           WHERE b.rn = 1
+           GROUP BY b.npm
+           ORDER BY ${order}
+           LIMIT ? OFFSET ?`;
+  }
+  return db.prepare(sql).all(...params, limit, offset);
+}

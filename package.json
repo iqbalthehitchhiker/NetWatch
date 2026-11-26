@@ -8,6 +8,7 @@
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
     "test": "vitest run",
+    "test:integration": "node tests/results-integration.test.js",
     "seed:student": "node backend/seed.js",
     "seed:instructor": "node backend/seed.js --role instructor"
   },

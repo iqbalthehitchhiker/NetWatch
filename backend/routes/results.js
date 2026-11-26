@@ -46,7 +46,11 @@ router.post('/', requireStudent, (req, res) => {
   const SCORE_BASE = 100;
   const HINT_PENALTY = 10;
   const WRONG_PENALTY = 20;
-  const computedScore = Math.max(0, Math.min(100, SCORE_BASE - (safeHints * HINT_PENALTY) - (safeWrong * WRONG_PENALTY)));
+  const rawScore = SCORE_BASE - (safeHints * HINT_PENALTY) - (safeWrong * WRONG_PENALTY);
+  const clampedScore = Math.max(0, Math.min(100, rawScore));
+  
+  // Incorrect outcomes always score 0, regardless of penalties
+  const computedScore = outcome === 'incorrect' ? 0 : clampedScore;
 
   const { id, recordedAt } = insertResult(npm, lessonId, outcome, computedScore, safeHints, safeWrong, attemptId, durationSeconds);
   const bestScore = getBestScore(npm, lessonId);
