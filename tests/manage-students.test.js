@@ -80,8 +80,8 @@ describe('POST /api/admin/students/bulk', () => {
   
   it('should create students and return generated passwords', async () => {
     const students = [
-      { name: 'Alice Test', npm: 'test-001' },
-      { name: 'Bob Test', npm: 'test-002' },
+      { name: 'Alice Test', npm: '1234567890' },
+      { name: 'Bob Test', npm: '1234567891' },
     ];
 
     const res = await request(app)
@@ -107,13 +107,13 @@ describe('POST /api/admin/students/bulk', () => {
   it('should handle mixed valid/duplicate/invalid entries', async () => {
     // Setup: npm 'existing' already exists
     mockPreparedStatement.get.mockImplementation((npm) => {
-      if (npm === 'existing') return { npm: 'existing' };
+      if (npm === '9999999999') return { npm: '9999999999' };
       return null;
     });
 
     const students = [
-      { name: 'New', npm: 'new-001' },
-      { name: 'Duplicate', npm: 'existing' },
+      { name: 'New', npm: '1234567892' },
+      { name: 'Duplicate', npm: '9999999999' },
       { name: 'Invalid', npm: '' },
     ];
 
@@ -133,7 +133,7 @@ describe('POST /api/admin/students/bulk', () => {
     expect(created[0].password).toBeDefined();
 
     expect(duplicate).toBeDefined();
-    expect(duplicate.npm).toBe('existing');
+    expect(duplicate.npm).toBe('9999999999');
     expect(duplicate.password).toBeUndefined();
 
     expect(invalid).toBeDefined();
@@ -142,7 +142,7 @@ describe('POST /api/admin/students/bulk', () => {
   });
 
   it('should hash passwords using bcrypt', async () => {
-    const students = [{ name: 'Test', npm: 'test-hash' }];
+    const students = [{ name: 'Test', npm: '1234567893' }];
 
     const res = await request(app)
       .post('/api/admin/students/bulk')
@@ -157,7 +157,7 @@ describe('POST /api/admin/students/bulk', () => {
     expect(insertCalls.length).toBeGreaterThan(0);
     
     const [npm, name, hash] = insertCalls[0];
-    expect(npm).toBe('test-hash');
+    expect(npm).toBe('1234567893');
     
     // Verify hash is bcrypt format
     expect(hash).toMatch(/^\$2[aby]\$/); // bcrypt hash starts with $2a$, $2b$, or $2y$
@@ -170,7 +170,7 @@ describe('POST /api/admin/students/bulk', () => {
   it('should generate passwords without ambiguous characters', async () => {
     const students = Array.from({ length: 10 }, (_, i) => ({
       name: `User ${i}`,
-      npm: `test-${i}`,
+      npm: `123456789${i}`,
     }));
 
     const res = await request(app)
@@ -190,7 +190,7 @@ describe('POST /api/admin/students/bulk', () => {
   it('should reject without instructor token (401)', async () => {
     const res = await request(app)
       .post('/api/admin/students/bulk')
-      .send({ students: [{ name: 'Test', npm: 'test' }] })
+      .send({ students: [{ name: 'Test', npm: '8888888888' }] })
       .expect(401);
 
     expect(res.body.error).toMatch(/authentication required/i);
@@ -200,7 +200,7 @@ describe('POST /api/admin/students/bulk', () => {
     const res = await request(app)
       .post('/api/admin/students/bulk')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ students: [{ name: 'Test', npm: 'test' }] })
+      .send({ students: [{ name: 'Test', npm: '8888888888' }] })
       .expect(403);
 
     expect(res.body.error).toMatch(/instructor account required/i);
