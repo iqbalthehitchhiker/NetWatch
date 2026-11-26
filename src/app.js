@@ -229,9 +229,15 @@ export function updateGlobalNav() {
 
   // ── auth slot (shown on ALL screens now) ─────────────────────────────────
   const authSlot = document.getElementById('gnav-auth-slot');
+  const guestLinks = document.getElementById('gnav-guest-links');
   const loginBtn = document.getElementById('gnav-login-btn');
+  const instructorLoginBtn = document.getElementById('gnav-instructor-login-btn');
   const profile = document.getElementById('gnav-profile');
   const profileName = document.getElementById('gnav-profile-name');
+  const roleBadge = document.getElementById('gnav-role-badge');
+  const profileMeta = document.getElementById('gnav-profile-meta');
+  const attemptsSpan = document.getElementById('gnav-attempts');
+  const myResultsBtn = document.getElementById('gnav-my-results-btn');
 
   if (authSlot) {
     // Always show the auth slot (not just on landing)
@@ -242,8 +248,9 @@ export function updateGlobalNav() {
     
     if (role === 'instructor') {
       // Instructor logged in: show profile with instructor badge
-      loginBtn.classList.add('hidden');
+      guestLinks.classList.add('hidden');
       profile.classList.remove('hidden');
+      
       // Get instructor name from token (decode JWT payload)
       const token = getInstructorToken();
       let name = 'Instructor';
@@ -253,15 +260,41 @@ export function updateGlobalNav() {
           name = payload.name || 'Instructor';
         } catch { /* use default */ }
       }
-      profileName.textContent = `${name} (Instructor)`;
+      profileName.textContent = name;
+      
+      // Show instructor badge
+      roleBadge.classList.remove('hidden', 'role-student');
+      roleBadge.classList.add('role-instructor');
+      roleBadge.textContent = 'Instructor';
+      
+      // Hide student-specific meta
+      profileMeta.classList.add('hidden');
+      attemptsSpan.classList.add('hidden');
+      myResultsBtn.classList.add('hidden');
+      
     } else if (role === 'student') {
-      // Student logged in: show profile
-      loginBtn.classList.add('hidden');
+      // Student logged in: show profile with student badge
+      guestLinks.classList.add('hidden');
       profile.classList.remove('hidden');
+      
       profileName.textContent = getStudentName() || 'Student';
+      
+      // Show student badge
+      roleBadge.classList.remove('hidden', 'role-instructor');
+      roleBadge.classList.add('role-student');
+      roleBadge.textContent = 'Student';
+      
+      // Show student-specific meta (attempts, my results)
+      profileMeta.classList.remove('hidden');
+      myResultsBtn.classList.remove('hidden');
+      
+      // Show attempts count if we're in a lesson context
+      // (This will be populated by showLessonSelectScreen for each card)
+      attemptsSpan.classList.add('hidden'); // Hide by default, shown per-lesson context
+      
     } else {
-      // Guest: show login button
-      loginBtn.classList.remove('hidden');
+      // Guest: show login buttons
+      guestLinks.classList.remove('hidden');
       profile.classList.add('hidden');
     }
   }
@@ -327,7 +360,7 @@ function openModal(id)  { document.getElementById(id).classList.remove('hidden')
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function closeAllModals() {
-  ['modal-login','modal-blocked','modal-admin-reset',
+  ['modal-login','modal-blocked','modal-admin-reset','modal-instructor-login','modal-my-results',
    'modal-hint','modal-diagnosis','modal-device'].forEach(closeModal);
 }
 
@@ -561,9 +594,34 @@ function generateLessonPreviewSVG(lessonId) {
   return svgs[lessonId] || svgs.ddos_edge;
 }
 
-function renderLessonSelect() {
+async function renderLessonSelect() {
   const grid = document.getElementById('lesson-grid');
-  grid.innerHTML = LESSONS.map(l => `
+  const role = getCurrentRole();
+  const npm = getStudentNPM();
+  
+  // Fetch attempt counts for student
+  const attemptCounts = {};
+  if (role === 'student' && npm) {
+    for (const lesson of LESSONS) {
+      try {
+        const result = await api.getAttemptCount(npm, lesson.id);
+        if (result.ok) {
+          attemptCounts[lesson.id] = result;
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch attempt count for ${lesson.id}:`, err);
+      }
+    }
+  }
+  
+  grid.innerHTML = LESSONS.map(l => {
+    let attemptsHtml = '';
+    if (role === 'student' && attemptCounts[l.id]) {
+      const { attemptsUsed, attemptLimit } = attemptCounts[l.id];
+      attemptsHtml = `<div class="lesson-card-attempts">Attempts: ${attemptsUsed}/${attemptLimit} used</div>`;
+    }
+    
+    return `
     <div class="lesson-card" style="--accent:${l.accent}" data-lesson-id="${l.id}">
       <div class="lesson-card-header">
         <span class="lesson-diff diff-${l.difficulty.toLowerCase()}">${l.difficulty}</span>
@@ -573,12 +631,14 @@ function renderLessonSelect() {
       <div class="lesson-card-focus">Focus device: ${l.focus}</div>
       <div class="lesson-card-preview">${generateLessonPreviewSVG(l.id)}</div>
       <div class="lesson-card-desc">${l.description}</div>
+      ${attemptsHtml}
       <div class="lesson-card-foot">
         <div class="lesson-card-topo">${TOPOLOGIES[l.topology].name}</div>
         <div class="lesson-start-btn">Start Lesson →</div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   // Delegated click — arriving here means Quiz mode (user took "Take a scenario" path).
   // Go straight to login; no mode-select modal.
@@ -695,6 +755,131 @@ export function openLandingLogin() {
 }
 
 /**
+ * openInstructorLogin()
+ * Open the dedicated instructor login modal (separate from admin reset).
+ * On successful login, navigates directly to the manage students screen.
+ */
+export function openInstructorLogin() {
+  // Clear form
+  ['instructor-username', 'instructor-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  _setFieldError('instructor-username-err', null);
+  _setFieldError('instructor-password-err', null);
+  _setFieldError('instructor-general-err', null);
+  
+  openModal('modal-instructor-login');
+}
+
+/**
+ * submitInstructorLoginDirect()
+ * Submit the instructor login form from the dedicated modal.
+ * On success, store token and navigate to manage students.
+ */
+export async function submitInstructorLoginDirect() {
+  const username = document.getElementById('instructor-username').value.trim();
+  const password = document.getElementById('instructor-password').value;
+  
+  // Clear errors
+  _setFieldError('instructor-username-err', null);
+  _setFieldError('instructor-password-err', null);
+  _setFieldError('instructor-general-err', null);
+  
+  // Validate
+  if (!username) {
+    _setFieldError('instructor-username-err', 'Username is required');
+    return;
+  }
+  if (!password) {
+    _setFieldError('instructor-password-err', 'Password is required');
+    return;
+  }
+  
+  // Show loading
+  const btn = document.getElementById('instructor-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  
+  try {
+    const result = await api.loginInstructor(username, password);
+    
+    // Store token
+    setInstructorToken(result.token);
+    
+    // Close modal
+    closeModal('modal-instructor-login');
+    
+    // Navigate to manage students
+    openManageStudents();
+    
+  } catch (err) {
+    if (err.message === '401') {
+      _setFieldError('instructor-general-err', 'Invalid credentials');
+    } else {
+      _setFieldError('instructor-general-err', 'Login failed. Please try again.');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In →';
+  }
+}
+
+/**
+ * openMyResults()
+ * Open the student results modal and fetch their results.
+ */
+export async function openMyResults() {
+  const npm = getStudentNPM();
+  if (!npm) return;
+  
+  openModal('modal-my-results');
+  
+  const content = document.getElementById('my-results-content');
+  content.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">Loading...</div>';
+  
+  try {
+    const results = await api.fetchStudentResults(npm);
+    
+    if (!results || results.length === 0) {
+      content.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">No results yet. Complete a quiz to see your history here.</div>';
+      return;
+    }
+    
+    // Group by lesson
+    const byLesson = {};
+    results.forEach(r => {
+      if (!byLesson[r.lessonId]) byLesson[r.lessonId] = [];
+      byLesson[r.lessonId].push(r);
+    });
+    
+    // Render results
+    const html = Object.entries(byLesson).map(([lessonId, attempts]) => {
+      const lesson = LESSONS.find(l => l.id === lessonId);
+      const lessonTitle = lesson ? lesson.title : lessonId;
+      
+      const attemptsHtml = attempts.map((r, i) => {
+        const outcome = r.outcome === 'correct' ? '<span style="color:var(--healthy)">✓ Correct</span>' : '<span style="color:var(--critical)">✗ Incorrect</span>';
+        const date = new Date(r.recordedAt).toLocaleString();
+        return `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Attempt ${i+1}: ${outcome} · ${date}</div>`;
+      }).join('');
+      
+      return `
+        <div style="margin-bottom:20px;padding:12px;background:var(--panel);border:1px solid var(--border);border-radius:6px">
+          <div style="font-weight:500;margin-bottom:8px">${lessonTitle}</div>
+          ${attemptsHtml}
+        </div>
+      `;
+    }).join('');
+    
+    content.innerHTML = html;
+    
+  } catch (err) {
+    content.innerHTML = '<div style="text-align:center;color:var(--critical);padding:40px">Failed to load results</div>';
+  }
+}
+
+/**
  * logoutStudent()
  * Log out the current student and refresh the navbar display.
  * Student remains on landing page.
@@ -727,11 +912,14 @@ export function logout() {
   const role = getCurrentRole();
   const inSim = simState !== null;
 
-  // If a quiz simulation is active, confirm first
+  // Always confirm logout
+  let confirmMessage = 'Log out of NetWatch?';
   if (inSim) {
-    if (!confirm('Logging out ends this quiz. Your attempt is already counted.')) {
-      return; // Cancel - stay in session
-    }
+    confirmMessage = 'Logging out ends this quiz. Your attempt is already counted.';
+  }
+  
+  if (!confirm(confirmMessage)) {
+    return; // Cancel - stay in session
   }
 
   // Stop simulation timers and close all UI elements
@@ -752,6 +940,7 @@ export function logout() {
   // Reset UI to landing state
   goToLanding();
   updateGlobalNav();
+  updateSandboxVisibility();  // Task 29: update sandbox visibility after logout
   
   // Show logout confirmation
   showNotification('You have been logged out');
@@ -978,6 +1167,32 @@ function launchSimulation(lessonId) {
   updateRunBadge();
   updateSelfCheckResumeBtn();   // clear resume indicator at launch (fresh state)
   updateGlobalNav();            // show mode badge + score slot in global nav
+  updateSandboxVisibility();    // Task 29: gate sandbox based on mode and role
+
+  // Populate compact account in topbar
+  const topbarAccount = document.getElementById('topbar-account');
+  const topbarAccountName = document.getElementById('topbar-account-name');
+  const topbarRoleBadge = document.getElementById('topbar-role-badge');
+  const role = getCurrentRole();
+  
+  if (role === 'guest') {
+    topbarAccount.classList.add('hidden');
+  } else {
+    const name = role === 'instructor' ? 'Instructor' : getStudentName();
+    topbarAccountName.textContent = name;
+    
+    if (role === 'instructor') {
+      topbarRoleBadge.textContent = 'INSTRUCTOR';
+      topbarRoleBadge.className = 'topbar-role-badge role-instructor';
+      topbarRoleBadge.classList.remove('hidden');
+    } else {
+      topbarRoleBadge.textContent = 'STUDENT';
+      topbarRoleBadge.className = 'topbar-role-badge role-student';
+      topbarRoleBadge.classList.remove('hidden');
+    }
+    
+    topbarAccount.classList.remove('hidden');
+  }
 
   // Attach explain-panel listeners for Teach mode.
   // attachExplainListeners() is idempotent — safe to call on every teach launch.
@@ -1547,6 +1762,43 @@ export function submitAdminReset() {
 // ─── Sandbox drawer ───────────────────────────────────────────────────────────
 
 export function toggleDrawer() { document.getElementById('settings-drawer').classList.toggle('open'); }
+
+/**
+ * updateSandboxVisibility()
+ * Task 29: Sandbox gating based on mode and role.
+ * - Visible in Teach Mode for everyone
+ * - Visible in Quiz Mode for instructor only
+ * - Hidden in Quiz Mode for guest and student
+ */
+export function updateSandboxVisibility() {
+  const sandboxToggle = document.querySelector('.settings-toggle');
+  const sandboxDrawer = document.getElementById('settings-drawer');
+  
+  if (!sandboxToggle || !sandboxDrawer) return;
+  
+  const mode = getCurrentMode();
+  const role = getCurrentRole();
+  
+  // Determine visibility
+  let visible = false;
+  
+  if (mode === 'teach') {
+    // Teach Mode: visible for everyone
+    visible = true;
+  } else if (mode === 'quiz') {
+    // Quiz Mode: visible only for instructor
+    visible = (role === 'instructor');
+  }
+  
+  // Apply visibility
+  if (visible) {
+    sandboxToggle.style.display = '';
+  } else {
+    sandboxToggle.style.display = 'none';
+    // Also close drawer if it was open
+    sandboxDrawer.classList.remove('open');
+  }
+}
 
 export function setManualOverride(v) {
   if (simState) simState.manualOverride = v;
@@ -2512,6 +2764,9 @@ if (typeof window !== 'undefined') {
   
   // Auth & Login
   window.openLandingLogin = openLandingLogin;
+  window.openInstructorLogin = openInstructorLogin;
+  window.submitInstructorLoginDirect = submitInstructorLoginDirect;
+  window.openMyResults = openMyResults;
   window.logoutStudent = logoutStudent;
   window.logoutInstructor = logoutInstructor;
   window.logout = logout;

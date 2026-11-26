@@ -97,7 +97,8 @@ describe('Logout integration with real HTML', () => {
     
     // Verify profile is visible (should show name + "Log out")
     expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(false);
-    expect(document.getElementById('gnav-login-btn').classList.contains('hidden')).toBe(true);
+    let guestLinks = document.getElementById('gnav-guest-links');
+    expect(guestLinks.classList.contains('hidden')).toBe(true);
 
     // Call logout
     app.logout();
@@ -113,7 +114,8 @@ describe('Logout integration with real HTML', () => {
     expect(document.getElementById('screen-landing').classList.contains('hidden')).toBe(false);
 
     // Verify Log in button is visible (guest state)
-    expect(document.getElementById('gnav-login-btn').classList.contains('hidden')).toBe(false);
+    guestLinks = document.getElementById('gnav-guest-links');
+    expect(guestLinks.classList.contains('hidden')).toBe(false);
     expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(true);
 
     // Verify auth slot is visible
@@ -148,8 +150,12 @@ describe('Logout integration with real HTML', () => {
 
     // Verify profile with logout button is visible
     expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(false);
-    expect(document.getElementById('gnav-profile-name').textContent).toContain('Prof. Jones');
-    expect(document.getElementById('gnav-profile-name').textContent).toContain('Instructor');
+    expect(document.getElementById('gnav-profile-name').textContent).toBe('Prof. Jones');
+    
+    // Verify role badge shows Instructor
+    const roleBadge = document.getElementById('gnav-role-badge');
+    expect(roleBadge.textContent).toBe('Instructor');
+    expect(roleBadge.classList.contains('hidden')).toBe(false);
     
     // Verify logout button exists
     const logoutBtn = document.getElementById('gnav-logout-btn');
@@ -174,5 +180,47 @@ describe('Logout integration with real HTML', () => {
     
     // The guard should prevent access - landing should be visible
     // (This is implicit in the design - openManageStudents checks for token)
+  });
+
+  it('should hide sandbox in Quiz Mode for student, show for instructor', async () => {
+    const app = await import('../src/app.js?t=' + Date.now());
+
+    // Set up student session in quiz mode
+    auth.setStudentSession('fake-token', 'Alice', '2106001', 'quiz');
+    
+    // Find the sandbox toggle button
+    const sandboxToggle = document.querySelector('.settings-toggle');
+    expect(sandboxToggle).toBeTruthy();
+    
+    // Simulate being in quiz mode simulation
+    app.simState = { simRunning: false };
+    
+    // Call updateSandboxVisibility
+    app.updateSandboxVisibility();
+    
+    // Verify sandbox is hidden for student in quiz mode
+    expect(sandboxToggle.style.display).toBe('none');
+    
+    // Now log out and log in as instructor
+    auth.clearStudentSession();
+    
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ 
+      name: 'Dr. Smith',
+      sub: 'instructor1',
+      role: 'instructor',
+      exp: Math.floor(Date.now() / 1000) + 3600 
+    }));
+    const fakeToken = `${header}.${payload}.fake-sig`;
+    auth.setInstructorToken(fakeToken);
+    
+    // Update mode to quiz for instructor
+    auth.setStudentSession('fake-token-instructor-as-student', 'Dr. Smith', 'instructor1', 'quiz');
+    
+    // Call updateSandboxVisibility again
+    app.updateSandboxVisibility();
+    
+    // Verify sandbox is visible for instructor in quiz mode
+    expect(sandboxToggle.style.display).not.toBe('none');
   });
 });

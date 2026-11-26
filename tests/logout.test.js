@@ -37,9 +37,17 @@ describe('Logout functionality', () => {
     // Create mock DOM elements
     mockElements = {
       'gnav-auth-slot': createMockElement('gnav-auth-slot'),
+      'gnav-guest-links': createMockElement('gnav-guest-links'),
       'gnav-login-btn': createMockElement('gnav-login-btn'),
+      'gnav-instructor-login-btn': createMockElement('gnav-instructor-login-btn'),
       'gnav-profile': createMockElement('gnav-profile', ['hidden']),
+      'gnav-profile-info': createMockElement('gnav-profile-info'),
       'gnav-profile-name': createMockElement('gnav-profile-name'),
+      'gnav-role-badge': createMockElement('gnav-role-badge', ['hidden']),
+      'gnav-profile-meta': createMockElement('gnav-profile-meta'),
+      'gnav-attempts': createMockElement('gnav-attempts', ['hidden']),
+      'gnav-my-results-btn': createMockElement('gnav-my-results-btn', ['hidden']),
+      'gnav-logout-btn': createMockElement('gnav-logout-btn'),
       'gnav-sim-ctx': createMockElement('gnav-sim-ctx'),
       'gnav-mode-teach': createMockElement('gnav-mode-teach'),
       'gnav-mode-quiz': createMockElement('gnav-mode-quiz'),
@@ -57,6 +65,8 @@ describe('Logout functionality', () => {
       'modal-hint': createMockElement('modal-hint', ['hidden']),
       'modal-diagnosis': createMockElement('modal-diagnosis', ['hidden']),
       'modal-device': createMockElement('modal-device', ['hidden']),
+      'modal-instructor-login': createMockElement('modal-instructor-login', ['hidden']),
+      'modal-my-results': createMockElement('modal-my-results', ['hidden']),
       'explain-panel': createMockElement('explain-panel', ['hidden']),
       'settings-drawer': createMockElement('settings-drawer'),
       'topbar-mode-badge': createMockElement('topbar-mode-badge'),
@@ -67,6 +77,16 @@ describe('Logout functionality', () => {
 
     global.document = {
       getElementById: (id) => mockElements[id] || null,
+      querySelector: (selector) => {
+        // Simple mock for querySelector - only handle specific selectors we need
+        if (selector === '.settings-toggle') {
+          return { 
+            classList: { contains: () => false },
+            style: {}
+          };
+        }
+        return null;
+      },
       body: {
         classList: {
           _classes: new Set(),
@@ -177,20 +197,18 @@ describe('Logout functionality', () => {
       // Set up a student session in quiz mode
       auth.setStudentSession('fake-token', 'Bob', '2106002', 'quiz');
 
-      // Note: We cannot directly set simState as it's module-private.
-      // This test verifies that the logout function exists and can be called.
-      // The confirmation dialog behavior is tested through integration tests.
-      
       // Mock confirm to return false (cancel)
       global.confirm = vi.fn(() => false);
 
-      // Since we can't set simState externally, we can't fully test the
-      // confirmation behavior in a unit test. This would need an integration test.
-      // For now, verify the logout function completes without simState.
+      // Call logout - should be cancelled by confirm
       app.logout();
 
-      // Session should be cleared even without active simulation
-      expect(auth.getSessionToken()).toBe(null);
+      // Session should NOT be cleared when user cancels
+      // However, since simState is null (no active sim), the confirm dialog
+      // won't be shown and logout will proceed normally.
+      // The updated logout() ALWAYS shows confirm, even without sim.
+      // So with confirm returning false, session should NOT be cleared.
+      expect(auth.getSessionToken()).toBe('fake-token');
     });
 
     it('should logout after confirm if quiz simulation is active', async () => {
@@ -291,7 +309,8 @@ describe('Logout functionality', () => {
 
       // Profile should be visible with logout button
       expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(false);
-      expect(document.getElementById('gnav-login-btn').classList.contains('hidden')).toBe(true);
+      const guestLinks = document.getElementById('gnav-guest-links');
+      expect(guestLinks.classList.contains('hidden')).toBe(true);
     });
 
     it('should show logout button when instructor is logged in', async () => {
@@ -309,7 +328,8 @@ describe('Logout functionality', () => {
 
       // Profile should be visible with logout button
       expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(false);
-      expect(document.getElementById('gnav-login-btn').classList.contains('hidden')).toBe(true);
+      const guestLinks = document.getElementById('gnav-guest-links');
+      expect(guestLinks.classList.contains('hidden')).toBe(true);
     });
 
     it('should show login button when logged out', async () => {
@@ -320,8 +340,9 @@ describe('Logout functionality', () => {
       auth.clearInstructorToken();
       app.updateGlobalNav();
 
-      // Login button should be visible, profile hidden
-      expect(document.getElementById('gnav-login-btn').classList.contains('hidden')).toBe(false);
+      // Login button should be visible (via guestLinks), profile hidden
+      const guestLinks = document.getElementById('gnav-guest-links');
+      expect(guestLinks.classList.contains('hidden')).toBe(false);
       expect(document.getElementById('gnav-profile').classList.contains('hidden')).toBe(true);
     });
   });

@@ -117,6 +117,17 @@ export async function startAttempt(lessonId) {
   return { ok: false, status, error: data.error || 'Could not start attempt' };
 }
 
+/**
+ * Get attempt count for authenticated student + lessonId (read-only, no increment).
+ * @returns {{ ok: true, attemptsUsed, attemptLimit, attemptsRemaining } | { ok: false, error }}
+ */
+export async function getAttemptCount(npm, lessonId) {
+  const token = getSessionToken();
+  const { ok, status, data } = await get(`/api/attempts?studentId=${encodeURIComponent(npm)}&lessonId=${encodeURIComponent(lessonId)}`, token);
+  if (ok) return { ok: true, attemptsUsed: data.attemptsUsed, attemptLimit: data.attemptLimit, attemptsRemaining: data.attemptsRemaining };
+  return { ok: false, status, error: data.error || 'Could not fetch attempt count' };
+}
+
 // ─── Results ──────────────────────────────────────────────────────────────────
 
 /**
@@ -175,6 +186,35 @@ export async function getResults(npm, lessonId) {
   const { ok, status, data } = await get(`/api/results?studentId=${encodeURIComponent(npm)}&lessonId=${encodeURIComponent(lessonId)}`, token);
   if (ok) return { ok: true, results: data.results || [], bestScore: data.bestScore ?? 0 };
   return { ok: false, status, error: data.error || 'Could not fetch results' };
+}
+
+/**
+ * Fetch all results for the authenticated student (all lessons).
+ * @returns {Array} results array or empty array on failure
+ */
+export async function fetchStudentResults(npm) {
+  const token = getSessionToken();
+  
+  // Fetch results for all lessons
+  const promises = [];
+  // Import LESSONS from lessons.js
+  const { LESSONS } = await import('./lessons.js');
+  
+  for (const lesson of LESSONS) {
+    promises.push(getResults(npm, lesson.id));
+  }
+  
+  const responses = await Promise.all(promises);
+  
+  // Flatten all results
+  const allResults = [];
+  responses.forEach(resp => {
+    if (resp.ok && resp.results) {
+      allResults.push(...resp.results);
+    }
+  });
+  
+  return allResults;
 }
 
 /**

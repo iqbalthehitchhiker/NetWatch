@@ -582,6 +582,12 @@ body {
   gap: 8px;
 }
 
+.gnav-guest-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .gnav-login-btn {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -593,11 +599,17 @@ body {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .gnav-login-btn:hover {
   background: var(--accent);
   color: var(--btn-on-accent);
+}
+
+.gnav-instructor-login-btn {
+  font-size: 12px;
+  padding: 5px 12px;
 }
 
 .gnav-profile {
@@ -608,9 +620,70 @@ body {
   font-size: 13px;
 }
 
+.gnav-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .gnav-profile-name {
   color: var(--text);
   font-weight: 500;
+}
+
+.gnav-role-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.gnav-role-badge.role-student {
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  border: 1px solid var(--cyan);
+}
+
+.gnav-role-badge.role-instructor {
+  background: var(--purple-dim);
+  color: var(--purple);
+  border: 1px solid var(--purple);
+}
+
+.gnav-profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gnav-attempts {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gnav-link-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-align: left;
+}
+
+.gnav-link-btn:hover {
+  color: var(--accent-hover);
 }
 
 .gnav-logout-btn {
@@ -623,6 +696,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .gnav-logout-btn:hover {
@@ -1860,6 +1934,18 @@ body {
   flex: 1; /* Push footer to bottom */
 }
 
+/* Attempts count - for students */
+.lesson-card-attempts {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  padding: 6px 10px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
 /* Footer */
 .lesson-card-foot { 
   display: flex; 
@@ -2004,6 +2090,55 @@ body {
 .topbar-spacer { flex: 1; }
 .topbar-time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* Compact account block in simulation topbar */
+.topbar-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.topbar-account-name {
+  color: var(--text);
+  font-weight: 500;
+}
+.topbar-role-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.topbar-role-badge.role-student {
+  background: var(--blue-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.topbar-role-badge.role-instructor {
+  background: var(--amber-dim);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+.topbar-logout-btn {
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.topbar-logout-btn:hover {
+  background: var(--panel2);
+  color: var(--text);
+  border-color: var(--text);
+}
 
 /* ─── LESSON BAR ─── */
 #lesson-bar { background: var(--panel2); border-bottom: 1px solid var(--border); padding: 6px 20px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }

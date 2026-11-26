@@ -138,6 +138,12 @@ describe('recordQuizResult — Teach mode produces no POST', () => {
     getResults:      vi.fn(async () => ({ ok: true, results: [] })),
     loginInstructor: vi.fn(async () => ({ ok: false })),
     adminReset:      vi.fn(async () => ({ ok: true })),
+    getAttemptCount: vi.fn(async () => ({ ok: true, attemptsUsed: 0, attemptLimit: 3, attemptsRemaining: 3 })),
+    fetchStudentResults: vi.fn(async () => []),
+    bulkCreateStudents: vi.fn(async () => ({ ok: true, results: [] })),
+    getAllStudents:  vi.fn(async () => ({ ok: true, students: [] })),
+    deleteStudents:  vi.fn(async () => ({ ok: true, deleted: [] })),
+    bulkResetAttempts: vi.fn(async () => ({ ok: true, results: [], message: 'Reset complete' })),
   }));
 
   it('api.recordResult is NOT called in teach mode', async () => {

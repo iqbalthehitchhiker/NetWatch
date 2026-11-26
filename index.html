@@ -52,15 +52,28 @@
 
     <!-- RIGHT: auth + theme toggle (always) -->
     <div class="gnav-right">
-      <!-- Auth slot: shown only on landing, toggles between login button and profile -->
+      <!-- Auth slot: account block with role badge -->
       <div id="gnav-auth-slot" class="gnav-auth-slot hidden">
-        <!-- Not logged in: login button -->
-        <button class="gnav-login-btn" id="gnav-login-btn" onclick="openLandingLogin()" aria-label="Student login">
-          Log in
-        </button>
-        <!-- Logged in: profile display -->
+        <!-- Guest state: login options -->
+        <div class="gnav-guest-links hidden" id="gnav-guest-links">
+          <button class="gnav-login-btn" id="gnav-login-btn" onclick="openLandingLogin()" aria-label="Student login">
+            Log in
+          </button>
+          <button class="gnav-login-btn gnav-instructor-login-btn" id="gnav-instructor-login-btn" onclick="openInstructorLogin()" aria-label="Instructor login">
+            Instructor login
+          </button>
+        </div>
+        <!-- Logged in: profile display with role badge -->
         <div class="gnav-profile hidden" id="gnav-profile">
-          <span class="gnav-profile-name" id="gnav-profile-name">—</span>
+          <div class="gnav-profile-info">
+            <span class="gnav-profile-name" id="gnav-profile-name">—</span>
+            <span class="gnav-role-badge hidden" id="gnav-role-badge">—</span>
+          </div>
+          <div class="gnav-profile-meta hidden" id="gnav-profile-meta">
+            <!-- Student: attempts count + my results link -->
+            <span class="gnav-attempts hidden" id="gnav-attempts">—</span>
+            <button class="gnav-link-btn hidden" id="gnav-my-results-btn" onclick="openMyResults()">My results</button>
+          </div>
           <button class="gnav-logout-btn" id="gnav-logout-btn" onclick="logout()" aria-label="Log out">
             Log out
           </button>
@@ -617,6 +630,12 @@
     <div class="topbar-lesson-title">Lesson: <b id="topbar-lesson-name">—</b></div>
     <div class="topbar-spacer"></div>
     <div class="topbar-right">
+      <!-- Compact account block for simulation -->
+      <div id="topbar-account" class="topbar-account hidden">
+        <span class="topbar-account-name" id="topbar-account-name">—</span>
+        <span class="topbar-role-badge hidden" id="topbar-role-badge">—</span>
+        <button class="topbar-logout-btn" onclick="logout()">Log out</button>
+      </div>
       <!-- Self-check minimized pill — inline beside clock when a reading-tier question is active -->
       <div id="sc-minimized-pill" class="sc-minimized-pill hidden" role="status" aria-live="polite">
         <span id="sc-minimized-label" class="sc-minimized-label">Self-Check · Click target to answer</span>
@@ -1062,6 +1081,45 @@
     <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
       <button class="btn" onclick="exitSimulation()">← Back</button>
       <button class="btn btn-ghost" style="font-size:11px" onclick="openAdminReset()">Admin Reset…</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instructor Login Modal -->
+<div id="modal-instructor-login" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('modal-instructor-login')">✕</button>
+    <div class="modal-title">Instructor Login</div>
+    <div class="modal-sub">Sign in with your instructor credentials to access student management.</div>
+
+    <div class="login-field">
+      <label class="login-label" for="instructor-username">Username</label>
+      <input id="instructor-username" type="text" class="login-input" placeholder="Instructor username" autocomplete="username">
+      <div id="instructor-username-err" class="login-err hidden"></div>
+    </div>
+    <div class="login-field">
+      <label class="login-label" for="instructor-password">Password</label>
+      <input id="instructor-password" type="password" class="login-input" placeholder="Instructor password" autocomplete="current-password">
+      <div id="instructor-password-err" class="login-err hidden"></div>
+    </div>
+    <div id="instructor-general-err" class="login-err hidden" style="margin-bottom:10px;"></div>
+
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="btn btn-primary" id="instructor-submit-btn" onclick="submitInstructorLoginDirect()">Sign In →</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-instructor-login')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- My Results Modal -->
+<div id="modal-my-results" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:600px">
+    <button class="modal-close" onclick="closeModal('modal-my-results')">✕</button>
+    <div class="modal-title">My Results</div>
+    <div class="modal-sub">Your quiz attempt history across all lessons.</div>
+
+    <div id="my-results-content" style="margin-top:20px">
+      <div style="text-align:center;color:var(--muted);padding:40px">Loading...</div>
     </div>
   </div>
 </div>
