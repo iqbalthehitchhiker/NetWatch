@@ -9,7 +9,7 @@
 
 import { Router } from 'express';
 import { requireStudent } from '../middleware/auth.js';
-import { getAttemptCount, incrementAttempt } from '../db.js';
+import { getAttemptCount, incrementAttempt, createAttempt } from '../db.js';
 import { ATTEMPT_LIMIT } from '../constants.js';
 
 const router = Router();
@@ -33,10 +33,12 @@ router.post('/', requireStudent, (req, res) => {
   }
 
   const newCount = incrementAttempt(npm, lessonId);
+  const attemptId = createAttempt(npm, lessonId);
   return res.json({
     allowed: true,
     attemptsUsed: newCount,
     attemptLimit: ATTEMPT_LIMIT,
+    attemptId,
   });
 });
 

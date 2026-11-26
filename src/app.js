@@ -37,6 +37,7 @@ let clockTimer     = null;
 let packetFilter   = 'all';
 let pendingLessonId = null;
 let _pendingSkill   = null;   // skill whose self-check should run when student clicks the button
+let _currentAttemptId = null; // Quiz mode: attempt ID from POST /api/attempts
 
 // ─── Teach-mode completion markers (in-memory, no backend) ───────────────────
 // Tracks which skill IDs have had their self-check completed this session.
@@ -446,6 +447,7 @@ export function goToLanding() {
   stopSimTimers();
   simState        = null;
   pendingLessonId = null;
+  _currentAttemptId = null;
   packetFilter    = 'all';
 
   document.body.classList.remove('quiz-mode');
@@ -1005,7 +1007,7 @@ export function submitLogin() {
         }
         
         // Retry saving the result with new token
-        const retryRes = await api.recordResult(lessonId, outcome, score, hintsUsed, wrongAnswers);
+        const retryRes = await api.recordResult(lessonId, outcome, hintsUsed, wrongAnswers, _currentAttemptId);
         if (retryRes.ok) {
           const successDiv = document.createElement('div');
           successDiv.style.cssText = 'margin-top:8px;font-size:11px;color:var(--green);';
@@ -1077,6 +1079,7 @@ async function _startAttemptGate(lessonId) {
     return;
   }
   if (res.allowed) {
+    _currentAttemptId = res.attemptId; // Store for later result submission
     launchSimulation(lessonId);
   } else {
     _showBlockedScreen(lessonId);
@@ -1233,6 +1236,7 @@ export function exitSimulation() {
   simState        = null;
   pendingLessonId = null;
   _pendingSkill   = null;
+  _currentAttemptId = null;
   packetFilter    = 'all';
 
   document.body.classList.remove('quiz-mode');
@@ -1612,7 +1616,7 @@ async function recordQuizResult(lessonId, outcome, score, hintsUsed, wrongAnswer
   if (getCurrentMode() !== 'quiz' || !getStudentNPM()) return;
   
   const originalNpm = getStudentNPM();
-  const res = await api.recordResult(lessonId, outcome, score, hintsUsed, wrongAnswers);
+  const res = await api.recordResult(lessonId, outcome, hintsUsed, wrongAnswers, _currentAttemptId);
   
   // Handle 401 session expiry during quiz: prompt for in-place re-login
   if (!res.ok && res.sessionExpired) {

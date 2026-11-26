@@ -108,12 +108,12 @@ export async function loginInstructor(username, password) {
 
 /**
  * Check and increment attempt counter for authenticated student + lessonId.
- * @returns {{ ok: true, allowed, attemptsUsed, attemptLimit } | { ok: false, error }}
+ * @returns {{ ok: true, allowed, attemptsUsed, attemptLimit, attemptId } | { ok: false, error }}
  */
 export async function startAttempt(lessonId) {
   const token = getSessionToken();
   const { ok, status, data } = await post('/api/attempts', { lessonId }, token);
-  if (ok) return { ok: true, allowed: data.allowed, attemptsUsed: data.attemptsUsed, attemptLimit: data.attemptLimit };
+  if (ok) return { ok: true, allowed: data.allowed, attemptsUsed: data.attemptsUsed, attemptLimit: data.attemptLimit, attemptId: data.attemptId };
   return { ok: false, status, error: data.error || 'Could not start attempt' };
 }
 
@@ -135,14 +135,14 @@ export async function getAttemptCount(npm, lessonId) {
  * On 401, returns sessionExpired: true so caller can trigger in-place re-login.
  * @param {string}  lessonId
  * @param {string}  outcome        'correct' | 'incorrect'
- * @param {number}  [score=0]      Computed score for this attempt
  * @param {number}  [hintsUsed=0]  Hints opened during this attempt
  * @param {number}  [wrongAnswers=0] Wrong submissions before this one
+ * @param {number}  [attemptId]    Attempt ID from startAttempt
  * @returns {{ ok: true, id, recordedAt, score, bestScore } | { ok: false, error, sessionExpired?: true }}
  */
-export async function recordResult(lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0) {
+export async function recordResult(lessonId, outcome, hintsUsed = 0, wrongAnswers = 0, attemptId) {
   const token = getSessionToken();
-  const body  = { lessonId, outcome, score, hints_used: hintsUsed, wrong_answers: wrongAnswers };
+  const body  = { lessonId, outcome, hints_used: hintsUsed, wrong_answers: wrongAnswers, attemptId };
   const attempt = async () => post('/api/results', body, token);
 
   const first = await attempt();

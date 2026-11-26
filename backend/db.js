@@ -68,6 +68,20 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS Attempts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    npm        TEXT NOT NULL,
+    lesson_id  TEXT NOT NULL,
+    started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  );
+`);
+
+const resultCols = db.prepare(`PRAGMA table_info(Result_Records)`).all().map(c => c.name);
+if (!resultCols.includes('attempt_id'))       db.exec(`ALTER TABLE Result_Records ADD COLUMN attempt_id INTEGER`);
+if (!resultCols.includes('duration_seconds')) db.exec(`ALTER TABLE Result_Records ADD COLUMN duration_seconds INTEGER`);
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_result_attempt ON Result_Records(attempt_id)`);
+
 // ─── Schema migration: add scoring columns to pre-existing databases ───────────
 // ALTER TABLE ADD COLUMN throws if the column already exists (SQLite < 3.37.0).
 // We catch those errors silently — the CREATE TABLE above handles new databases.
@@ -130,6 +144,21 @@ export function resetAttempt(npm, lessonId) {
   return prior;
 }
 
+export function createAttempt(npm, lessonId) {
+  return db.prepare(`INSERT INTO Attempts (npm, lesson_id) VALUES (?, ?)`)
+           .run(npm, lessonId).lastInsertRowid;
+}
+
+// Seconds since start, or null if the attempt doesn't exist, isn't yours, or already has a result
+export function openAttemptSeconds(attemptId, npm, lessonId) {
+  const row = db.prepare(`
+    SELECT a.started_at FROM Attempts a
+    LEFT JOIN Result_Records r ON r.attempt_id = a.id
+    WHERE a.id = ? AND a.npm = ? AND a.lesson_id = ? AND r.id IS NULL
+  `).get(attemptId, npm, lessonId);
+  return row ? Math.max(0, Math.round((Date.now() - Date.parse(row.started_at)) / 1000)) : null;
+}
+
 /**
  * Insert a new Result_Record row (append-only — never updates existing rows).
  * @param {string}  npm
@@ -138,13 +167,15 @@ export function resetAttempt(npm, lessonId) {
  * @param {number}  [score=0]     Computed score for this attempt (0–100)
  * @param {number}  [hintsUsed=0] Number of hints opened during the attempt
  * @param {number}  [wrongAnswers=0] Number of wrong diagnosis submissions before this one
+ * @param {number}  [attemptId=null] ID from Attempts table
+ * @param {number}  [durationSeconds=null] Duration in seconds
  * @returns {{ id: number, recordedAt: string }}
  */
-export function insertResult(npm, lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0) {
+export function insertResult(npm, lessonId, outcome, score = 0, hintsUsed = 0, wrongAnswers = 0, attemptId = null, durationSeconds = null) {
   const stmt = db.prepare(
-    'INSERT INTO Result_Records (npm, lesson_id, outcome, score, hints_used, wrong_answers) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO Result_Records (npm, lesson_id, outcome, score, hints_used, wrong_answers, attempt_id, duration_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
-  const info = stmt.run(npm, lessonId, outcome, score, hintsUsed, wrongAnswers);
+  const info = stmt.run(npm, lessonId, outcome, score, hintsUsed, wrongAnswers, attemptId, durationSeconds);
   const row  = db.prepare('SELECT * FROM Result_Records WHERE id = ?').get(info.lastInsertRowid);
   return { id: row.id, recordedAt: row.recorded_at };
 }

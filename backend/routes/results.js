@@ -8,7 +8,7 @@
 
 import { Router } from 'express';
 import { requireStudent, requireInstructor } from '../middleware/auth.js';
-import { insertResult, getResults, getAllResults, getBestScore } from '../db.js';
+import { insertResult, getResults, getAllResults, getBestScore, openAttemptSeconds } from '../db.js';
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.get('/all', requireInstructor, (_req, res) => {
 });
 
 router.post('/', requireStudent, (req, res) => {
-  const { lessonId, outcome, score, hints_used, wrong_answers } = req.body || {};
+  const { lessonId, outcome, hints_used, wrong_answers, attemptId } = req.body || {};
   const npm = req.user.sub;
 
   if (!lessonId) {
@@ -28,15 +28,29 @@ router.post('/', requireStudent, (req, res) => {
   if (outcome !== 'correct' && outcome !== 'incorrect') {
     return res.status(400).json({ error: 'outcome must be "correct" or "incorrect"' });
   }
+  if (!attemptId) {
+    return res.status(400).json({ error: 'attemptId is required' });
+  }
 
   // Validate optional scoring fields — default to 0 if absent/invalid
-  const safeScore        = (Number.isInteger(score)        && score        >= 0) ? score        : 0;
   const safeHints        = (Number.isInteger(hints_used)   && hints_used   >= 0) ? hints_used   : 0;
   const safeWrong        = (Number.isInteger(wrong_answers) && wrong_answers >= 0) ? wrong_answers : 0;
 
-  const { id, recordedAt } = insertResult(npm, lessonId, outcome, safeScore, safeHints, safeWrong);
+  // Verify the attempt is valid and compute duration
+  const durationSeconds = openAttemptSeconds(attemptId, npm, lessonId);
+  if (durationSeconds === null) {
+    return res.status(409).json({ error: 'Invalid attempt: not found, already submitted, or not yours' });
+  }
+
+  // Compute score server-side: BASE - (hints × HINT_PENALTY) - (wrong × WRONG_PENALTY), clamped to 0-100
+  const SCORE_BASE = 100;
+  const HINT_PENALTY = 10;
+  const WRONG_PENALTY = 20;
+  const computedScore = Math.max(0, Math.min(100, SCORE_BASE - (safeHints * HINT_PENALTY) - (safeWrong * WRONG_PENALTY)));
+
+  const { id, recordedAt } = insertResult(npm, lessonId, outcome, computedScore, safeHints, safeWrong, attemptId, durationSeconds);
   const bestScore = getBestScore(npm, lessonId);
-  return res.status(201).json({ id, recordedAt, score: safeScore, bestScore });
+  return res.status(201).json({ id, recordedAt, score: computedScore, bestScore });
 });
 
 router.get('/', requireStudent, (req, res) => {
