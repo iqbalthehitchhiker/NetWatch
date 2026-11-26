@@ -227,46 +227,42 @@ export function updateGlobalNav() {
   const isLanding = !inSim && document.getElementById('screen-landing') && 
                     !document.getElementById('screen-landing').classList.contains('hidden');
 
-  // ── auth slot (landing page only) ────────────────────────────────────
+  // ── auth slot (shown on ALL screens now) ─────────────────────────────────
   const authSlot = document.getElementById('gnav-auth-slot');
   const loginBtn = document.getElementById('gnav-login-btn');
   const profile = document.getElementById('gnav-profile');
   const profileName = document.getElementById('gnav-profile-name');
 
   if (authSlot) {
-    if (isLanding) {
-      authSlot.classList.remove('hidden');
-      
-      // Check role: instructor takes priority, then student
-      const role = getCurrentRole();
-      
-      if (role === 'instructor') {
-        // Instructor logged in: show profile with instructor badge
-        loginBtn.classList.add('hidden');
-        profile.classList.remove('hidden');
-        // Get instructor name from token (decode JWT payload)
-        const token = getInstructorToken();
-        let name = 'Instructor';
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            name = payload.name || 'Instructor';
-          } catch { /* use default */ }
-        }
-        profileName.textContent = `${name} (Instructor)`;
-      } else if (role === 'student') {
-        // Student logged in: show profile
-        loginBtn.classList.add('hidden');
-        profile.classList.remove('hidden');
-        profileName.textContent = getStudentName() || 'Student';
-      } else {
-        // Guest: show login button
-        loginBtn.classList.remove('hidden');
-        profile.classList.add('hidden');
+    // Always show the auth slot (not just on landing)
+    authSlot.classList.remove('hidden');
+    
+    // Check role: instructor takes priority, then student
+    const role = getCurrentRole();
+    
+    if (role === 'instructor') {
+      // Instructor logged in: show profile with instructor badge
+      loginBtn.classList.add('hidden');
+      profile.classList.remove('hidden');
+      // Get instructor name from token (decode JWT payload)
+      const token = getInstructorToken();
+      let name = 'Instructor';
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          name = payload.name || 'Instructor';
+        } catch { /* use default */ }
       }
+      profileName.textContent = `${name} (Instructor)`;
+    } else if (role === 'student') {
+      // Student logged in: show profile
+      loginBtn.classList.add('hidden');
+      profile.classList.remove('hidden');
+      profileName.textContent = getStudentName() || 'Student';
     } else {
-      // Not on landing page: hide auth slot entirely
-      authSlot.classList.add('hidden');
+      // Guest: show login button
+      loginBtn.classList.remove('hidden');
+      profile.classList.add('hidden');
     }
   }
 
@@ -419,9 +415,10 @@ export function goToLanding() {
   closeExplainPanel();
   closeAllModals();
 
-  // Hide everything else, show landing
+  // Hide ALL non-landing screens
   document.getElementById('app').classList.remove('active');
   document.getElementById('screen-select').classList.add('hidden');
+  document.getElementById('screen-manage-students').classList.add('hidden');
   updateGlobalNav();   // simState null, mode null — nav shows logo+theme only
 
   // Clear the "seen" flag so the landing screen renders fully again
@@ -722,14 +719,59 @@ export function logoutInstructor() {
  * logout()
  * Role-aware logout dispatcher. Calls logoutStudent() or logoutInstructor()
  * based on the current role. Used by the #gnav-logout-btn onclick handler.
+ *
+ * If a quiz simulation is active, shows a confirmation dialog first.
+ * After logout, clears all UI state and returns to landing page.
  */
 export function logout() {
   const role = getCurrentRole();
+  const inSim = simState !== null;
+
+  // If a quiz simulation is active, confirm first
+  if (inSim) {
+    if (!confirm('Logging out ends this quiz. Your attempt is already counted.')) {
+      return; // Cancel - stay in session
+    }
+  }
+
+  // Stop simulation timers and close all UI elements
+  stopSimTimers();
+  simState = null;
+  closeAllModals();
+  document.getElementById('screen-manage-students').classList.add('hidden');
+  document.body.classList.remove('quiz-mode');
+  closeExplainPanel();
+  
+  // Clear the appropriate session based on role
   if (role === 'instructor') {
     logoutInstructor();
   } else {
     logoutStudent();
   }
+
+  // Reset UI to landing state
+  goToLanding();
+  updateGlobalNav();
+  
+  // Show logout confirmation
+  showNotification('You have been logged out');
+}
+
+/**
+ * showNotification()
+ * Shows a brief notification message at the top of the screen.
+ */
+function showNotification(message) {
+  const notification = document.createElement('div');
+  notification.textContent = message;
+  notification.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 20px;border-radius:4px;z-index:1000;transition:opacity 0.3s;opacity:1;';
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => notification.remove(), 300);
+  }, 2000);
 }
 
 export function submitLogin() {
@@ -1592,6 +1634,12 @@ export function openManageStudents() {
 }
 
 function _navigateToManageStudents() {
+  // Guard: redirect to landing if no valid instructor token
+  if (!getInstructorToken()) {
+    goToLanding();
+    return;
+  }
+
   closeModal('modal-admin-reset');
   
   // Hide all other screens
@@ -1601,6 +1649,9 @@ function _navigateToManageStudents() {
   
   // Show manage students screen
   document.getElementById('screen-manage-students').classList.remove('hidden');
+  
+  // Update global nav to show logout button
+  updateGlobalNav();
   
   // Populate lesson reference (only once)
   _populateLessonReference();

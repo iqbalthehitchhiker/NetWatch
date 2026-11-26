@@ -8,9 +8,10 @@
  *   - 401 during quiz triggers in-place re-login
  *   - NPM mismatch detection on re-login
  *   - Successful retry after re-login
+ *   - logout() clears session, hides UI, shows guest nav
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, beforeAll, afterAll } from 'vitest';
 
 // ─── logoutInstructor() unit test ─────────────────────────────────────────────
 
