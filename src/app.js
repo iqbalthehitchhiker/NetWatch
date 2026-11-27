@@ -1358,7 +1358,6 @@ export function exitSimulation() {
   resetScTally();               // clear tally display
   updateGlobalNav();            // hide mode/score from nav (simState still non-null here — cleared below)
   stopSimTimers();
-  clearStudentSession();
   simState        = null;
   pendingLessonId = null;
   _pendingSkill   = null;
