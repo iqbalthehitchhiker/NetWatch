@@ -141,8 +141,7 @@
   --shadow-sm:     rgba(0,0,0,0.45);
   
   /* Special effects */
-  --
-  -glow:     rgba(59,130,246,0.08);
+  --hero-glow:     rgba(59,130,246,0.08);
   --nav-backdrop:  rgba(15,18,25,0.90);
   --tl-crit-text:  #fca5a5;
   
