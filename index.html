@@ -126,7 +126,47 @@
       <div class="lp-hero-visual" aria-label="A frozen moment from a network incident">
         <div class="lp-snapshot">
           <div class="lp-snapshot-topo">
+<svg class="snap-waves" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+  <g class="snap-wave-group snap-wave-a">
+    <path d="M-40 60 C 40 10, 100 110, 190 60 S 340 20, 440 70"/>
+    <path d="M-40 72 C 40 22, 100 122, 190 72 S 340 32, 440 82"/>
+    <path d="M-40 84 C 40 34, 100 134, 190 84 S 340 44, 440 94"/>
+    <path d="M-40 96 C 40 46, 100 146, 190 96 S 340 56, 440 106"/>
+    <path d="M-40 108 C 40 58, 100 158, 190 108 S 340 68, 440 118"/>
+    <path d="M-40 120 C 40 70, 100 170, 190 120 S 340 80, 440 130"/>
+  </g>
+  <g class="snap-wave-group snap-wave-b">
+    <path d="M-40 150 C 60 110, 130 200, 220 160 S 350 120, 440 170"/>
+    <path d="M-40 162 C 60 122, 130 212, 220 172 S 350 132, 440 182"/>
+    <path d="M-40 174 C 60 134, 130 224, 220 184 S 350 144, 440 194"/>
+    <path d="M-40 186 C 60 146, 130 236, 220 196 S 350 156, 440 206"/>
+    <path d="M-40 198 C 60 158, 130 248, 220 208 S 350 168, 440 218"/>
+  </g>
+  <g class="snap-wave-group snap-wave-c">
+    <path d="M-40 20 C 80 -10, 160 50, 260 20 S 380 -10, 440 30"/>
+    <path d="M-40 32 C 80 2, 160 62, 260 32 S 380 2, 440 42"/>
+    <path d="M-40 44 C 80 14, 160 74, 260 44 S 380 14, 440 54"/>
+    <path d="M-40 56 C 80 26, 160 86, 260 56 S 380 26, 440 66"/>
+  </g>
+</svg>
             <svg viewBox="0 0 400 240" class="lp-snapshot-svg">
+<defs>
+  <radialGradient id="snap-halo-brand"><stop offset="0%" stop-color="var(--lp-brand)" stop-opacity=".45"/><stop offset="100%" stop-color="var(--lp-brand)" stop-opacity="0"/></radialGradient>
+  <radialGradient id="snap-halo-cyan"><stop offset="0%" stop-color="var(--lp-cyan-decoration)" stop-opacity=".40"/><stop offset="100%" stop-color="var(--lp-cyan-decoration)" stop-opacity="0"/></radialGradient>
+  <radialGradient id="snap-halo-warn"><stop offset="0%" stop-color="var(--lp-status-warn)" stop-opacity=".45"/><stop offset="100%" stop-color="var(--lp-status-warn)" stop-opacity="0"/></radialGradient>
+  <radialGradient id="snap-halo-crit"><stop offset="0%" stop-color="var(--lp-status-crit)" stop-opacity=".50"/><stop offset="100%" stop-color="var(--lp-status-crit)" stop-opacity="0"/></radialGradient>
+</defs>
+<g class="snap-deco" aria-hidden="true">
+  <circle cx="200" cy="50"  r="34" fill="url(#snap-halo-brand)"/>
+  <circle cx="100" cy="120" r="30" fill="url(#snap-halo-cyan)"/>
+  <circle cx="100" cy="190" r="28" fill="url(#snap-halo-cyan)"/>
+  <circle cx="300" cy="120" r="30" fill="url(#snap-halo-warn)"/>
+  <circle cx="300" cy="190" r="30" fill="url(#snap-halo-crit)"/>
+  <circle class="snap-ring snap-ring-core" cx="200" cy="50"  r="16" fill="none" stroke="var(--lp-brand)" stroke-width="1.5"/>
+  <circle class="snap-ring snap-ring-gw"   cx="300" cy="190" r="12" fill="none" stroke="var(--lp-status-crit)" stroke-width="2"/>
+  <line class="snap-flow" x1="200" y1="50"  x2="100" y2="120" stroke="var(--lp-cyan-decoration)" stroke-width="2" stroke-linecap="round"/>
+  <line class="snap-flow" x1="100" y1="120" x2="100" y2="190" stroke="var(--lp-cyan-decoration)" stroke-width="2" stroke-linecap="round"/>
+</g>
               <!-- Links with cyan decoration color -->
               <line x1="200" y1="50" x2="100" y2="120" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" opacity="0.6"/>
               <line x1="200" y1="50" x2="300" y2="120" stroke="var(--lp-status-warn)" stroke-width="3" class="snap-link-rtr" data-snap="rtr"/>
@@ -215,7 +255,7 @@
           <div class="lp-mode-step-label" aria-label="First stage">Stage 1</div>
           <div class="lp-mode-badge lp-mode-badge-teach">Teach Mode</div>
           <h3 class="lp-mode-title" id="teach-heading">Learn while you investigate</h3>
-          <p class="lp-mode-tagline">No login, no score. Click any device, metric, alert, or packet row to open a plain-language explanation. Understand what each signal means and what it indicates about network health. Self-check questions confirm comprehension—ungraded, unlimited attempts.</p>
+          <p class="lp-mode-tagline">No login, no score. Click any device, metric, alert, or packet row to open a plain-language explanation. Understand what each signal means and what it indicates about network health. Self-check questions confirm comprehension, ungraded, unlimited attempts.</p>
           <button class="lp-mode-cta lp-mode-cta-teach" onclick="proceedToTeach()">Start learning →</button>
         </article>
 

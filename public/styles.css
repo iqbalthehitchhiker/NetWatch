@@ -3814,3 +3814,43 @@ div[data-snap] { transition: transform .2s ease, box-shadow .2s ease; }
   circle[data-snap], line[data-snap], div[data-snap] { transition: none; }
 
 }
+
+/* ─── SNAPSHOT DECORATION (delete this block to remove the feature) ─── */
+.lp-snapshot-topo { position: relative; overflow: hidden; }
+.snap-waves { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.lp-snapshot-svg { position: relative; z-index: 1; }
+.snap-deco, .snap-deco * { pointer-events: none; }
+.snap-waves { --wave-1: #22d3ee; --wave-2: #3b82f6; --wave-3: #38bdf8; --wave-op: .30; }
+.snap-waves path { fill: none; stroke-width: .9; vector-effect: non-scaling-stroke; }
+.snap-wave-a path { stroke: var(--wave-1); }
+.snap-wave-b path { stroke: var(--wave-2); }
+.snap-wave-c path { stroke: var(--wave-3); }
+.snap-wave-group { opacity: var(--wave-op); will-change: transform, opacity; }
+@keyframes snap-wave-drift-a { from { transform: translate(-14px, 0); opacity: .20; } to { transform: translate(14px, 8px);  opacity: .38; } }
+@keyframes snap-wave-drift-b { from { transform: translate(12px, 6px); opacity: .38; } to { transform: translate(-16px, -6px); opacity: .20; } }
+@keyframes snap-wave-drift-c { from { transform: translate(-8px, 8px); opacity: .22; } to { transform: translate(10px, -4px); opacity: .36; } }
+.snap-wave-a { animation: snap-wave-drift-a 18s ease-in-out infinite alternate; }
+.snap-wave-b { animation: snap-wave-drift-b 22s ease-in-out infinite alternate; }
+.snap-wave-c { animation: snap-wave-drift-c 26s ease-in-out infinite alternate; }
+.snap-flow { stroke-dasharray: 3 11; opacity: .85; animation: snap-flow-move 1.6s linear infinite; }
+@keyframes snap-flow-move { to { stroke-dashoffset: -28; } }
+.snap-ring { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.snap-ring-core { animation: snap-ring-breathe 4.5s ease-out infinite; }
+.snap-ring-gw   { animation: snap-ring-breathe 1.8s ease-out infinite; }
+@keyframes snap-ring-breathe {
+  0%   { opacity: .75; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(2.4); }
+}
+.snap-paused .snap-wave-group,
+.snap-paused .snap-flow,
+.snap-paused .snap-ring { animation-play-state: paused; }
+/* Light theme: deeper colours, stronger lines, tinted pane. Use the selector
+   the project ALREADY uses for its light theme (see the existing light-theme
+   rules in this file) and put the three rules below under it. */
+:root.theme-light .snap-waves { --wave-1: #0891b2; --wave-2: #2563eb; --wave-3: #7c3aed; --wave-op: .55; }
+:root.theme-light .lp-snapshot-topo { background: linear-gradient(135deg, rgba(14,165,233,.10), rgba(124,58,237,.08)); }
+:root.theme-light .snap-ring-core { stroke: #2563eb; }
+@media (prefers-reduced-motion: reduce) {
+  .snap-wave-group, .snap-flow, .snap-ring { animation: none; }
+  .snap-ring { opacity: 0; }
+}

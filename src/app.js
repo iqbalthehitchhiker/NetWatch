@@ -2861,6 +2861,17 @@ function initSnapshotHover() {
 
   });
 
+  const topo = root.querySelector ? root.querySelector('.lp-snapshot-topo') : null;
+  if (topo) {
+    const sync = () => {
+      const hidden = document.hidden || root.classList.contains('hidden');
+      topo.classList.toggle('snap-paused', hidden);
+    };
+    document.addEventListener('visibilitychange', sync);
+    new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  }
+
 }
 
 if (typeof window !== 'undefined') {
