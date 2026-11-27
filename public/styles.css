@@ -141,7 +141,8 @@
   --shadow-sm:     rgba(0,0,0,0.45);
   
   /* Special effects */
-  --hero-glow:     rgba(59,130,246,0.08);
+  --
+  -glow:     rgba(59,130,246,0.08);
   --nav-backdrop:  rgba(15,18,25,0.90);
   --tl-crit-text:  #fca5a5;
   
@@ -3780,3 +3781,37 @@ body.quiz-mode .topo-node:hover circle  { stroke: inherit !important; }
 .lb-table { width:100%; border-collapse:collapse; font-size:13px; }
 .lb-table th, .lb-table td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border, rgba(128,128,128,.25)); }
 .lb-table td:nth-child(n+3) { font-family:var(--font-mono); }
+
+/* ─── SNAPSHOT HOVER INTERACTIONS (delete this block to remove the feature) ─── */
+
+[data-snap] { --snap-glow: var(--lp-cyan-decoration); }
+
+[data-snap="rtr"] { --snap-glow: var(--lp-status-warn); }
+
+[data-snap="gw"]  { --snap-glow: var(--lp-status-crit); }
+
+circle[data-snap], line[data-snap] { transition: stroke-width .2s ease, filter .2s ease; }
+
+div[data-snap] { transition: transform .2s ease, box-shadow .2s ease; }
+
+.snap-fast { animation-delay: 0s !important; }
+
+.snap-chart-line.snap-fast { animation-duration: .9s !important; }
+
+@media (hover: hover) {
+
+  circle[data-snap].snap-hl { stroke-width: 4.5; filter: drop-shadow(0 0 6px var(--snap-glow)); }
+
+  line[data-snap].snap-hl   { stroke-width: 5;   filter: drop-shadow(0 0 4px var(--snap-glow)); }
+
+  div[data-snap].snap-hl    { transform: translateY(-3px);
+
+                              box-shadow: 0 8px 20px rgba(0,0,0,.35), 0 0 0 1px var(--snap-glow); }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  circle[data-snap], line[data-snap], div[data-snap] { transition: none; }
+
+}

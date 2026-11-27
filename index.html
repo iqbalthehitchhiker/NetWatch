@@ -129,70 +129,70 @@
             <svg viewBox="0 0 400 240" class="lp-snapshot-svg">
               <!-- Links with cyan decoration color -->
               <line x1="200" y1="50" x2="100" y2="120" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" opacity="0.6"/>
-              <line x1="200" y1="50" x2="300" y2="120" stroke="var(--lp-status-warn)" stroke-width="3" class="snap-link-rtr"/>
+              <line x1="200" y1="50" x2="300" y2="120" stroke="var(--lp-status-warn)" stroke-width="3" class="snap-link-rtr" data-snap="rtr"/>
               <line x1="100" y1="120" x2="100" y2="190" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" opacity="0.6"/>
-              <line x1="300" y1="120" x2="300" y2="190" stroke="var(--lp-status-crit)" stroke-width="3.5" class="snap-link-gw"/>
+              <line x1="300" y1="120" x2="300" y2="190" stroke="var(--lp-status-crit)" stroke-width="3.5" class="snap-link-gw" data-snap="gw"/>
               
               <!-- Nodes with labels beside them -->
-              <circle cx="200" cy="50" r="16" fill="var(--lp-surface)" stroke="var(--lp-brand)" stroke-width="2.5"/>
-              <text x="232" y="55" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-text)">CORE</text>
+              <circle cx="200" cy="50" r="16" fill="var(--lp-surface)" stroke="var(--lp-brand)" stroke-width="2.5" data-snap="core"/>
+              <text x="232" y="55" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-text)" data-snap="core">CORE</text>
               
-              <circle cx="100" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2.5"/>
-              <text x="122" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)">SW1</text>
+              <circle cx="100" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2.5" data-snap="sw1"/>
+              <text x="122" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)" data-snap="sw1">SW1</text>
               
-              <circle cx="300" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-status-warn)" stroke-width="2.5" class="snap-node-rtr"/>
-              <text x="322" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)">RTR</text>
+              <circle cx="300" cy="120" r="14" fill="var(--lp-surface)" stroke="var(--lp-status-warn)" stroke-width="2.5" class="snap-node-rtr" data-snap="rtr"/>
+              <text x="322" y="125" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-text)" data-snap="rtr">RTR</text>
               
-              <circle cx="100" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2"/>
-              <text x="118" y="195" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-muted)">SRV1</text>
+              <circle cx="100" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-cyan-decoration)" stroke-width="2" data-snap="srv1"/>
+              <text x="118" y="195" font-family="var(--lp-font-mono)" font-size="13" fill="var(--lp-muted)" data-snap="srv1">SRV1</text>
               
-              <circle cx="300" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-status-crit)" stroke-width="3" class="snap-node-gw"/>
-              <text x="320" y="196" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-status-crit)">GW</text>
+              <circle cx="300" cy="190" r="12" fill="var(--lp-surface)" stroke="var(--lp-status-crit)" stroke-width="3" class="snap-node-gw" data-snap="gw"/>
+              <text x="320" y="196" font-family="var(--lp-font-mono)" font-size="14" font-weight="600" fill="var(--lp-status-crit)" data-snap="gw">GW</text>
               
               <!-- Alert badge on GW -->
-              <circle cx="315" cy="176" r="7" fill="var(--lp-status-crit)" class="snap-alert-badge"/>
-              <text x="315" y="181" text-anchor="middle" font-family="var(--lp-font-mono)" font-size="11" fill="#fff" font-weight="700" class="snap-alert-badge">!</text>
+              <circle cx="315" cy="176" r="7" fill="var(--lp-status-crit)" class="snap-alert-badge" data-snap="gw"/>
+              <text x="315" y="181" text-anchor="middle" font-family="var(--lp-font-mono)" font-size="11" fill="#fff" font-weight="700" class="snap-alert-badge" data-snap="gw">!</text>
             </svg>
           </div>
           <div class="lp-snapshot-data">
             <!-- Telemetry stats -->
             <div class="lp-snapshot-stats">
-              <div class="lp-snapshot-stat">
+              <div class="lp-snapshot-stat" data-snap="rtr">
                 <span class="lp-snapshot-stat-label">Latency</span>
-                <span class="lp-snapshot-stat-value lp-stat-warn">142ms</span>
+                <span class="lp-snapshot-stat-value lp-stat-warn" data-count="1">142ms</span>
               </div>
-              <div class="lp-snapshot-stat">
+              <div class="lp-snapshot-stat" data-snap="gw">
                 <span class="lp-snapshot-stat-label">Packet Loss</span>
-                <span class="lp-snapshot-stat-value lp-stat-crit">12.3%</span>
+                <span class="lp-snapshot-stat-value lp-stat-crit" data-count="1">12.3%</span>
               </div>
-              <div class="lp-snapshot-stat">
+              <div class="lp-snapshot-stat" data-snap="gw">
                 <span class="lp-snapshot-stat-label">CPU (GW)</span>
-                <span class="lp-snapshot-stat-value lp-stat-warn">78%</span>
+                <span class="lp-snapshot-stat-value lp-stat-warn" data-count="1">78%</span>
               </div>
-              <div class="lp-snapshot-stat">
+              <div class="lp-snapshot-stat" data-snap="jitter">
                 <span class="lp-snapshot-stat-label">Jitter</span>
-                <span class="lp-snapshot-stat-value lp-stat-ok">3ms</span>
+                <span class="lp-snapshot-stat-value lp-stat-ok" data-count="1">3ms</span>
               </div>
             </div>
             
             <!-- Latency chart -->
             <div class="lp-snapshot-chart">
               <div class="lp-snapshot-chart-label">Latency trend</div>
-              <svg viewBox="0 0 160 60" class="lp-snapshot-chart-svg">
+              <svg viewBox="0 0 160 60" class="lp-snapshot-chart-svg" data-snap="rtr">
                 <polyline points="0,48 20,46 40,44 60,38 80,28 100,18 120,12 140,8 160,6"
-                  fill="none" stroke="var(--lp-status-warn)" stroke-width="2.5" class="snap-chart-line"/>
+                  fill="none" stroke="var(--lp-status-warn)" stroke-width="2.5" class="snap-chart-line" data-snap="rtr"/>
                 <polyline points="0,48 20,46 40,44 60,38 80,28 100,18 120,12 140,8 160,6 160,60 0,60"
-                  fill="var(--lp-status-warn)" opacity="0.12" class="snap-chart-fill"/>
+                  fill="var(--lp-status-warn)" opacity="0.12" class="snap-chart-fill" data-snap="rtr"/>
               </svg>
             </div>
             
             <!-- Alerts -->
             <div class="lp-snapshot-alerts">
-              <div class="lp-snapshot-alert lp-snapshot-alert-crit snap-alert-gw">
+              <div class="lp-snapshot-alert lp-snapshot-alert-crit snap-alert-gw" data-snap="gw">
                 <span class="lp-snapshot-alert-ts">12:34:18</span>
                 <span class="lp-snapshot-alert-msg">GW: packet loss &gt; 10%</span>
               </div>
-              <div class="lp-snapshot-alert lp-snapshot-alert-warn snap-alert-rtr">
+              <div class="lp-snapshot-alert lp-snapshot-alert-warn snap-alert-rtr" data-snap="rtr">
                 <span class="lp-snapshot-alert-ts">12:34:12</span>
                 <span class="lp-snapshot-alert-msg">RTR: latency spike detected</span>
               </div>

@@ -2731,6 +2731,138 @@ export async function confirmBulkReset() {
 export function isExplainListenersAttached() { return _explainListenersAttached; }
 export function resetExplainListenersFlag()  { _explainListenersAttached = false; }
 
+function initSnapshotHover() {
+
+  const root = document.getElementById('screen-landing');
+
+  if (!root) return;
+
+  const reduce = typeof window.matchMedia === 'function'
+
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let ready = false;
+
+  let current = null;
+
+  const lastRun = {};
+
+  setTimeout(() => { ready = true; }, 3000); // never replay during the intro
+
+  const members = g => root.querySelectorAll('[data-snap="' + g + '"]');
+
+  function restart(el) {
+
+    if (getComputedStyle(el).animationName === 'none') return;
+
+    el.classList.add('snap-fast');
+
+    el.style.animation = 'none';
+
+    void el.getBoundingClientRect();
+
+    el.style.animation = '';
+
+  }
+
+  function countUp(el) {
+
+    if (typeof requestAnimationFrame !== 'function') return;
+
+    if (!el.dataset.final) el.dataset.final = el.textContent;
+
+    const finalText = el.dataset.final;
+
+    const m = /^(\D*)(\d+(?:\.\d+)?)(.*)$/.exec(finalText);
+
+    if (!m) return;
+
+    const target = parseFloat(m[2]);
+
+    const decimals = (m[2].split('.')[1] || '').length;
+
+    const start = performance.now();
+
+    const token = String(start);
+
+    el.dataset.token = token;
+
+    function step(now) {
+
+      if (el.dataset.token !== token) return;
+
+      const t = Math.min(1, (now - start) / 600);
+
+      const eased = 1 - Math.pow(1 - t, 3);
+
+      el.textContent = m[1] + (target * eased).toFixed(decimals) + m[3];
+
+      if (t < 1) requestAnimationFrame(step);
+
+      else el.textContent = finalText;
+
+    }
+
+    requestAnimationFrame(step);
+
+  }
+
+  function activate(g) {
+
+    members(g).forEach(el => el.classList.add('snap-hl'));
+
+    if (reduce || !ready) return;
+
+    const now = performance.now();
+
+    if (now - (lastRun[g] || 0) < 1000) return;
+
+    lastRun[g] = now;
+
+    members(g).forEach(el => {
+
+      restart(el);
+
+      el.querySelectorAll('[data-count]').forEach(countUp);
+
+    });
+
+  }
+
+  function deactivate(g) {
+
+    members(g).forEach(el => el.classList.remove('snap-hl'));
+
+  }
+
+  root.addEventListener('pointerover', e => {
+
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+
+    const hit = e.target.closest ? e.target.closest('[data-snap]') : null;
+
+    const g = hit ? hit.dataset.snap : null;
+
+    if (g === current) return;
+
+    if (current) deactivate(current);
+
+    current = g;
+
+    if (g) activate(g);
+
+  });
+
+  root.addEventListener('pointerleave', () => {
+
+    if (current) deactivate(current);
+
+    current = null;
+
+  });
+
+}
+
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     // Nav
@@ -2886,6 +3018,8 @@ if (typeof document !== 'undefined') {
     const opt = e.target.closest('.diag-option[data-id]');
     if (opt) pickDiagOption(opt.dataset.id);
   });
+
+  initSnapshotHover();
 }); // end DOMContentLoaded
 } // end typeof document guard
 
