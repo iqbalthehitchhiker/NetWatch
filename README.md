@@ -1,332 +1,189 @@
 <div align="center">
-  <img src="screenshots/logo.png" alt="NetWatch Logo" width="120"/>
-  
-  # NetWatch — Network Monitoring Trainer
+  <img src="screenshots/logo.png" alt="NetWatch logo" width="120"/>
+
+  # NetWatch
+
+  **Learn to diagnose network failures, not just read about them.**
 
   ![Version](https://img.shields.io/badge/version-2.0.0-blue)
+  ![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)
   ![License](https://img.shields.io/badge/license-MIT-green)
 
-  **NetWatch** is an interactive network diagnosis training platform that teaches students and professionals how to monitor, analyze, and diagnose network incidents using real-world signals — without requiring prior networking infrastructure knowledge.
-
-  ![NetWatch Landing Page](screenshots/landing-page.png)
-  *NetWatch landing page — Learn to diagnose network failures*
+  ![NetWatch landing page](screenshots/landing-page.png)
 </div>
 
-## 🎯 What Makes NetWatch Different
+NetWatch is a browser-based training platform for network monitoring and incident diagnosis. Students work through simulated incidents using the same evidence a NOC engineer would see (topology, metrics, alerts, packet captures and logs) and have to name the root cause. It teaches how to read signals and reason from evidence, not how to configure or build networks, so no infrastructure background is needed.
 
-NetWatch focuses on **network monitoring and diagnosis**, not configuration or infrastructure building. Students learn to:
-- Read and interpret telemetry data (latency, packet loss, CPU, throughput)
-- Analyze network topology and device health
-- Investigate packet captures and logs
-- Connect multiple evidence sources to identify root causes
-- Diagnose real-world network incidents through simulation
+## How it works
 
-## 🚀 Features
+Every scenario gives you five views of the same incident:
 
-### Two Learning Modes
+| Evidence | What it shows |
+|---|---|
+| **Topology** | Network map with live link and device health |
+| **Metrics** | Charts for latency, packet loss, CPU, jitter and throughput |
+| **Alerts** | Timestamped events with severity levels |
+| **Packets** | Simulated captures with anomalies highlighted |
+| **Logs** | Device-level events for reconstructing what happened |
 
-#### 🎓 Teach Mode (Open Access)
-- Explanations available for every device, metric, alert, and packet
-- Self-check questions to confirm comprehension (ungraded)
-- No login required
-- Perfect for learning how to read network signals
+There are two modes:
 
-#### 📝 Quiz Mode (Authenticated)
+**Teach mode** needs no login. Every device, metric, alert and packet has an explanation, and short ungraded self-check questions confirm you understood. Start here.
 
-![Quiz Mode Screenshot](screenshots/quiz-mode.png)
-*Quiz Mode — Diagnose network incidents without guidance*
+**Quiz mode** requires a student account. Explanations are hidden. You investigate on your own and submit a root-cause diagnosis from multiple-choice options.
 
-- Explanations hidden — investigate evidence independently
-- Submit root-cause diagnosis from multiple-choice options
-- Attempt-limited per scenario
-- Results recorded server-side
-- Requires student login
+![Quiz mode](screenshots/quiz-mode.png)
 
-### Five Evidence Sources
+Quiz rules:
+- Each student gets **3 attempts per scenario**.
+- Score = `100 − (10 × hints used) − (20 × wrong submissions)`, clamped to 0–100. An incorrect diagnosis scores 0.
+- The score is computed on the server and results are stored server-side.
+- A leaderboard ranks students by best score or fastest time. Only scores of 80 or above qualify, and only display names are shown, never student IDs.
 
-Every network incident provides five complementary views:
+Instructors can add students in bulk, view all results, and reset attempt limits (with a backup of the old counters kept for audit).
 
-1. **Topology** — Visual network map with real-time link health indicators
-2. **Metrics** — Live telemetry charts (latency, packet loss, CPU, jitter, throughput)
-3. **Alerts** — Timestamped event timeline with severity levels
-4. **Packets** — Simulated packet captures with anomaly highlighting
-5. **Logs** — Device-level timestamped events for incident reconstruction
+## Quick start
 
-### Interactive Dashboard
+**Requirements:** Node.js **22.5 or newer** (NetWatch uses the built-in `node:sqlite` module, so there is no native database driver to install) and a modern browser.
 
-- Real-time network simulation engine
-- Linux-inspired terminal aesthetic
-- Light/dark theme support
-- Responsive design
-- Accessibility-compliant interface
-
-## 📋 Prerequisites
-
-- **Node.js** 18+ and **npm**
-- **SQLite3** (bundled with Node.js)
-- Modern web browser (Chrome, Firefox, Edge, Safari)
-
-## 🔧 Installation
-
-```powershell
-# Clone the repository
-git clone https://github.com/yourusername/netwatch.git
-cd netwatch
-
-# Install dependencies
+```bash
+git clone https://github.com/iqbalthehitchhiker/NetWatch.git
+cd NetWatch
 npm install
-
-# Initialize the database with sample data
-npm run seed:student
 ```
-
-## 🏃 Running the Application
-
-### Development Mode (with auto-reload)
-```powershell
-npm run dev
-```
-
-### Production Mode
-```powershell
-npm start
-```
-
-The application will start on `http://localhost:3000`
-
-## 📁 Project Structure
-
-```
-NetWatch/
-├── backend/              # Express.js server
-│   ├── routes/          # API endpoints (auth, admin, attempts, results)
-│   ├── middleware/      # JWT authentication
-│   ├── db.js           # SQLite database interface
-│   ├── server.js       # Express app entry point
-│   └── seed.js         # Database seeding script
-├── src/                 # Frontend modules
-│   ├── renderers/      # UI rendering components
-│   ├── app.js          # Main application orchestrator
-│   ├── auth.js         # Client-side authentication
-│   ├── engine.js       # Network simulation engine
-│   ├── lessons.js      # Lesson definitions and incident scripts
-│   ├── scoring.js      # Quiz scoring logic
-│   └── utils.js        # Shared utilities
-├── public/
-│   └── styles.css      # Application styles
-├── tests/              # Vitest test suite
-└── index.html          # Single-page application shell
-```
-
-## 🧪 Testing
-
-```powershell
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test -- --coverage
-```
-
-Test coverage includes:
-- Backend API endpoints
-- Simulation engine
-- Scoring logic
-- Authentication flows
-- UI component rendering
-
-## 🎓 Usage
-
-### For Students
-
-1. **Explore Teach Mode First** — Visit the landing page and click "Learn how it works"
-2. **Select a Scenario** — Choose from available network incidents
-3. **Watch the Incident Unfold** — Observe metrics, alerts, and device health in real-time
-4. **Investigate Evidence** — Click on devices, alerts, and metrics for explanations
-5. **Practice in Quiz Mode** — Log in and test your diagnostic skills
-
-### For Instructors
-
-1. **Access Admin Panel** — Click "Admin" in the footer
-2. **Manage Students** — Add students, view results, reset attempts
-3. **Monitor Progress** — Track student performance across scenarios
-4. **Seed Instructor Account**:
-   ```powershell
-   npm run seed:instructor
-   ```
-   Default credentials: `instructor` / `instructor123`
-
-## 🗃️ Database Schema
-
-The application uses SQLite with the following core tables:
-
-- **Student_Accounts** — Student authentication (npm, name, password_hash)
-- **Instructor_Accounts** — Instructor authentication (username, name, password_hash)
-- **Attempt_Counters** — 3-attempt limit enforcement per (npm, lesson_id)
-- **Attempts** — Start timestamp for each quiz attempt
-- **Result_Records** — Diagnosis submissions with score, hints, wrong answers, duration
-- **Attempt_Counter_Backups** — Audit trail when instructors reset attempt limits
-
-## 🔐 Authentication
-
-- **JWT-based** authentication with HttpOnly cookies
-- **Bcrypt** password hashing
-- Role-based access (student/instructor)
-- Session persistence across browser restarts
-
-## 🎨 Customization
-
-### Adding New Scenarios
-
-Edit `src/lessons.js` to define new network topologies and incident scripts:
-
-```javascript
-export const LESSONS = [
-  {
-    id: 'my-scenario',
-    title: 'My Custom Scenario',
-    topology: 'branch_office',
-    difficulty: 'medium',
-    skillCards: [...],
-    incident: { /* scripted events */ },
-    diagnoses: [...],
-    correctIndex: 0
-  }
-];
-```
-
-### Styling
-
-All styles are in `public/styles.css` with CSS custom properties for theming:
-
-```css
-:root {
-  --accent: #4a9ebb;
-  --warning: #c8893a;
-  --critical: #c85a4a;
-  /* ... */
-}
-```
-
-## 🛠️ API Endpoints
-
-### Authentication
-- `POST /api/auth/login` — Student login
-- `POST /api/auth/logout` — End session
-- `GET /api/auth/status` — Check authentication
-
-### Attempts & Results
-- `POST /api/attempts/submit` — Submit quiz diagnosis
-- `GET /api/attempts/check/:lessonId` — Check remaining attempts
-- `GET /api/results` — Get student results summary
-
-### Admin
-- `POST /api/admin/students` — Add new student
-- `GET /api/admin/students` — List all students
-- `DELETE /api/admin/students/:id` — Remove student
-- `POST /api/admin/reset-attempts` — Reset student attempts
-
-## 🚦 Environment Variables
 
 Create a `.env` file in the project root:
 
 ```env
-# Server
-PORT=3000
-NODE_ENV=development
-
-# JWT
-JWT_SECRET=your-secret-key-here
-
-# Database
-DB_PATH=./netwatch.db
+JWT_SECRET=change-me-to-a-long-random-string   # required, the server refuses to start without it
+PORT=3000                                      # optional, default 3000
+DB_PATH=./netwatch.db                          # optional, default is netwatch.db in the project root
 ```
 
-## 🤝 Contributing
+Create an instructor account and a student account. The database file is created automatically on first run:
 
-Contributions are welcome! Please follow these guidelines:
+```bash
+npm run seed:instructor -- --username admin --name "Prof. Smith" --password <password>
+npm run seed:student -- --npm 12345 --name "Jane Doe" --password <password>
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Start the app:
 
-## 📝 License
+```bash
+npm start        # production
+npm run dev      # auto-restart on file changes
+```
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+Open `http://localhost:3000`. Teach mode works immediately; log in with the student account for Quiz mode, or use the instructor login to manage students.
 
-## 👤 Author
+## Project structure
 
-**IQBAL**
+```
+NetWatch/
+├── backend/
+│   ├── app.js              # Express app: middleware, routes, static files
+│   ├── server.js           # Starts the app on PORT
+│   ├── db.js               # SQLite schema, migrations and queries
+│   ├── constants.js        # Attempt limit, JWT expiry, bcrypt rounds
+│   ├── rateLimit.js        # Login rate limiting
+│   ├── seed.js             # CLI for creating student/instructor accounts
+│   ├── middleware/auth.js  # Bearer-token checks (student / instructor)
+│   └── routes/             # auth, attempts, results, leaderboard, admin
+├── src/                    # Frontend (plain ES modules, no build step)
+│   ├── app.js              # Main orchestrator
+│   ├── engine.js           # Network simulation engine
+│   ├── lessons.js          # Scenarios, incident scripts and teach lessons
+│   ├── scoring.js          # Client-side score display
+│   ├── self-check.js       # Teach-mode self-check questions
+│   ├── explain-content*.js # Teach-mode explanations
+│   ├── api.js, auth.js     # API client and session handling
+│   └── renderers/          # Topology, charts, alerts, packets, logs, overview
+├── public/                 # Styles and fonts
+├── tests/                  # Vitest suite
+├── docs/                   # Requirements, design and task notes
+└── index.html              # Single-page app shell
+```
 
-## 🙏 Acknowledgments
+## Authentication
 
-- Network simulation inspired by real-world NOC (Network Operations Center) workflows
-- UI/UX design influenced by modern terminal aesthetics and monitoring dashboards
-- Educational methodology based on evidence-based learning principles
+- Login returns a **JWT** (8-hour expiry) in the response body. The frontend stores it in `sessionStorage` and sends it as `Authorization: Bearer <token>`.
+- Passwords are hashed with **bcrypt** (12 rounds).
+- Failed logins are **rate limited** per account and IP.
+- Two roles: `student` (identified by NPM) and `instructor` (identified by username).
+- Logout is client-side: the token is discarded, but it is not revoked server-side and stays valid until it expires.
 
-## 📞 Support
+## API
 
-For questions, issues, or feature requests:
-- Open an issue on GitHub
-- Contact: [iqbalinggil@gmail.com]
+All endpoints are under `/api`. "Student" and "Instructor" mean a valid Bearer token with that role.
 
----
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| POST | `/auth/login` | Public | Student: `{ npm, password }`. Instructor: `{ username, password, role: "instructor" }`. Returns `{ token, name, role }` (plus `displayName` for students) |
+| PATCH | `/auth/display-name` | Student | Set leaderboard name (2–24 characters) |
+| POST | `/attempts` | Student | Start an attempt: `{ lessonId }`. Returns `{ allowed, attemptsUsed, attemptLimit, attemptId }` |
+| GET | `/attempts?studentId&lessonId` | Student | Remaining attempts (read-only, own data only) |
+| POST | `/results` | Student | Submit a diagnosis: `{ lessonId, outcome, hints_used, wrong_answers, attemptId }`. Returns `{ id, recordedAt, score, bestScore }` |
+| GET | `/results?studentId&lessonId` | Student | Own results for one lesson |
+| GET | `/results/all` | Instructor | All results |
+| GET | `/leaderboard` | Public | Query: `lesson` (id or `overall`), `sort` (`score` or `speed`), `minScore` (default 80), `limit`, `offset` |
+| GET | `/admin/students` | Instructor | List students |
+| POST | `/admin/students/bulk` | Instructor | Add students in bulk |
+| DELETE | `/admin/students` | Instructor | Remove students |
+| POST | `/admin/reset` | Instructor | Reset one student's attempts |
+| POST | `/admin/reset/bulk` | Instructor | Reset attempts for many students |
 
-## 🚧 Known Limitations
+Request details for the admin endpoints are in `backend/routes/admin.js`.
 
-### Quiz Mode Security & Timing
+## Database
 
-1. **Answer key exposed client-side**: The correct answer for each lesson is marked with `correct: true` in `src/lessons.js`, which is downloaded by the browser. Students can inspect this in DevTools to cheat. 
-   - **Mitigation options**: Move answer key server-side so the backend validates diagnoses without trusting the client's `outcome` claim, or document as an educational tool limitation.
+SQLite, created and migrated automatically by `backend/db.js`:
 
-2. **Duration includes idle time**: Attempt duration is calculated from the moment `POST /api/attempts` succeeds until `POST /api/results` is received. If a student opens a lesson and walks away, that idle time counts toward their recorded duration.
-   - **Impact**: Leaderboard "speed" rankings may not reflect actual investigation time.
+- `Student_Accounts`: NPM, name, display name, password hash
+- `Instructor_Accounts`: username, name, password hash
+- `Attempt_Counters`: attempts used per (student, lesson)
+- `Attempts`: start time of each attempt, used to compute duration
+- `Result_Records`: outcome, score, hints, wrong answers and duration per submission
+- `Attempt_Counter_Backups`: audit trail when an instructor resets attempts
 
-3. **Abandoned attempts consume counter slots**: The 3-attempt limit increments when a simulation loads, not when a diagnosis is submitted. Navigating away mid-attempt (e.g., closing the tab, returning to landing) counts as a used attempt even though no result was recorded.
-   - **Rationale**: Prevents students from "scouting" scenarios without penalty.
+## Development
 
-4. **No pause/resume**: Once a simulation starts, the timer cannot be paused. Refreshing the page or navigating away abandons the attempt.
+```bash
+npm test                   # Vitest suite
+npm run test -- --coverage # with coverage
+npm run test:integration   # results integration test
+```
 
-5. **Client supplies outcome**: The frontend still determines whether the selected diagnosis is `correct` or `incorrect` before sending to the server. While the server validates the `attemptId` and computes the score from penalties, it does not independently verify correctness against an answer key.
-   - **Current behavior**: An incorrect diagnosis can still score 100 if the client claims `outcome: 'correct'` with 0 hints and 0 wrong answers.
-   - **Impact**: Combined with limitation #1 (exposed answer key), a student can inspect the correct answer in DevTools, select it, and receive full credit.
-   - **Priority fix**: Phase 2 of leaderboard implementation will move outcome validation server-side.
+To add a scenario, add an entry to `src/lessons.js` following an existing one (for example `ddos_edge`). Each scenario defines its topology, scripted incident events and diagnosis options, with the right answer marked `correct: true`.
 
-### Session & Authentication
+Theme colors are CSS custom properties at the top of `public/styles.css`.
 
-6. **Session persistence across page refresh**: JWT tokens are stored in HttpOnly cookies, so login persists across browser restarts. However, in-progress simulations (timers, state) do not persist—refreshing mid-simulation returns the user to the lesson select screen, and the attempt is considered abandoned.
+## Known limitations
 
----
+NetWatch is an educational tool and does not yet defend against a determined student.
 
-## 🔮 Roadmap: Leaderboard & Attempt Timing
+1. **The answer key ships to the browser.** The correct option is marked `correct: true` in `src/lessons.js`, which anyone can read in DevTools.
+2. **The client decides correctness.** The server computes the score but trusts the `outcome` the client sends. Together with #1, a student can claim a correct diagnosis for full credit. The fix is to validate diagnoses server-side.
+3. **Duration includes idle time.** It runs from attempt start to result submission, so speed rankings can be skewed by walking away.
+4. **Abandoned attempts still count.** The attempt counter increments when a simulation loads, which prevents scouting scenarios for free. Closing the tab mid-attempt uses up a slot.
+5. **No pause or resume.** Refreshing mid-simulation abandons the attempt.
+6. **Sessions are per tab.** Closing the tab logs you out, and tokens cannot be revoked before they expire.
+7. **`node:sqlite` is still marked experimental in Node.** It works on current Node releases, but the API could change.
 
-The following features are planned but **not yet implemented**:
+## Roadmap
 
-### Leaderboard (In Progress)
-- [x] Add `Attempts` table with `started_at` timestamp
-- [x] Add `attempt_id` and `duration_seconds` columns to `Result_Records`
-- [x] Server-side score computation (100 − hints×10 − wrong×20, clamped 0–100)
-- [x] Frontend stores and sends `attemptId` with result submission
-- [ ] **Verify incorrect outcomes cannot score above 0** (server validates outcome claim)
-- [ ] **`GET /api/leaderboard`** endpoint (params: `lessonId`, `sort=score|speed`, `minScore` default 80)
-  - Returns: rank, display name (not NPM), best score, duration from that same attempt
-  - Privacy: Never exposes NPM or other PII
-- [ ] **Leaderboard UI tab** in simulation view
-  - Lesson filter (per-lesson + overall aggregate)
-  - Toggle sort: best score or fastest time (among scores ≥ 80)
-  - Display: rank, name, score, duration (MM:SS format)
-- [ ] **Display name vs. full name decision**
-  - Current: `Student_Accounts.name` stores full name
-  - Options: Add separate `display_name` column, or use initials/anonymized identifiers
+- Server-side answer validation (remove `correct` from the client)
+- Idle-time detection for fairer timing
+- Pause and resume for long scenarios
+- Per-lesson attempt limits
 
-### Future Enhancements
-- Pause/resume functionality for long scenarios
-- Idle time detection (track active tab, mouse/keyboard events)
-- Per-lesson attempt limit configuration (override global 3-attempt default)
-- Server-side answer key validation (remove `correct` flag from `lessons.js`)
+## Contributing
 
----
+Fork the repo, create a feature branch, run `npm test`, and open a pull request.
 
-**NetWatch** — Stop reading about network failures. Learn to diagnose them.
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+## Author
+
+**Iqbal** · iqbalinggil@gmail.com
