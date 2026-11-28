@@ -7,7 +7,7 @@
 
   ![Version](https://img.shields.io/badge/version-2.0.0-blue)
   ![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)
-  ![License](https://img.shields.io/badge/license-MIT-green)
+  ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)
 
   ![NetWatch landing page](screenshots/landing-page.png)
 </div>
