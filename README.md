@@ -182,7 +182,7 @@ Fork the repo, create a feature branch, run `npm test`, and open a pull request.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+© 2026 Iqbal. Licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): free to share and adapt with credit, for non-commercial use only. See [LICENSE](LICENSE) for details, including third-party fonts and screenshots.
 
 ## Author
 
